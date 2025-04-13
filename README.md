@@ -12,7 +12,7 @@
   </a>
 </p>
 
-**Zotero MCP** seamlessly connects your [Zotero](https://www.zotero.org/) research library with [Claude](https://www.anthropic.com/claude) and other AI assistants via the [Model Context Protocol](https://modelcontextprotocol.io/introduction). Discuss papers, get summaries, analyze citations, and more!
+**Zotero MCP** seamlessly connects your [Zotero](https://www.zotero.org/) research library with [Claude](https://www.anthropic.com/claude) and other AI assistants via the [Model Context Protocol](https://modelcontextprotocol.io/introduction). Discuss papers, get summaries, analyze citations, extract PDF annotations, and more!
 
 ## 🚀 Quick Install
 
@@ -41,6 +41,11 @@ zotero-mcp setup  # Auto-configure for Claude Desktop
 - Retrieve detailed metadata for any item
 - Get full text content (when available)
 - Access attachments, notes, and child items
+
+### Work with Annotations
+- Extract and search PDF annotations directly
+- Access Zotero's native annotations
+- Create and update notes and annotations
 
 ## 🖥️ Setup & Usage
 
@@ -84,6 +89,8 @@ Example prompts:
 - "Search my library for papers on machine learning"
 - "Find recent articles I've added about climate change"
 - "Summarize the key findings from my paper on quantum computing"
+- "Extract all PDF annotations from my paper on neural networks"
+- "Search my notes and annotations for mentions of 'reinforcement learning'"
 
 ## 🔧 Advanced Configuration
 
@@ -115,6 +122,20 @@ zotero-mcp serve --transport stdio|sse
 zotero-mcp setup --help
 ```
 
+## 📑 PDF Annotation Extraction
+
+Zotero MCP includes advanced PDF annotation extraction capabilities:
+
+- **Direct PDF Processing**: Extract annotations directly from PDF files, even if they're not yet indexed by Zotero
+- **Enhanced Search**: Search through PDF annotations and comments 
+- **Image Annotation Support**: Extract image annotations from PDFs
+- **Seamless Integration**: Works alongside Zotero's native annotation system
+
+For optimal annotation extraction, it is **highly recommended** to install the [Better BibTeX plugin](https://retorque.re/zotero-better-bibtex/installation/) for Zotero. The annotation-related functions have been primarily tested with this plugin and provide enhanced functionality when it's available.
+
+
+The first time you use PDF annotation features, the necessary tools will be automatically downloaded.
+
 ## 📚 Available Tools
 
 ### Search Tools
@@ -129,6 +150,12 @@ zotero-mcp setup --help
 - `zotero_get_item_metadata`: Get detailed metadata
 - `zotero_get_item_fulltext`: Get full text content
 - `zotero_get_item_children`: Get attachments and notes
+
+### Annotation & Notes Tools
+- `zotero_get_annotations`: Get annotations (including direct PDF extraction)
+- `zotero_get_notes`: Retrieve notes from your Zotero library
+- `zotero_search_notes`: Search in notes and annotations (including PDF-extracted)
+- `zotero_create_note`: Create a new note for an item (beta feature)
 
 ## 🔍 Troubleshooting
 
