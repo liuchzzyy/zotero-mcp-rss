@@ -12,7 +12,29 @@
   </a>
 </p>
 
-**Zotero MCP** seamlessly connects your [Zotero](https://www.zotero.org/) research library with [Claude](https://www.anthropic.com/claude) and other AI assistants via the [Model Context Protocol](https://modelcontextprotocol.io/introduction). Discuss papers, get summaries, analyze citations, extract PDF annotations, and more!
+**Zotero MCP** seamlessly connects your [Zotero](https://www.zotero.org/) research library with [Claude](https://www.anthropic.com/claude) and other AI assistants ([Cherry Studio](https://cherry-ai.com/), [Cursor](https://www.cursor.com/), etc.) via the [Model Context Protocol](https://modelcontextprotocol.io/introduction). Discuss papers, get summaries, analyze citations, extract PDF annotations, and more!
+
+## ✨ Features
+
+### 🔍 Search Your Library
+- Find papers, articles, and books by title, author, or content
+- Perform complex searches with multiple criteria
+- Browse collections, tags, and recent additions
+
+### 📚 Access Your Content
+- Retrieve detailed metadata for any item
+- Get full text content (when available)
+- Access attachments, notes, and child items
+
+### 📝 Work with Annotations
+- Extract and search PDF annotations directly
+- Access Zotero's native annotations
+- Create and update notes and annotations
+
+### 🌐 Flexible Access Methods
+- Local method for offline access (no API key needed)
+- Web API for cloud library access
+- Perfect for both local research and remote collaboration
 
 ## 🚀 Quick Install
 
@@ -24,33 +46,36 @@ To install Zotero MCP for Claude Desktop automatically via [Smithery](https://sm
 npx -y @smithery/cli install @54yyyu/zotero-mcp --client claude
 ```
 
-### Installing via pip
+### Manual Installation
+
+#### Installing via uv
+[uv](https://github.com/astral-sh/uv) is the recommended manual installation method. `uv tool` provides automatic Python version installation, dependency resolution, and a isolated Python environment for command line tools.
+
+```bash
+uv tool install "git+https://github.com/54yyyu/zotero-mcp.git"
+zotero-mcp setup  # Auto-configure for Claude Desktop
+```
+
+#### Installing via pip
+
 ```bash
 pip install git+https://github.com/54yyyu/zotero-mcp.git
 zotero-mcp setup  # Auto-configure for Claude Desktop
 ```
 
-## ✨ Features
-
-### Search Your Library
-- Find papers, articles, and books by title, author, or content
-- Perform complex searches with multiple criteria
-- Browse collections, tags, and recent additions
-
-### Access Your Content
-- Retrieve detailed metadata for any item
-- Get full text content (when available)
-- Access attachments, notes, and child items
-
-### Work with Annotations
-- Extract and search PDF annotations directly
-- Access Zotero's native annotations
-- Create and update notes and annotations
-
 ## 🖥️ Setup & Usage
+
+Full documentation is available at [Zotero MCP docs](https://stevenyuyy.us/zotero-mcp/).
+
+**Requirements**
+- Python 3.10+
+- Zotero 7+ (for local API with full-text access)
+- Claude Desktop or compatible AI assistant
+
 
 ### For Claude Desktop
 
+#### Configuration
 After installation, either:
 
 1. **Auto-configure** (recommended):
@@ -73,13 +98,7 @@ After installation, either:
    }
    ```
 
-### Requirements
-
-- Python 3.10+
-- Zotero 7+ (for local API with full-text access)
-- Claude Desktop or compatible AI assistant
-
-### Using Zotero in Claude
+#### Usage
 
 1. Start Zotero desktop (make sure local API is enabled in preferences)
 2. Launch Claude Desktop
@@ -91,6 +110,31 @@ Example prompts:
 - "Summarize the key findings from my paper on quantum computing"
 - "Extract all PDF annotations from my paper on neural networks"
 - "Search my notes and annotations for mentions of 'reinforcement learning'"
+
+### For Cherry Studio
+
+#### Configuration
+Go to Settings -> MCP Servers -> Edit MCP Configuration, and add the following:
+
+```json
+{
+  "mcpServers": {
+    "zotero": {
+      "name": "zotero",
+      "type": "stdio",
+      "isActive": true,
+      "command": "zotero-mcp",
+      "args": [],
+      "env": {
+        "ZOTERO_LOCAL": "true"
+      }
+    }
+  }
+}
+```
+Then click "Save".
+
+Cherry Studio also provides a visual configuration method for general settings and tools selection.
 
 ## 🔧 Advanced Configuration
 
