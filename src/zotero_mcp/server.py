@@ -7,7 +7,7 @@ import os
 import uuid
 import tempfile
 
-from mcp.server.fastmcp import Context, FastMCP
+from fastmcp import Context, FastMCP
 
 from zotero_mcp.client import (
     AttachmentDetails,
