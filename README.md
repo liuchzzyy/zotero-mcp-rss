@@ -109,6 +109,8 @@ Example prompts:
 - "Summarize the key findings from my paper on quantum computing"
 - "Extract all PDF annotations from my paper on neural networks"
 - "Search my notes and annotations for mentions of 'reinforcement learning'"
+- "Show me papers tagged '#Arm' excluding those with '#Crypt' in my library"
+- "Search for papers on operating system with tag '#Arm'"
 
 ### For Cherry Studio
 
@@ -188,6 +190,7 @@ The first time you use PDF annotation features, the necessary tools will be auto
 - `zotero_get_collection_items`: Get items in a collection
 - `zotero_get_tags`: List all tags
 - `zotero_get_recent`: Get recently added items
+- `zotero_search_by_tag`: Search your library using custom tag filters
 
 ### Content Tools
 - `zotero_get_item_metadata`: Get detailed metadata
