@@ -111,6 +111,7 @@ Example prompts:
 - "Search my notes and annotations for mentions of 'reinforcement learning'"
 - "Show me papers tagged '#Arm' excluding those with '#Crypt' in my library"
 - "Search for papers on operating system with tag '#Arm'"
+- "Export the BibTeX citation for papers on machine learning"
 
 ### For Cherry Studio
 
@@ -193,7 +194,7 @@ The first time you use PDF annotation features, the necessary tools will be auto
 - `zotero_search_by_tag`: Search your library using custom tag filters
 
 ### Content Tools
-- `zotero_get_item_metadata`: Get detailed metadata
+- `zotero_get_item_metadata`: Get detailed metadata (supports BibTeX export via `format="bibtex"`)
 - `zotero_get_item_fulltext`: Get full text content
 - `zotero_get_item_children`: Get attachments and notes
 
