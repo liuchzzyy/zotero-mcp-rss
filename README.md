@@ -50,15 +50,7 @@
 
 ## 🚀 Quick Install
 
-### Installing via Smithery
-
-To install Zotero MCP for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@54yyyu/zotero-mcp):
-
-```bash
-npx -y @smithery/cli install @54yyyu/zotero-mcp --client claude
-```
-
-### Manual Installation
+### Default Installation
 
 #### Installing via uv
 
@@ -72,6 +64,14 @@ zotero-mcp setup  # Auto-configure for Claude Desktop
 ```bash
 pip install git+https://github.com/54yyyu/zotero-mcp.git
 zotero-mcp setup  # Auto-configure for Claude Desktop
+```
+
+### Installing via Smithery
+
+To install Zotero MCP for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@54yyyu/zotero-mcp):
+
+```bash
+npx -y @smithery/cli install @54yyyu/zotero-mcp --client claude
 ```
 
 #### Updating Your Installation
@@ -136,24 +136,6 @@ zotero-mcp db-status
 - *"Find papers conceptually similar to this abstract: [paste abstract]"*
 
 The semantic search provides similarity scores and finds papers based on conceptual understanding, not just keyword matching.
-
-### ⚡ Performance & Data Sources
-
-**v0.1.2+** introduces significant performance improvements:
-
-- **Fast by default**: `zotero-mcp update-db` now uses Zotero's web API for metadata-only indexing (much faster)
-- **Full-text on demand**: Use `--fulltext` flag to extract content from local database when needed
-- **Smart data source selection**: 
-  - Without `--fulltext`: Always uses web API (fast, works remotely)
-  - With `--fulltext`: Uses local database if available, falls back to web API
-- **Faster server startup**: Background updates now use fast API-based sync
-
-| Command | Data Source | Content Indexed | Speed | Use Case |
-|---------|-------------|-----------------|-------|-----------|
-| `update-db` | Web API | Titles, abstracts, metadata | 🚀 Fast | Daily updates, remote setups |
-| `update-db --fulltext` | Local DB (if available) | Full PDFs, notes, annotations | 🐌 Slower | Comprehensive research analysis |
-
-**Recommendation**: Use the default fast mode for regular updates, and `--fulltext` when you need comprehensive content analysis.
 
 ## 🖥️ Setup & Usage
 
