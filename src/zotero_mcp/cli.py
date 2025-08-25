@@ -134,6 +134,8 @@ def main():
                                  help="Force complete rebuild of the database")
     update_db_parser.add_argument("--limit", type=int,
                                  help="Limit number of items to process (for testing)")
+    update_db_parser.add_argument("--fulltext", action="store_true",
+                                 help="Extract fulltext content from local Zotero database (slower but more comprehensive)")
     update_db_parser.add_argument("--config-path", 
                                  help="Path to semantic search configuration file")
     
@@ -304,9 +306,12 @@ def main():
             search = create_semantic_search(str(config_path))
             
             print("Starting database update...")
+            if args.fulltext:
+                print("Note: --fulltext flag enabled. Will extract content from local database if available.")
             stats = search.update_database(
                 force_full_rebuild=args.force_rebuild,
-                limit=args.limit
+                limit=args.limit,
+                extract_fulltext=args.fulltext
             )
             
             print(f"\nDatabase update completed:")
