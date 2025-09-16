@@ -1,21 +1,23 @@
 """
 Zotero MCP server implementation.
+
+Note: ChatGPT requires specific tool names "search" and "fetch", and so they
+are defined and used and piped through to the main server tools. See bottom of file for details.
 """
 
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Dict, List, Literal, Optional, Union
 import os
 import sys
 import uuid
-import tempfile
 import asyncio
 import json
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastmcp import Context, FastMCP
 
 from zotero_mcp.client import (
-    AttachmentDetails,
     convert_to_markdown,
     format_item_metadata,
     generate_bibtex,
@@ -23,7 +25,6 @@ from zotero_mcp.client import (
     get_zotero_client,
 )
 from zotero_mcp.utils import format_creators
-
 
 @asynccontextmanager
 async def server_lifespan(server: FastMCP):
@@ -1366,7 +1367,7 @@ def get_annotations(
             
             # Image annotation
             if "_image_path" in data and os.path.exists(data["_image_path"]):
-                output.append(f"**Image:** This annotation includes an image (not displayed in this interface)")
+                output.append("**Image:** This annotation includes an image (not displayed in this interface)")
             
             # Tags
             if tags := data.get("tags"):
@@ -1499,7 +1500,6 @@ def search_notes(
         zot = get_zotero_client()
         
         # Search for notes and annotations
-        results = []
         
         if isinstance(limit, str):
             limit = int(limit)
@@ -1781,7 +1781,7 @@ def semantic_search(
         
         for i, result in enumerate(search_results, 1):
             similarity_score = result.get("similarity_score", 0)
-            metadata = result.get("metadata", {})
+            _ = result.get("metadata", {})
             zotero_item = result.get("zotero_item", {})
             
             if zotero_item:
@@ -1964,3 +1964,141 @@ def get_search_database_status(*, ctx: Context) -> str:
     except Exception as e:
         ctx.error(f"Error getting database status: {str(e)}")
         return f"Error getting database status: {str(e)}"
+
+
+# --- Minimal wrappers for ChatGPT connectors ---
+# These are required for ChatGPT custom MCP servers via web "connectors"
+# specific tools required are "search" and "fetch"
+# See: https://platform.openai.com/docs/mcp
+
+def _extract_item_key_from_input(value: str) -> Optional[str]:
+    """Extract a Zotero item key from a Zotero URL, web URL, or bare key.
+    Returns None if no plausible key is found.
+    """
+    if not value:
+        return None
+    text = value.strip()
+
+    # Common patterns:
+    # - zotero://select/items/<KEY>
+    # - zotero://select/library/items/<KEY>
+    # - https://www.zotero.org/.../items/<KEY>
+    # - bare <KEY>
+    patterns = [
+        r"zotero://select/(?:library/)?items/([A-Za-z0-9]{8})",
+        r"/items/([A-Za-z0-9]{8})(?:[^A-Za-z0-9]|$)",
+        r"\b([A-Za-z0-9]{8})\b",
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, text)
+        if match:
+            return match.group(1)
+    return None
+
+@mcp.tool(
+    name="search",
+    description="ChatGPT-compatible search wrapper. Performs semantic search and returns JSON results."
+)
+def chatgpt_connector_search(
+    query: str,
+    *,
+    ctx: Context
+) -> str:
+    """
+    Returns a JSON-encoded string with shape {"results": [{"id","title","url"}, ...]}.
+    The MCP runtime wraps this string as a single text content item.
+    """
+    try:
+        default_limit = 10
+
+        from zotero_mcp.semantic_search import create_semantic_search
+
+        config_path = Path.home() / ".config" / "zotero-mcp" / "config.json"
+        search = create_semantic_search(str(config_path))
+
+        result_list: List[Dict[str, str]] = []
+        results = search.search(query=query, limit=default_limit, filters=None) or {}
+        for r in results.get("results", []):
+            item_key = r.get("item_key") or ""
+            title = ""
+            if r.get("zotero_item"):
+                data = (r.get("zotero_item") or {}).get("data", {})
+                title = data.get("title", "")
+            if not title:
+                title = f"Zotero Item {item_key}" if item_key else "Zotero Item"
+            url = f"zotero://select/items/{item_key}" if item_key else ""
+            result_list.append({
+                "id": item_key or uuid.uuid4().hex[:8],
+                "title": title,
+                "url": url,
+            })
+
+        return json.dumps({"results": result_list}, separators=(",", ":"))
+    except Exception as e:
+        ctx.error(f"Error in search wrapper: {str(e)}")
+        return json.dumps({"results": []}, separators=(",", ":"))
+
+
+@mcp.tool(
+    name="fetch",
+    description="ChatGPT-compatible fetch wrapper. Retrieves fulltext/metadata for a Zotero item by ID."
+)
+def connector_fetch(
+    id: str,
+    *,
+    ctx: Context
+) -> str:
+    """
+    Returns a JSON-encoded string with shape {"id","title","text","url","metadata":{...}}.
+    The MCP runtime wraps this string as a single text content item.
+    """
+    try:
+        item_key = (id or "").strip()
+        if not item_key:
+            return json.dumps({
+                "id": id,
+                "title": "",
+                "text": "",
+                "url": "",
+                "metadata": {"error": "missing item key"}
+            }, separators=(",", ":"))
+
+        # Fetch item metadata for title and context
+        zot = get_zotero_client()
+        try:
+            item = zot.item(item_key)
+            data = item.get("data", {}) if item else {}
+        except Exception:
+            item = None
+            data = {}
+
+        title = data.get("title", f"Zotero Item {item_key}")
+        url = f"zotero://select/items/{item_key}"
+
+        # Use existing tool to get best-effort fulltext/markdown
+        text_md = get_item_fulltext(item_key=item_key, ctx=ctx)
+
+        metadata = {
+            "itemType": data.get("itemType", ""),
+            "date": data.get("date", ""),
+            "key": item_key,
+            "source": "zotero-mcp"
+        }
+
+        return json.dumps({
+            "id": item_key,
+            "title": title,
+            "text": text_md,
+            "url": url,
+            "metadata": metadata
+        }, separators=(",", ":"))
+    except Exception as e:
+        ctx.error(f"Error in fetch wrapper: {str(e)}")
+        return json.dumps({
+            "id": id,
+            "title": "",
+            "text": "",
+            "url": "",
+            "metadata": {"error": str(e)}
+        }, separators=(",", ":"))
