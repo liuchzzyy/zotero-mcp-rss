@@ -1,4 +1,4 @@
-# Zotero MCP: Your Research Library in Claude
+# Zotero MCP: Chat with your Research Library—Local or Web—in Claude, ChatGPT, and more.
 
 <p align="center">
   <a href="https://www.zotero.org/">
@@ -7,12 +7,15 @@
   <a href="https://www.anthropic.com/claude">
     <img src="https://img.shields.io/badge/Claude-6849C3?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude">
   </a>
+  <a href="https://chatgpt.com/">
+    <img src="https://img.shields.io/badge/ChatGPT-74AA9C?style=for-the-badge&logo=openai&logoColor=white" alt="ChatGPT">
+  </a>
   <a href="https://modelcontextprotocol.io/introduction">
     <img src="https://img.shields.io/badge/MCP-0175C2?style=for-the-badge&logoColor=white" alt="MCP">
   </a>
 </p>
 
-**Zotero MCP** seamlessly connects your [Zotero](https://www.zotero.org/) research library with [Claude](https://www.anthropic.com/claude) and other AI assistants ([Cherry Studio](https://cherry-ai.com/), [Cursor](https://www.cursor.com/), etc.) via the [Model Context Protocol](https://modelcontextprotocol.io/introduction). Discuss papers, get summaries, analyze citations, extract PDF annotations, and more!
+**Zotero MCP** seamlessly connects your [Zotero](https://www.zotero.org/) research library with [ChatGPT](https://openai.com), [Claude](https://www.anthropic.com/claude), and other AI assistants (e.g., [Cherry Studio](https://cherry-ai.com/), [Chorus](https://chorus.sh), [Cursor](https://www.cursor.com/)) via the [Model Context Protocol](https://modelcontextprotocol.io/introduction). Review papers, get summaries, analyze citations, extract PDF annotations, and more!
 
 ## ✨ Features
 
@@ -56,19 +59,19 @@
 
 ```bash
 uv tool install "git+https://github.com/54yyyu/zotero-mcp.git"
-zotero-mcp setup  # Auto-configure for Claude Desktop
+zotero-mcp setup  # Auto-configure (Claude Desktop supported)
 ```
 
 #### Installing via pip
 
 ```bash
 pip install git+https://github.com/54yyyu/zotero-mcp.git
-zotero-mcp setup  # Auto-configure for Claude Desktop
+zotero-mcp setup  # Auto-configure (Claude Desktop supported)
 ```
 
 ### Installing via Smithery
 
-To install Zotero MCP for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@54yyyu/zotero-mcp):
+To install Zotero MCP via [Smithery](https://smithery.ai/server/@54yyyu/zotero-mcp) for Claude Desktop:
 
 ```bash
 npx -y @smithery/cli install @54yyyu/zotero-mcp --client claude
@@ -128,7 +131,7 @@ zotero-mcp update-db --fulltext
 zotero-mcp db-status
 ```
 
-**Example Semantic Queries in Claude:**
+**Example Semantic Queries in your AI assistant:**
 - *"Find research similar to machine learning concepts in neuroscience"*
 - *"Papers that discuss climate change impacts on agriculture"*
 - *"Research related to quantum computing applications"*
@@ -144,10 +147,11 @@ Full documentation is available at [Zotero MCP docs](https://stevenyuyy.us/zoter
 **Requirements**
 - Python 3.10+
 - Zotero 7+ (for local API with full-text access)
-- Claude Desktop or compatible AI assistant
+- An MCP-compatible client (e.g., Claude Desktop, ChatGPT Developer Mode, Cherry Studio, Chorus)
 
+**For ChatGPT setup: see the [Getting Started guide](./docs/getting-started.md).**
 
-### For Claude Desktop
+### For Claude Desktop (example MCP client)
 
 #### Configuration
 After installation, either:
@@ -322,7 +326,7 @@ The first time you use PDF annotation features, the necessary tools will be auto
 - **Installation/search option switching issues**: Database problems from changing install methods or search options can often be resolved with `zotero-mcp update-db --force-rebuild`
 
 ### Semantic Search Issues
-- **"Missing required environment variables" when running update-db**: Run `zotero-mcp setup` to configure your environment, or the CLI will automatically load settings from Claude Desktop config
+- **"Missing required environment variables" when running update-db**: Run `zotero-mcp setup` to configure your environment, or the CLI will automatically load settings from your MCP client config (e.g., Claude Desktop)
 - **ChromaDB warnings**: Update to the latest version - deprecation warnings have been fixed
 - **Database update takes long**: By default, `update-db` is fast (metadata-only). For comprehensive indexing with full-text, use `--fulltext` flag. Use `--limit` parameter for testing: `zotero-mcp update-db --limit 100`
 - **Semantic search returns no results**: Ensure the database is initialized with `zotero-mcp update-db` and check status with `zotero-mcp db-status`

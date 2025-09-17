@@ -38,7 +38,10 @@ def obfuscate_config_for_display(config):
 
 
 def load_claude_desktop_env_vars():
-    """Load Zotero environment variables from Claude Desktop config."""
+    """Load Zotero environment variables from Claude Desktop config unless globally disabled."""
+    # Global guard to skip Claude detection entirely
+    if str(os.environ.get("ZOTERO_NO_CLAUDE", "")).lower() in ("1", "true", "yes"):
+        return {}
     from zotero_mcp.setup_helper import find_claude_config
     
     try:
@@ -60,6 +63,20 @@ def load_claude_desktop_env_vars():
         return {}
 
 
+def load_standalone_env_vars():
+    """Load environment variables from standalone config (~/.config/zotero-mcp/config.json)."""
+    try:
+        from pathlib import Path
+        cfg_path = Path.home() / ".config" / "zotero-mcp" / "config.json"
+        if not cfg_path.exists():
+            return {}
+        with open(cfg_path, 'r') as f:
+            cfg = json.load(f)
+        return cfg.get("client_env", {}) or {}
+    except Exception:
+        return {}
+
+
 def apply_environment_variables(env_vars):
     """Apply environment variables to current process."""
     for key, value in env_vars.items():
@@ -69,18 +86,23 @@ def apply_environment_variables(env_vars):
 
 def setup_zotero_environment():
     """Setup Zotero environment for CLI commands."""
-    # Load environment variables from Claude Desktop config
-    claude_env_vars = load_claude_desktop_env_vars()
-    
+    # Load standalone env first so global flags (e.g., ZOTERO_NO_CLAUDE) take effect
+    standalone_env_vars = load_standalone_env_vars()
+    apply_environment_variables(standalone_env_vars)
+
+    # Respect global switch to disable Claude detection
+    no_claude = str(os.environ.get("ZOTERO_NO_CLAUDE", "")).lower() in ("1", "true", "yes")
+
+    # Load and apply Claude Desktop env unless disabled
+    if not no_claude:
+        claude_env_vars = load_claude_desktop_env_vars()
+        apply_environment_variables(claude_env_vars)
+
     # Apply fallback defaults for local Zotero if no config found
     fallback_env_vars = {
         "ZOTERO_LOCAL": "true",
         "ZOTERO_LIBRARY_ID": "0",
     }
-    
-    # Apply Claude Desktop env vars first
-    apply_environment_variables(claude_env_vars)
-    
     # Apply fallbacks only if not already set
     apply_environment_variables(fallback_env_vars)
 
@@ -115,13 +137,15 @@ def main():
     )
     
     # Setup command
-    setup_parser = subparsers.add_parser("setup", help="Configure zotero-mcp for Claude Desktop")
+    setup_parser = subparsers.add_parser("setup", help="Configure zotero-mcp (Claude Desktop or standalone)")
     setup_parser.add_argument("--no-local", action="store_true", 
                              help="Configure for Zotero Web API instead of local API")
     setup_parser.add_argument("--api-key", help="Zotero API key (only needed with --no-local)")
     setup_parser.add_argument("--library-id", help="Zotero library ID (only needed with --no-local)")
     setup_parser.add_argument("--library-type", choices=["user", "group"], default="user", 
                              help="Zotero library type (only needed with --no-local)")
+    setup_parser.add_argument("--no-claude", action="store_true",
+                             help="Skip Claude Desktop config; write standalone config for web-based clients")
     setup_parser.add_argument("--config-path", help="Path to Claude Desktop config file")
     setup_parser.add_argument("--skip-semantic-search", action="store_true", 
                              help="Skip semantic search configuration")
@@ -189,12 +213,15 @@ def main():
         if not executable_path:
             executable_path = sys.executable + " -m zotero_mcp"
         
-        # Load current environment configuration
-        claude_env_vars = load_claude_desktop_env_vars()
+        # Determine whether Claude is disabled globally
+        no_claude = str(os.environ.get("ZOTERO_NO_CLAUDE", "")).lower() in ("1", "true", "yes")
+
+        # Load current environment configurations
+        standalone_env_vars = load_standalone_env_vars()
+        claude_env_vars = {} if no_claude else load_claude_desktop_env_vars()
         
-        # If no Claude config found, use defaults
-        if not claude_env_vars:
-            claude_env_vars = {"ZOTERO_LOCAL": "true"}
+        # Choose which env to display: prefer standalone if present or if Claude disabled
+        display_env = standalone_env_vars if (no_claude or standalone_env_vars) else (claude_env_vars or {"ZOTERO_LOCAL": "true"})
         
         print("=== Zotero MCP Setup Information ===")
         print()
@@ -225,21 +252,24 @@ def main():
         print("  Arguments: [] (empty)")
         
         # Show environment variables with obfuscated sensitive values
-        obfuscated_env_vars = obfuscate_config_for_display(claude_env_vars)
+        obfuscated_env_vars = obfuscate_config_for_display(display_env)
         print(f"  Environment (single-line): {json.dumps(obfuscated_env_vars, separators=(',', ':'))}")
         print("  💡 Note: This shows client config. Shell variables may override for CLI use.")
+        print(f"  Claude integration: {'disabled' if no_claude else 'enabled'}")
         
-        print()
-        print("For Claude Desktop (claude_desktop_config.json):")
-        config_snippet = {
-            "mcpServers": {
-                "zotero": {
-                    "command": executable_path,
-                    "env": obfuscated_env_vars
+        # Only show Claude Desktop config if not globally disabled
+        if not no_claude:
+            print()
+            print("For Claude Desktop (claude_desktop_config.json):")
+            config_snippet = {
+                "mcpServers": {
+                    "zotero": {
+                        "command": executable_path,
+                        "env": obfuscated_env_vars
+                    }
                 }
             }
-        }
-        print(json.dumps(config_snippet, indent=2))
+            print(json.dumps(config_snippet, indent=2))
         
         # Show semantic search database info with detailed statistics
         print()
@@ -525,6 +555,8 @@ def main():
     elif args.command == "serve":
         # Get transport with a default value if not specified
         transport = getattr(args, "transport", "stdio")
+        # Ensure environment is initialized (Claude config or standalone config)
+        setup_zotero_environment()
         if transport == "stdio":
             mcp.run(transport="stdio")
         elif transport == "streamable-http":
