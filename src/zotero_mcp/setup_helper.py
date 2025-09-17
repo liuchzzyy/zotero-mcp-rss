@@ -404,7 +404,7 @@ def update_claude_config(config_path, zotero_mcp_path, local=True, api_key=None,
     return config_path
 
 
-def _write_standalone_config(local: bool, api_key: str, library_id: str, library_type: str, semantic_config: dict) -> Path:
+def _write_standalone_config(local: bool, api_key: str, library_id: str, library_type: str, semantic_config: dict, no_claude: bool = False) -> Path:
     """Write a central config file used by semantic search and provide client env."""
     cfg_dir = Path.home() / ".config" / "zotero-mcp"
     cfg_dir.mkdir(parents=True, exist_ok=True)
@@ -427,6 +427,9 @@ def _write_standalone_config(local: bool, api_key: str, library_id: str, library
     client_env = {
         "ZOTERO_LOCAL": "true" if local else "false"
     }
+    # Persist global guard to disable Claude detection/output if requested
+    if no_claude:
+        client_env["ZOTERO_NO_CLAUDE"] = "true"
     if not local:
         if api_key:
             client_env["ZOTERO_API_KEY"] = api_key
@@ -553,7 +556,8 @@ def main(cli_args=None):
                 api_key=api_key,
                 library_id=library_id,
                 library_type=library_type,
-                semantic_config=semantic_config
+                semantic_config=semantic_config,
+                no_claude=args.no_claude
             )
             print("\nSetup complete (standalone/web mode)!")
             print(f"Config saved to: {cfg_path}")
