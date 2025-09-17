@@ -60,6 +60,20 @@ def load_claude_desktop_env_vars():
         return {}
 
 
+def load_standalone_env_vars():
+    """Load environment variables from standalone config (~/.config/zotero-mcp/config.json)."""
+    try:
+        from pathlib import Path
+        cfg_path = Path.home() / ".config" / "zotero-mcp" / "config.json"
+        if not cfg_path.exists():
+            return {}
+        with open(cfg_path, 'r') as f:
+            cfg = json.load(f)
+        return cfg.get("client_env", {}) or {}
+    except Exception:
+        return {}
+
+
 def apply_environment_variables(env_vars):
     """Apply environment variables to current process."""
     for key, value in env_vars.items():
@@ -71,6 +85,8 @@ def setup_zotero_environment():
     """Setup Zotero environment for CLI commands."""
     # Load environment variables from Claude Desktop config
     claude_env_vars = load_claude_desktop_env_vars()
+    # Load environment variables from standalone config
+    standalone_env_vars = load_standalone_env_vars()
     
     # Apply fallback defaults for local Zotero if no config found
     fallback_env_vars = {
@@ -80,6 +96,8 @@ def setup_zotero_environment():
     
     # Apply Claude Desktop env vars first
     apply_environment_variables(claude_env_vars)
+    # Then apply standalone config env (without overriding existing env)
+    apply_environment_variables(standalone_env_vars)
     
     # Apply fallbacks only if not already set
     apply_environment_variables(fallback_env_vars)
@@ -115,13 +133,15 @@ def main():
     )
     
     # Setup command
-    setup_parser = subparsers.add_parser("setup", help="Configure zotero-mcp for Claude Desktop")
+    setup_parser = subparsers.add_parser("setup", help="Configure zotero-mcp (Claude Desktop or standalone)")
     setup_parser.add_argument("--no-local", action="store_true", 
                              help="Configure for Zotero Web API instead of local API")
     setup_parser.add_argument("--api-key", help="Zotero API key (only needed with --no-local)")
     setup_parser.add_argument("--library-id", help="Zotero library ID (only needed with --no-local)")
     setup_parser.add_argument("--library-type", choices=["user", "group"], default="user", 
                              help="Zotero library type (only needed with --no-local)")
+    setup_parser.add_argument("--no-claude", action="store_true",
+                             help="Skip Claude Desktop config; write standalone config for web-based clients")
     setup_parser.add_argument("--config-path", help="Path to Claude Desktop config file")
     setup_parser.add_argument("--skip-semantic-search", action="store_true", 
                              help="Skip semantic search configuration")
@@ -525,6 +545,8 @@ def main():
     elif args.command == "serve":
         # Get transport with a default value if not specified
         transport = getattr(args, "transport", "stdio")
+        # Ensure environment is initialized (Claude config or standalone config)
+        setup_zotero_environment()
         if transport == "stdio":
             mcp.run(transport="stdio")
         elif transport == "streamable-http":
