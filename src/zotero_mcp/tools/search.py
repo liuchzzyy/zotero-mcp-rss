@@ -306,7 +306,7 @@ def register_search_tools(mcp: FastMCP) -> None:
         """
         try:
             # Import semantic search module
-            from zotero_mcp.semantic_search import semantic_search
+            from zotero_mcp.services.semantic import semantic_search
 
             results = await semantic_search(
                 query=query,

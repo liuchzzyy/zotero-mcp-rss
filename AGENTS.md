@@ -10,14 +10,19 @@ AI agents working on this codebase should follow these guidelines.
 The project follows a modular, layered architecture:
 
 - `src/zotero_mcp/server.py` - Main entry point, registers tools and starts server
-- `src/zotero_mcp/tools/` - MCP tool definitions (Search, Items, Annotations, Database)
-- `src/zotero_mcp/services/` - Business logic layer (Unified Data Access)
-- `src/zotero_mcp/clients/` - Data access adapters (Zotero API, Local DB, Better BibTeX)
-- `src/zotero_mcp/models/` - Pydantic data models for type safety
-- `src/zotero_mcp/utils/` - Configuration, helpers, and error handling
-- `src/zotero_mcp/formatters/` - Response formatting (Markdown, JSON, BibTeX)
 - `src/zotero_mcp/cli.py` - Command-line interface
-- `src/zotero_mcp/semantic_search.py` - Vector search implementation
+- `src/zotero_mcp/tools/` - MCP tool definitions (Search, Items, Annotations, Database)
+- `src/zotero_mcp/services/` - Business logic layer
+    - `data_access.py`: Unified Data Access (Local DB / Web API / Better BibTeX)
+    - `semantic.py`: Vector search logic (ChromaDB wrapper)
+- `src/zotero_mcp/clients/` - Low-level data adapters
+    - `zotero_client.py`: Web/Local API client
+    - `local_db.py`: Direct SQLite access
+    - `better_bibtex.py`: JSON-RPC client
+    - `chroma.py`: ChromaDB vector store client
+- `src/zotero_mcp/models/` - Pydantic data models for type safety
+- `src/zotero_mcp/utils/` - Configuration, helpers, setup, and updater
+- `src/zotero_mcp/formatters/` - Response formatting (Markdown, JSON, BibTeX)
 
 ---
 

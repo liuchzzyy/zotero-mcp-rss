@@ -224,7 +224,7 @@ def main():
 
         # Check semantic search
         try:
-            from zotero_mcp.semantic_search import create_semantic_search
+            from zotero_mcp.services.semantic import create_semantic_search
 
             search = create_semantic_search()
             status = search.get_database_status()
@@ -242,14 +242,14 @@ def main():
         sys.exit(0)
 
     elif args.command == "setup":
-        from zotero_mcp.setup_helper import main as setup_main
+        from zotero_mcp.utils.setup import main as setup_main
 
         sys.exit(setup_main(args))
 
     elif args.command == "update-db":
         # Ensure environment is loaded
         load_config()
-        from zotero_mcp.semantic_search import create_semantic_search
+        from zotero_mcp.services.semantic import create_semantic_search
 
         config_path = args.config_path
         db_path = getattr(args, "db_path", None)
@@ -283,7 +283,7 @@ def main():
 
     elif args.command == "db-status":
         load_config()
-        from zotero_mcp.semantic_search import create_semantic_search
+        from zotero_mcp.services.semantic import create_semantic_search
 
         try:
             search = create_semantic_search(args.config_path)
@@ -295,7 +295,7 @@ def main():
 
     elif args.command == "db-inspect":
         load_config()
-        from zotero_mcp.semantic_search import create_semantic_search
+        from zotero_mcp.services.semantic import create_semantic_search
 
         try:
             search = create_semantic_search(args.config_path)
@@ -323,7 +323,7 @@ def main():
             sys.exit(1)
 
     elif args.command == "update":
-        from zotero_mcp.updater import update_zotero_mcp
+        from zotero_mcp.utils.updater import update_zotero_mcp
 
         update_zotero_mcp(
             check_only=args.check_only, force=args.force, method=args.method

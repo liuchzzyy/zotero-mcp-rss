@@ -7,14 +7,14 @@ your research library, search for papers, and manage annotations.
 
 from fastmcp import FastMCP
 
-from zotero_mcp import _version
+from zotero_mcp import __version__
 from zotero_mcp.tools import register_all_tools
 from zotero_mcp.utils.config import load_config
 
 # Initialize FastMCP server
 mcp = FastMCP(
     name="Zotero",
-    version=_version.__version__,
+    version=__version__,
     description="Access your Zotero research library (local or web)",
 )
 

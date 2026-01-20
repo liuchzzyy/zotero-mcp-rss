@@ -1,4 +1,4 @@
-# Zotero MCP: Chat with your Research Library—Local or Web—in Claude, ChatGPT, and more.
+# Zotero MCP: Chat with your Research Library—Local or Web—in Claude and more.
 
 <p align="center">
   <a href="https://www.zotero.org/">
@@ -7,15 +7,12 @@
   <a href="https://www.anthropic.com/claude">
     <img src="https://img.shields.io/badge/Claude-6849C3?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude">
   </a>
-  <a href="https://chatgpt.com/">
-    <img src="https://img.shields.io/badge/ChatGPT-74AA9C?style=for-the-badge&logo=openai&logoColor=white" alt="ChatGPT">
-  </a>
   <a href="https://modelcontextprotocol.io/introduction">
     <img src="https://img.shields.io/badge/MCP-0175C2?style=for-the-badge&logoColor=white" alt="MCP">
   </a>
 </p>
 
-**Zotero MCP** seamlessly connects your [Zotero](https://www.zotero.org/) research library with [ChatGPT](https://openai.com), [Claude](https://www.anthropic.com/claude), and other AI assistants (e.g., [Cherry Studio](https://cherry-ai.com/), [Chorus](https://chorus.sh), [Cursor](https://www.cursor.com/)) via the [Model Context Protocol](https://modelcontextprotocol.io/introduction). Review papers, get summaries, analyze citations, extract PDF annotations, and more!
+**Zotero MCP** seamlessly connects your [Zotero](https://www.zotero.org/) research library with [Claude](https://www.anthropic.com/claude) and other AI assistants (e.g., [Cherry Studio](https://cherry-ai.com/), [Chorus](https://chorus.sh), [Cursor](https://www.cursor.com/)) via the [Model Context Protocol](https://modelcontextprotocol.io/introduction). Review papers, get summaries, analyze citations, extract PDF annotations, and more!
 
 ## ✨ Features
 
@@ -42,8 +39,7 @@
 - Create and update notes and annotations
 
 ### 🔄 Easy Updates
-- **Smart update system** that detects your installation method (uv, pip, conda, pipx)
-- **Configuration preservation** - all settings maintained during updates
+- **Smart update system** that preserves your configuration
 - **Version checking** and automatic update notifications
 
 ### 🌐 Flexible Access Methods
@@ -53,19 +49,12 @@
 
 ## 🚀 Quick Install
 
-### Default Installation
+We recommend using `uv` for installation.
 
-#### Installing via uv
+### Default Installation
 
 ```bash
 uv tool install "git+https://github.com/54yyyu/zotero-mcp.git"
-zotero-mcp setup  # Auto-configure (Claude Desktop supported)
-```
-
-#### Installing via pip
-
-```bash
-pip install git+https://github.com/54yyyu/zotero-mcp.git
 zotero-mcp setup  # Auto-configure (Claude Desktop supported)
 ```
 
@@ -77,7 +66,7 @@ To install Zotero MCP via [Smithery](https://smithery.ai/server/@54yyyu/zotero-m
 npx -y @smithery/cli install @54yyyu/zotero-mcp --client claude
 ```
 
-#### Updating Your Installation
+### Updating Your Installation
 
 Keep zotero-mcp up to date with the smart update command:
 
@@ -130,8 +119,6 @@ zotero-mcp update-db --fulltext
 # Use your custom zotero.sqlite path
 zotero-mcp update-db --fulltext --db-path "/Your_custom_path/zotero.sqlite"
 
-If you have embedding confilts when using `zotero-mcp update-db --fulltext`, use `--force-rebuild` to force a rebuild.
-
 # Check database status
 zotero-mcp db-status
 ```
@@ -152,9 +139,9 @@ Full documentation is available at [Zotero MCP docs](https://stevenyuyy.us/zoter
 **Requirements**
 - Python 3.10+
 - Zotero 7+ (for local API with full-text access)
-- An MCP-compatible client (e.g., Claude Desktop, ChatGPT Developer Mode, Cherry Studio, Chorus)
+- An MCP-compatible client (e.g., Claude Desktop, Cherry Studio, Chorus)
 
-**For ChatGPT setup: see the [Getting Started guide](./docs/getting-started.md).**
+See the [Getting Started guide](./docs/getting-started.md) for detailed instructions.
 
 ### For Claude Desktop (example MCP client)
 
@@ -194,11 +181,8 @@ Example prompts:
 - "Extract all PDF annotations from my paper on neural networks"
 - "Search my notes and annotations for mentions of 'reinforcement learning'"
 - "Show me papers tagged '#Arm' excluding those with '#Crypt' in my library"
-- "Search for papers on operating system with tag '#Arm'"
 - "Export the BibTeX citation for papers on machine learning"
 - **"Find papers conceptually similar to deep learning in computer vision"** *(semantic search)*
-- **"Research that relates to the intersection of AI and healthcare"** *(semantic search)*
-- **"Papers that discuss topics similar to this abstract: [paste text]"** *(semantic search)*
 
 ### For Cherry Studio
 
@@ -302,11 +286,11 @@ The first time you use PDF annotation features, the necessary tools will be auto
 
 ### 🧠 Semantic Search Tools
 - `zotero_semantic_search`: AI-powered similarity search with embedding models
-- `zotero_update_search_database`: Manually update the semantic search database
-- `zotero_get_search_database_status`: Check database status and configuration
+- `zotero_update_database`: Manually update the semantic search database
+- `zotero_database_status`: Check database status and configuration
 
 ### 🔍 Search Tools
-- `zotero_search_items`: Search your library by keywords
+- `zotero_search`: Search your library by keywords
 - `zotero_advanced_search`: Perform complex searches with multiple criteria
 - `zotero_get_collections`: List collections
 - `zotero_get_collection_items`: Get items in a collection
@@ -315,9 +299,10 @@ The first time you use PDF annotation features, the necessary tools will be auto
 - `zotero_search_by_tag`: Search your library using custom tag filters
 
 ### 📚 Content Tools
-- `zotero_get_item_metadata`: Get detailed metadata (supports BibTeX export via `format="bibtex"`)
-- `zotero_get_item_fulltext`: Get full text content
-- `zotero_get_item_children`: Get attachments and notes
+- `zotero_get_metadata`: Get detailed metadata (supports BibTeX export via `format="bibtex"`)
+- `zotero_get_fulltext`: Get full text content
+- `zotero_get_children`: Get attachments and notes
+- `zotero_get_bundle`: Get comprehensive item data bundle (NEW)
 
 ### 📝 Annotation & Notes Tools
 - `zotero_get_annotations`: Get annotations (including direct PDF extraction)
@@ -331,12 +316,11 @@ The first time you use PDF annotation features, the necessary tools will be auto
 - **No results found**: Ensure Zotero is running and the local API is enabled. You need to toggle on `Allow other applications on this computer to communicate with Zotero` in Zotero preferences.
 - **Can't connect to library**: Check your API key and library ID if using web API
 - **Full text not available**: Make sure you're using Zotero 7+ for local full-text access
-- **Local library limitations**: Some functionality (tagging, library modifications) may not work with local JS API. Consider using web library setup for full functionality. (See the [docs](docs/getting-started.md#local-library-limitations) for more info.)
+- **Local library limitations**: Some functionality (tagging, library modifications) may not work with local JS API. Consider using web library setup for full functionality.
 - **Installation/search option switching issues**: Database problems from changing install methods or search options can often be resolved with `zotero-mcp update-db --force-rebuild`
 
 ### Semantic Search Issues
 - **"Missing required environment variables" when running update-db**: Run `zotero-mcp setup` to configure your environment, or the CLI will automatically load settings from your MCP client config (e.g., Claude Desktop)
-- **ChromaDB warnings**: Update to the latest version - deprecation warnings have been fixed
 - **Database update takes long**: By default, `update-db` is fast (metadata-only). For comprehensive indexing with full-text, use `--fulltext` flag. Use `--limit` parameter for testing: `zotero-mcp update-db --limit 100`
 - **Semantic search returns no results**: Ensure the database is initialized with `zotero-mcp update-db` and check status with `zotero-mcp db-status`
 - **Limited search quality**: For better semantic search results, use `zotero-mcp update-db --fulltext` to index full-text content (requires local Zotero setup)

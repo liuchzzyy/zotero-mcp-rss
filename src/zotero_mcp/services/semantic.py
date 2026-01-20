@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from zotero_mcp.chroma_client import ChromaClient, create_chroma_client
+from zotero_mcp.clients.chroma import ChromaClient, create_chroma_client
 from zotero_mcp.clients.zotero_client import get_zotero_client
 from zotero_mcp.clients.local_db import LocalDatabaseClient, get_local_database_client
 from zotero_mcp.utils.helpers import format_creators, is_local_mode
