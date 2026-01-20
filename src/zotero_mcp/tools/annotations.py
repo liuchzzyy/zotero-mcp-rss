@@ -8,13 +8,26 @@ Provides tools for working with annotations and notes:
 - zotero_create_note: Create a new note
 """
 
-from typing import Literal
+import re
 
-from fastmcp import FastMCP, Context
+from fastmcp import Context, FastMCP
+from fastmcp.tools.base import ToolAnnotations
 
-from zotero_mcp.models.common import ResponseFormat
+from zotero_mcp.models.annotations import (
+    CreateNoteInput,
+    GetAnnotationsInput,
+    GetNotesInput,
+    SearchNotesInput,
+)
+from zotero_mcp.models.common import (
+    AnnotationItem,
+    AnnotationsResponse,
+    NoteCreationResponse,
+    NotesResponse,
+    SearchResponse,
+    SearchResultItem,
+)
 from zotero_mcp.services import get_data_service
-from zotero_mcp.utils.errors import handle_error
 
 
 def register_annotation_tools(mcp: FastMCP) -> None:
@@ -22,188 +35,268 @@ def register_annotation_tools(mcp: FastMCP) -> None:
 
     @mcp.tool(
         name="zotero_get_annotations",
-        description="Get PDF annotations (highlights, notes, comments) for a Zotero item. "
-        "Requires Better BibTeX plugin for best results.",
+        annotations=ToolAnnotations(
+            title="Get PDF Annotations",
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
+            openWorldHint=False,
+        ),
     )
     async def zotero_get_annotations(
-        item_key: str,
-        annotation_type: Literal["all", "highlight", "note", "underline"] = "all",
-        response_format: Literal["markdown", "json"] = "markdown",
-        *,
-        ctx: Context,
-    ) -> str:
+        params: GetAnnotationsInput, ctx: Context
+    ) -> AnnotationsResponse:
         """
-        Get PDF annotations for an item.
+        Get PDF annotations (highlights, notes, comments) for a Zotero item.
+
+        Requires Better BibTeX plugin for best results. Supports direct PDF
+        extraction as fallback when Better BibTeX is unavailable.
 
         Args:
-            item_key: Zotero item key
-            annotation_type: Filter by annotation type
-            response_format: Output format
+            params: Input containing:
+                - item_key (str | None): Zotero item key to filter by. None for all annotations
+                - annotation_type (str): Filter by annotation type ("all", "highlight", "note", "underline", "image")
+                - use_pdf_extraction (bool): Whether to attempt direct PDF extraction as fallback
+                - response_format (str): Output format preference (inherited from BaseInput)
+                - offset (int): Pagination offset (inherited from PaginatedInput)
+                - limit (int): Maximum results (inherited from PaginatedInput)
 
         Returns:
-            Annotations for the item
+            AnnotationsResponse: Structured annotations with metadata.
+
+        Example:
+            Use when: "Get all highlights from this paper"
+            Use when: "Show me annotations on page 5"
+            Use when: "Extract comments and notes from the PDF"
         """
         try:
             service = get_data_service()
-            annotations = await service.get_annotations(item_key.strip().upper())
+
+            # Get annotations for item
+            if not params.item_key:
+                await ctx.error("item_key is required for get_annotations")
+                return AnnotationsResponse(
+                    success=False,
+                    error="item_key is required",
+                    item_key="",
+                    count=0,
+                    annotations=[],
+                )
+
+            item_key_normalized = params.item_key.strip().upper()
+            annotations = await service.get_annotations(item_key_normalized)
 
             if not annotations:
-                return f"No annotations found for item {item_key}."
+                return AnnotationsResponse(
+                    item_key=item_key_normalized,
+                    count=0,
+                    annotations=[],
+                )
 
             # Filter by type if specified
-            if annotation_type != "all":
+            if params.annotation_type != "all":
                 annotations = [
                     a
                     for a in annotations
                     if a.get("type", a.get("annotationType", "")).lower()
-                    == annotation_type
+                    == params.annotation_type
                 ]
 
-            formatter = service.get_formatter(ResponseFormat(response_format))
-
-            if hasattr(formatter, "format_annotations"):
-                return formatter.format_annotations(annotations, item_key=item_key)
-
-            # Fallback formatting
-            if response_format == "json":
-                return formatter.format_items(annotations)
-
-            # Markdown format
-            lines = [
-                f"# Annotations for {item_key}",
-                "",
-                f"Found {len(annotations)} annotation(s).",
-                "",
+            # Convert to AnnotationItem models
+            annotation_items = [
+                AnnotationItem(
+                    type=ann.get("type", ann.get("annotationType", "note")),
+                    text=ann.get("text", ann.get("annotationText")),
+                    comment=ann.get("comment", ann.get("annotationComment")),
+                    page=ann.get("page", ann.get("annotationPageLabel")),
+                    color=ann.get("color", ann.get("annotationColor")),
+                )
+                for ann in annotations
             ]
 
-            for ann in annotations:
-                ann_type = ann.get("type", ann.get("annotationType", "note"))
-                text = ann.get("text", ann.get("annotationText", ""))
-                comment = ann.get("comment", ann.get("annotationComment", ""))
-                page = ann.get("page", ann.get("annotationPageLabel", ""))
-                color = ann.get("color", ann.get("annotationColor", ""))
+            # Apply pagination
+            total_count = len(annotation_items)
+            start_idx = params.offset
+            end_idx = start_idx + params.limit
+            paginated_items = annotation_items[start_idx:end_idx]
+            has_more = end_idx < total_count
 
-                lines.append(
-                    f"### {ann_type.title()}" + (f" (Page {page})" if page else "")
-                )
-
-                if color:
-                    lines.append(f"*Color: {color}*")
-
-                if text:
-                    lines.append(f"> {text}")
-
-                if comment:
-                    lines.append(f"\n**Comment:** {comment}")
-
-                lines.append("")
-
-            return "\n".join(lines)
+            return AnnotationsResponse(
+                item_key=item_key_normalized,
+                count=len(paginated_items),
+                total_count=total_count,
+                annotations=paginated_items,
+                has_more=has_more,
+                next_offset=end_idx if has_more else None,
+            )
 
         except Exception as e:
-            return handle_error(e, ctx, "get annotations")
+            await ctx.error(f"Failed to get annotations: {str(e)}")
+            return AnnotationsResponse(
+                success=False,
+                error=f"Annotations retrieval error: {str(e)}",
+                item_key=params.item_key or "",
+                count=0,
+                annotations=[],
+            )
 
     @mcp.tool(
-        name="zotero_get_notes", description="Get notes attached to a Zotero item."
+        name="zotero_get_notes",
+        annotations=ToolAnnotations(
+            title="Get Notes",
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
+            openWorldHint=False,
+        ),
     )
-    async def zotero_get_notes(
-        item_key: str,
-        response_format: Literal["markdown", "json"] = "markdown",
-        *,
-        ctx: Context,
-    ) -> str:
+    async def zotero_get_notes(params: GetNotesInput, ctx: Context) -> NotesResponse:
         """
-        Get notes for an item.
+        Get notes attached to a Zotero item.
+
+        Retrieves notes with HTML content, automatically cleaning for display.
+        Supports filtering by parent item or retrieving all notes.
 
         Args:
-            item_key: Zotero item key
-            response_format: Output format
+            params: Input containing:
+                - item_key (str | None): Zotero item key to filter by. None for all notes
+                - include_standalone (bool): Whether to include standalone notes (not attached to items)
+                - response_format (str): Output format preference (inherited from BaseInput)
+                - offset (int): Pagination offset (inherited from PaginatedInput)
+                - limit (int): Maximum results (inherited from PaginatedInput)
 
         Returns:
-            Notes attached to the item
+            NotesResponse: Structured notes with cleaned content.
+
+        Example:
+            Use when: "Show me all notes for this paper"
+            Use when: "Get standalone notes"
+            Use when: "What notes did I write about this article?"
         """
         try:
             service = get_data_service()
-            notes = await service.get_notes(item_key.strip().upper())
+
+            if not params.item_key:
+                await ctx.error("item_key is required for get_notes")
+                return NotesResponse(
+                    success=False,
+                    error="item_key is required",
+                    item_key="",
+                    count=0,
+                    notes=[],
+                )
+
+            item_key_normalized = params.item_key.strip().upper()
+            notes = await service.get_notes(item_key_normalized)
 
             if not notes:
-                return f"No notes found for item {item_key}."
+                return NotesResponse(
+                    item_key=item_key_normalized,
+                    count=0,
+                    notes=[],
+                )
 
-            formatter = service.get_formatter(ResponseFormat(response_format))
-
-            if response_format == "json":
-                return formatter.format_items(notes)
-
-            # Markdown format
-            lines = [
-                f"# Notes for {item_key}",
-                "",
-                f"Found {len(notes)} note(s).",
-                "",
-            ]
-
-            for i, note in enumerate(notes, 1):
+            # Process notes - clean HTML and extract content
+            processed_notes = []
+            for note in notes:
                 data = note.get("data", {})
                 note_key = data.get("key", "")
                 note_content = data.get("note", "")
 
-                # Clean HTML from note content for display
-                # Basic HTML stripping (notes are stored as HTML)
-                import re
-
+                # Clean HTML from note content
                 clean_content = re.sub(r"<[^>]+>", "", note_content)
                 clean_content = clean_content.replace("&nbsp;", " ").strip()
 
-                lines.extend(
-                    [
-                        f"## Note {i} (`{note_key}`)",
-                        "",
-                        clean_content[:2000]
-                        + ("..." if len(clean_content) > 2000 else ""),
-                        "",
-                    ]
+                # Truncate if too long (max 2000 chars per note in list)
+                display_content = clean_content[:2000]
+                if len(clean_content) > 2000:
+                    display_content += "..."
+
+                processed_notes.append(
+                    {
+                        "note_key": note_key,
+                        "content": display_content,
+                        "full_content": clean_content,
+                        "raw_html": note_content,
+                    }
                 )
 
-            return "\n".join(lines)
+            # Apply pagination
+            total_count = len(processed_notes)
+            start_idx = params.offset
+            end_idx = start_idx + params.limit
+            paginated_notes = processed_notes[start_idx:end_idx]
+            has_more = end_idx < total_count
+
+            return NotesResponse(
+                item_key=item_key_normalized,
+                count=len(paginated_notes),
+                total_count=total_count,
+                notes=paginated_notes,
+                has_more=has_more,
+                next_offset=end_idx if has_more else None,
+            )
 
         except Exception as e:
-            return handle_error(e, ctx, "get notes")
+            await ctx.error(f"Failed to get notes: {str(e)}")
+            return NotesResponse(
+                success=False,
+                error=f"Notes retrieval error: {str(e)}",
+                item_key=params.item_key or "",
+                count=0,
+                notes=[],
+            )
 
     @mcp.tool(
         name="zotero_search_notes",
-        description="Search through notes and annotations in your Zotero library.",
+        annotations=ToolAnnotations(
+            title="Search Notes and Annotations",
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
+            openWorldHint=False,
+        ),
     )
     async def zotero_search_notes(
-        query: str,
-        limit: int = 20,
-        response_format: Literal["markdown", "json"] = "markdown",
-        *,
-        ctx: Context,
-    ) -> str:
+        params: SearchNotesInput, ctx: Context
+    ) -> SearchResponse:
         """
-        Search in notes and annotations.
+        Search through notes and annotations in your Zotero library.
+
+        Performs full-text search across note content, with context extraction
+        around matching text. Optionally includes annotations in search.
 
         Args:
-            query: Search query
-            limit: Maximum results
-            response_format: Output format
+            params: Input containing:
+                - query (str): Search query to find in notes and annotations
+                - include_annotations (bool): Whether to also search in PDF annotations
+                - case_sensitive (bool): Whether the search should be case-sensitive
+                - response_format (str): Output format preference (inherited from BaseInput)
+                - offset (int): Pagination offset (inherited from PaginatedInput)
+                - limit (int): Maximum results (inherited from PaginatedInput)
 
         Returns:
-            Matching notes and annotations
+            SearchResponse: Search results with contextual excerpts.
+
+        Example:
+            Use when: "Search my notes for mentions of 'neural networks'"
+            Use when: "Find notes containing the word 'methodology'"
+            Use when: "Search annotations for 'important finding'"
         """
         try:
             service = get_data_service()
 
-            # Search for items with matching notes
-            # This is a simplified implementation that searches item content
+            # Search for items (broad search first)
             results = await service.search_items(
-                query=query,
+                query=params.query,
                 limit=50,  # Get more to filter
                 qmode="everything",
             )
 
             matches = []
-            query_lower = query.lower()
+            query_to_match = (
+                params.query if params.case_sensitive else params.query.lower()
+            )
 
             for result in results:
                 # Get notes for this item
@@ -213,14 +306,15 @@ def register_annotation_tools(mcp: FastMCP) -> None:
                         data = note.get("data", {})
                         note_content = data.get("note", "")
 
-                        if query_lower in note_content.lower():
-                            # Extract matching context
-                            import re
+                        # Clean HTML
+                        clean = re.sub(r"<[^>]+>", "", note_content)
+                        search_text = clean if params.case_sensitive else clean.lower()
 
-                            clean = re.sub(r"<[^>]+>", "", note_content)
-                            idx = clean.lower().find(query_lower)
+                        if query_to_match in search_text:
+                            # Extract matching context (200 chars around match)
+                            idx = search_text.find(query_to_match)
                             start = max(0, idx - 100)
-                            end = min(len(clean), idx + len(query) + 100)
+                            end = min(len(clean), idx + len(params.query) + 100)
                             context = clean[start:end]
 
                             matches.append(
@@ -233,85 +327,109 @@ def register_annotation_tools(mcp: FastMCP) -> None:
                                 }
                             )
 
-                            if len(matches) >= limit:
+                            if len(matches) >= params.limit:
                                 break
                 except Exception:
+                    # Skip items that error
                     continue
 
-                if len(matches) >= limit:
+                if len(matches) >= params.limit:
                     break
 
-            formatter = service.get_formatter(ResponseFormat(response_format))
-
-            if response_format == "json":
-                return formatter.format_items(matches)
-
-            if not matches:
-                return f"No notes or annotations found matching '{query}'."
-
-            # Markdown format
-            lines = [
-                f"# Search Results in Notes: '{query}'",
-                "",
-                f"Found {len(matches)} matching note(s).",
-                "",
+            # Convert to SearchResultItem models
+            result_items = [
+                SearchResultItem(
+                    key=match["item_key"],
+                    title=match["item_title"],
+                    creators=[],  # Not available in note search context
+                    year=None,
+                    item_type="note",
+                    date_added=None,
+                    snippet=f"...{match['context']}...",
+                    raw_data=match,
+                )
+                for match in matches
             ]
 
-            for match in matches:
-                lines.extend(
-                    [
-                        f"## {match['item_title']}",
-                        f"*Item: `{match['item_key']}` | Note: `{match['note_key']}`*",
-                        "",
-                        f"> ...{match['context']}...",
-                        "",
-                    ]
-                )
+            # Apply pagination
+            total_count = len(result_items)
+            start_idx = params.offset
+            end_idx = start_idx + params.limit
+            paginated_results = result_items[start_idx:end_idx]
+            has_more = end_idx < total_count
 
-            return "\n".join(lines)
+            return SearchResponse(
+                query=params.query,
+                count=len(paginated_results),
+                total_count=total_count,
+                results=paginated_results,
+                has_more=has_more,
+                next_offset=end_idx if has_more else None,
+            )
 
         except Exception as e:
-            return handle_error(e, ctx, "search notes")
+            await ctx.error(f"Failed to search notes: {str(e)}")
+            return SearchResponse(
+                success=False,
+                error=f"Note search error: {str(e)}",
+                query=params.query,
+                count=0,
+                results=[],
+            )
 
     @mcp.tool(
         name="zotero_create_note",
-        description="Create a new note attached to a Zotero item. (Beta feature)",
+        annotations=ToolAnnotations(
+            title="Create Note",
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=False,
+            openWorldHint=False,
+        ),
     )
     async def zotero_create_note(
-        item_key: str,
-        content: str,
-        tags: str = "",
-        *,
-        ctx: Context,
-    ) -> str:
+        params: CreateNoteInput, ctx: Context
+    ) -> NoteCreationResponse:
         """
-        Create a note attached to an item.
+        Create a new note attached to a Zotero item.
+
+        Creates a note with HTML formatting, automatically converting plain text
+        to HTML. Supports optional tags for organization.
 
         Args:
-            item_key: Parent item key
-            content: Note content (plain text, will be converted to HTML)
-            tags: Comma-separated tags for the note
+            params: Input containing:
+                - item_key (str): Parent item key to attach the note to
+                - content (str): Note content in HTML or plain text format
+                - tags (list[str] | None): Optional tags to add to the note
+                - response_format (str): Output format preference (inherited from BaseInput)
 
         Returns:
-            Confirmation message with note key
+            NoteCreationResponse: Confirmation with created note key.
+
+        Example:
+            Use when: "Create a note on this paper about the methodology"
+            Use when: "Add a note with my thoughts on this article"
+            Use when: "Create a summary note for this item"
+
+        Note:
+            This is a beta feature. Requires web API access.
         """
         try:
             service = get_data_service()
 
-            # Convert plain text to basic HTML
-            html_content = f"<p>{content}</p>"
-            html_content = html_content.replace("\n\n", "</p><p>")
-            html_content = html_content.replace("\n", "<br/>")
+            # Convert plain text to basic HTML if not already HTML
+            html_content = params.content
+            if not params.content.strip().startswith("<"):
+                html_content = f"<p>{params.content}</p>"
+                html_content = html_content.replace("\n\n", "</p><p>")
+                html_content = html_content.replace("\n", "<br/>")
 
-            # Parse tags
-            tag_list = (
-                [t.strip() for t in tags.split(",") if t.strip()] if tags else None
-            )
+            item_key_normalized = params.item_key.strip().upper()
 
             result = await service.create_note(
-                parent_key=item_key.strip().upper(),
+                parent_key=item_key_normalized,
                 content=html_content,
-                tags=tag_list,
+                tags=params.tags,
             )
 
             if result:
@@ -321,11 +439,32 @@ def register_annotation_tools(mcp: FastMCP) -> None:
                     if success:
                         note_data = list(success.values())[0] if success else {}
                         note_key = note_data.get("key", "unknown")
-                        return f"✅ Note created successfully!\n\n**Note Key:** `{note_key}`\n**Parent Item:** `{item_key}`"
+                        return NoteCreationResponse(
+                            note_key=note_key,
+                            parent_key=item_key_normalized,
+                            message=f"Note created successfully with key: {note_key}",
+                        )
 
-                return f"✅ Note created for item `{item_key}`."
+                return NoteCreationResponse(
+                    note_key="unknown",
+                    parent_key=item_key_normalized,
+                    message="Note created successfully (key not returned)",
+                )
 
-            return "❌ Failed to create note. Please check the item key and try again."
+            # Creation failed
+            await ctx.error("Failed to create note: No result returned")
+            return NoteCreationResponse(
+                success=False,
+                error="Failed to create note. Please check the item key and try again.",
+                note_key="",
+                parent_key=item_key_normalized,
+            )
 
         except Exception as e:
-            return handle_error(e, ctx, "create note")
+            await ctx.error(f"Failed to create note: {str(e)}")
+            return NoteCreationResponse(
+                success=False,
+                error=f"Note creation error: {str(e)}",
+                note_key="",
+                parent_key=params.item_key,
+            )

@@ -9,11 +9,10 @@ Provides tools for searching the Zotero library:
 - zotero_get_recent: Recently added items
 """
 
-from typing import Literal
-
 from fastmcp import FastMCP, Context
+from mcp.server.fastmcp import ToolAnnotations
 
-from zotero_mcp.models.common import ResponseFormat
+from zotero_mcp.models.common import SearchResponse, SearchResultItem
 from zotero_mcp.models.search import (
     SearchItemsInput,
     TagSearchInput,
@@ -22,7 +21,6 @@ from zotero_mcp.models.search import (
     RecentItemsInput,
 )
 from zotero_mcp.services import get_data_service
-from zotero_mcp.utils.errors import handle_error
 
 
 def register_search_tools(mcp: FastMCP) -> None:
@@ -30,173 +28,225 @@ def register_search_tools(mcp: FastMCP) -> None:
 
     @mcp.tool(
         name="zotero_search",
-        description="Search for items in your Zotero library by keywords. "
-        "Returns matching papers, articles, books, and other items.",
+        annotations=ToolAnnotations(
+            title="Search Zotero Library",
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
+            openWorldHint=False,
+        ),
     )
-    async def zotero_search(
-        query: str,
-        limit: int = 20,
-        offset: int = 0,
-        search_mode: Literal["titleCreatorYear", "everything"] = "titleCreatorYear",
-        response_format: Literal["markdown", "json"] = "markdown",
-        *,
-        ctx: Context,
-    ) -> str:
+    async def zotero_search(params: SearchItemsInput, ctx: Context) -> SearchResponse:
         """
-        Search for items in your Zotero library.
+        Search for items in your Zotero library by keywords.
+
+        Searches across titles, authors, and years by default. Use 'everything'
+        search mode for full-text search including abstracts and notes.
 
         Args:
-            query: Search keywords
-            limit: Maximum results (1-100)
-            offset: Skip this many results for pagination
-            search_mode: 'titleCreatorYear' for quick search, 'everything' for full-text
-            response_format: Output format ('markdown' or 'json')
+            params: Validated search parameters containing:
+                - query (str): Search keywords (e.g., 'machine learning', 'Smith 2023')
+                - limit (int): Maximum results to return (1-100, default: 20)
+                - offset (int): Pagination offset (default: 0)
+                - search_mode: 'titleCreatorYear' (fast) or 'everything' (comprehensive)
+                - response_format: 'markdown' or 'json' (legacy, returns structured data)
 
         Returns:
-            Matching items formatted as markdown or JSON
+            SearchResponse: Structured search results with:
+                - query: The search query executed
+                - total: Total matching items
+                - count: Items in this response
+                - offset, limit: Pagination parameters
+                - has_more: Whether more results are available
+                - next_offset: Offset for next page (if has_more)
+                - items: List of SearchResultItem objects
+
+        Example:
+            Use when: "Find papers about machine learning"
+            Use when: "Search for Smith's 2023 publications"
+            Use when: "What do I have on quantum computing?"
         """
         try:
             service = get_data_service()
             results = await service.search_items(
-                query=query,
-                limit=min(limit, 100),
-                offset=offset,
-                qmode=search_mode,
+                query=params.query,
+                limit=params.limit,
+                offset=params.offset,
+                qmode=params.search_mode.value,
             )
 
-            formatter = service.get_formatter(ResponseFormat(response_format))
-            items_data = [
-                {
-                    "key": r.key,
-                    "title": r.title,
-                    "authors": r.authors,
-                    "date": r.date,
-                    "item_type": r.item_type,
-                    "abstract": r.abstract,
-                    "doi": r.doi,
-                    "tags": r.tags,
-                }
+            items = [
+                SearchResultItem(
+                    key=r.key,
+                    title=r.title,
+                    authors=r.authors,
+                    date=r.date,
+                    item_type=r.item_type,
+                    abstract=r.abstract,
+                    doi=r.doi,
+                    tags=r.tags or [],
+                )
                 for r in results
             ]
 
-            return formatter.format_search_results(
-                items=items_data,
-                query=query,
-                total=len(results),
-                offset=offset,
-                limit=limit,
+            return SearchResponse(
+                query=params.query,
+                total=len(results),  # Note: Actual total may come from API
+                count=len(items),
+                offset=params.offset,
+                limit=params.limit,
+                has_more=len(items) == params.limit,
+                next_offset=params.offset + len(items)
+                if len(items) == params.limit
+                else None,
+                items=items,
             )
 
         except Exception as e:
-            return handle_error(e, ctx, "search")
+            await ctx.error(f"Search failed: {str(e)}")
+            return SearchResponse(
+                success=False,
+                error=f"Search error: {str(e)}",
+                query=params.query,
+                total=0,
+                count=0,
+                offset=params.offset,
+                limit=params.limit,
+                has_more=False,
+                items=[],
+            )
 
     @mcp.tool(
         name="zotero_search_by_tag",
-        description="Search items by tags. Supports including required tags and excluding unwanted tags.",
+        annotations=ToolAnnotations(
+            title="Search by Tags",
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
+            openWorldHint=False,
+        ),
     )
     async def zotero_search_by_tag(
-        tags: str,
-        exclude_tags: str = "",
-        limit: int = 25,
-        response_format: Literal["markdown", "json"] = "markdown",
-        *,
-        ctx: Context,
-    ) -> str:
+        params: TagSearchInput, ctx: Context
+    ) -> SearchResponse:
         """
         Search items by tags with include/exclude logic.
 
         Args:
-            tags: Comma-separated list of required tags (AND logic)
-            exclude_tags: Comma-separated list of tags to exclude
-            limit: Maximum results
-            response_format: Output format
+            params: Validated input containing:
+                - tags (str): Comma-separated required tags (AND logic)
+                - exclude_tags (str): Comma-separated tags to exclude
+                - limit, offset: Pagination
 
         Returns:
-            Matching items
+            SearchResponse: Matching items with specified tags.
+
+        Example:
+            Use when: "Show me papers tagged 'machine learning'"
+            Use when: "Find items with tag 'research' but not 'draft'"
         """
         try:
             # Parse tags
-            include_tags = [t.strip() for t in tags.split(",") if t.strip()]
+            include_tags = [t.strip() for t in params.tags.split(",") if t.strip()]
             exclude_list = (
-                [t.strip() for t in exclude_tags.split(",") if t.strip()]
-                if exclude_tags
+                [t.strip() for t in params.exclude_tags.split(",") if t.strip()]
+                if params.exclude_tags
                 else None
             )
 
             if not include_tags:
-                return "Error: Please provide at least one tag to search for."
+                return SearchResponse(
+                    success=False,
+                    error="Please provide at least one tag to search for",
+                    query=f"tags={params.tags}",
+                    total=0,
+                    count=0,
+                    offset=0,
+                    limit=params.limit,
+                    has_more=False,
+                    items=[],
+                )
 
             service = get_data_service()
             results = await service.search_by_tag(
                 tags=include_tags,
                 exclude_tags=exclude_list,
-                limit=limit,
+                limit=params.limit,
             )
 
-            formatter = service.get_formatter(ResponseFormat(response_format))
-            items_data = [
-                {
-                    "key": r.key,
-                    "title": r.title,
-                    "authors": r.authors,
-                    "date": r.date,
-                    "item_type": r.item_type,
-                    "tags": r.tags,
-                }
+            items = [
+                SearchResultItem(
+                    key=r.key,
+                    title=r.title,
+                    authors=r.authors,
+                    date=r.date,
+                    item_type=r.item_type,
+                    tags=r.tags or [],
+                )
                 for r in results
             ]
 
-            tag_query = f"tags={tags}" + (
-                f", exclude={exclude_tags}" if exclude_tags else ""
+            tag_query = f"tags={params.tags}" + (
+                f", exclude={params.exclude_tags}" if params.exclude_tags else ""
             )
-            return formatter.format_search_results(
-                items=items_data,
+
+            return SearchResponse(
                 query=tag_query,
-                total=len(results),
+                total=len(items),
+                count=len(items),
+                offset=0,
+                limit=params.limit,
+                has_more=False,
+                items=items,
             )
 
         except Exception as e:
-            return handle_error(e, ctx, "tag search")
+            await ctx.error(f"Tag search failed: {str(e)}")
+            return SearchResponse(
+                success=False,
+                error=f"Tag search error: {str(e)}",
+                query=f"tags={params.tags}",
+                total=0,
+                count=0,
+                offset=0,
+                limit=params.limit,
+                has_more=False,
+                items=[],
+            )
 
     @mcp.tool(
         name="zotero_advanced_search",
-        description="Advanced search with multiple criteria: title, author, year range, item type, tags.",
+        annotations=ToolAnnotations(
+            title="Advanced Multi-Field Search",
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
+            openWorldHint=False,
+        ),
     )
     async def zotero_advanced_search(
-        title: str = "",
-        author: str = "",
-        year_from: int | None = None,
-        year_to: int | None = None,
-        item_type: str = "",
-        tags: str = "",
-        limit: int = 25,
-        response_format: Literal["markdown", "json"] = "markdown",
-        *,
-        ctx: Context,
-    ) -> str:
+        params: AdvancedSearchInput, ctx: Context
+    ) -> SearchResponse:
         """
-        Advanced search with multiple criteria.
+        Advanced search with multiple criteria: title, author, year range, item type, tags.
 
         Args:
-            title: Title contains (partial match)
-            author: Author name contains
-            year_from: Published from year
-            year_to: Published to year
-            item_type: Filter by type (journalArticle, book, etc.)
-            tags: Comma-separated required tags
-            limit: Maximum results
-            response_format: Output format
+            params: Advanced search parameters with multiple filters.
 
         Returns:
-            Matching items
+            SearchResponse: Items matching all specified criteria.
+
+        Example:
+            Use when: "Find journal articles by Smith from 2020-2023"
+            Use when: "Search for books about AI published after 2018"
         """
         try:
             # Build query from criteria
             query_parts = []
-            if title:
-                query_parts.append(title)
-            if author:
-                query_parts.append(author)
+            if params.title:
+                query_parts.append(params.title)
+            if params.author:
+                query_parts.append(params.author)
 
             query = " ".join(query_parts) if query_parts else "*"
 
@@ -213,13 +263,13 @@ def register_search_tools(mcp: FastMCP) -> None:
             filtered = []
             for r in results:
                 # Year filter
-                if year_from or year_to:
+                if params.year_from or params.year_to:
                     if r.date:
                         try:
                             year = int(r.date[:4])
-                            if year_from and year < year_from:
+                            if params.year_from and year < params.year_from:
                                 continue
-                            if year_to and year > year_to:
+                            if params.year_to and year > params.year_to:
                                 continue
                         except (ValueError, IndexError):
                             continue
@@ -227,161 +277,250 @@ def register_search_tools(mcp: FastMCP) -> None:
                         continue
 
                 # Item type filter
-                if item_type and r.item_type != item_type:
+                if params.item_type and r.item_type != params.item_type:
                     continue
 
                 # Tag filter
-                if tags:
-                    required_tags = [t.strip() for t in tags.split(",") if t.strip()]
+                if params.tags:
+                    required_tags = [
+                        t.strip() for t in params.tags.split(",") if t.strip()
+                    ]
                     item_tags = r.tags or []
                     if not all(t in item_tags for t in required_tags):
                         continue
 
                 filtered.append(r)
-                if len(filtered) >= limit:
+                if len(filtered) >= params.limit:
                     break
 
-            formatter = service.get_formatter(ResponseFormat(response_format))
-            items_data = [
-                {
-                    "key": r.key,
-                    "title": r.title,
-                    "authors": r.authors,
-                    "date": r.date,
-                    "item_type": r.item_type,
-                    "abstract": r.abstract,
-                    "tags": r.tags,
-                }
+            items = [
+                SearchResultItem(
+                    key=r.key,
+                    title=r.title,
+                    authors=r.authors,
+                    date=r.date,
+                    item_type=r.item_type,
+                    abstract=r.abstract,
+                    tags=r.tags or [],
+                )
                 for r in filtered
             ]
 
             # Build query description
             criteria = []
-            if title:
-                criteria.append(f"title='{title}'")
-            if author:
-                criteria.append(f"author='{author}'")
-            if year_from:
-                criteria.append(f"from={year_from}")
-            if year_to:
-                criteria.append(f"to={year_to}")
-            if item_type:
-                criteria.append(f"type={item_type}")
-            if tags:
-                criteria.append(f"tags={tags}")
+            if params.title:
+                criteria.append(f"title='{params.title}'")
+            if params.author:
+                criteria.append(f"author='{params.author}'")
+            if params.year_from:
+                criteria.append(f"from={params.year_from}")
+            if params.year_to:
+                criteria.append(f"to={params.year_to}")
+            if params.item_type:
+                criteria.append(f"type={params.item_type}")
+            if params.tags:
+                criteria.append(f"tags={params.tags}")
 
             query_desc = ", ".join(criteria) if criteria else "all items"
 
-            return formatter.format_search_results(
-                items=items_data,
+            return SearchResponse(
                 query=query_desc,
                 total=len(filtered),
+                count=len(items),
+                offset=0,
+                limit=params.limit,
+                has_more=len(filtered) > params.limit,
+                next_offset=params.limit if len(filtered) > params.limit else None,
+                items=items,
             )
 
         except Exception as e:
-            return handle_error(e, ctx, "advanced search")
+            await ctx.error(f"Advanced search failed: {str(e)}")
+            return SearchResponse(
+                success=False,
+                error=f"Advanced search error: {str(e)}",
+                query="advanced search",
+                total=0,
+                count=0,
+                offset=0,
+                limit=params.limit,
+                has_more=False,
+                items=[],
+            )
 
     @mcp.tool(
         name="zotero_semantic_search",
-        description="AI-powered semantic search. Finds conceptually similar items using embeddings. "
-        "Great for finding papers related to a topic or similar to an abstract.",
+        annotations=ToolAnnotations(
+            title="AI Semantic Search",
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
+            openWorldHint=False,
+        ),
     )
     async def zotero_semantic_search(
-        query: str,
-        limit: int = 10,
-        response_format: Literal["markdown", "json"] = "markdown",
-        *,
-        ctx: Context,
-    ) -> str:
+        params: SemanticSearchInput, ctx: Context
+    ) -> SearchResponse:
         """
-        Semantic search using AI embeddings.
+        AI-powered semantic search using embeddings.
+
+        Finds conceptually similar items using vector similarity rather than
+        keyword matching. Great for finding papers related to a topic or
+        similar to an abstract.
 
         Args:
-            query: Natural language query or abstract text
-            limit: Maximum results (1-50)
-            response_format: Output format
+            params: Semantic search parameters with natural language query.
 
         Returns:
-            Conceptually similar items with similarity scores
+            SearchResponse: Items ranked by semantic similarity with scores.
+
+        Example:
+            Use when: "Find papers conceptually similar to deep learning"
+            Use when: "What do I have related to climate change impacts?"
+            Use when: "Papers similar to this abstract: [paste abstract]"
+
+        Note:
+            Requires semantic search database to be initialized with
+            'zotero-mcp update-db' command.
         """
         try:
             # Import semantic search module
             from zotero_mcp.services.semantic import semantic_search
 
             results = await semantic_search(
-                query=query,
-                limit=min(limit, 50),
+                query=params.query,
+                limit=params.limit,
             )
 
             if not results:
-                return "No results found. Make sure the semantic search database is initialized with 'zotero-mcp update-db'."
-
-            service = get_data_service()
-            formatter = service.get_formatter(ResponseFormat(response_format))
-
-            if hasattr(formatter, "format_semantic_results"):
-                return formatter.format_semantic_results(
-                    items=results,
-                    query=query,
+                return SearchResponse(
+                    success=False,
+                    error="No results found. Make sure the semantic search database is initialized with 'zotero-mcp update-db'.",
+                    query=params.query,
+                    total=0,
+                    count=0,
+                    offset=0,
+                    limit=params.limit,
+                    has_more=False,
+                    items=[],
                 )
-            else:
-                return formatter.format_search_results(
-                    items=results,
-                    query=f"semantic: {query}",
-                    total=len(results),
+
+            items = [
+                SearchResultItem(
+                    key=r.get("key", ""),
+                    title=r.get("title", "Untitled"),
+                    authors=r.get("authors"),
+                    date=r.get("date"),
+                    item_type=r.get("item_type", "unknown"),
+                    abstract=r.get("abstract"),
+                    doi=r.get("doi"),
+                    tags=r.get("tags", []),
+                    similarity_score=r.get("similarity_score"),
                 )
+                for r in results
+            ]
+
+            return SearchResponse(
+                query=f"semantic: {params.query}",
+                total=len(items),
+                count=len(items),
+                offset=0,
+                limit=params.limit,
+                has_more=False,
+                items=items,
+            )
 
         except ImportError:
-            return "Error: Semantic search is not available. Run 'zotero-mcp update-db' to initialize."
+            return SearchResponse(
+                success=False,
+                error="Semantic search is not available. Run 'zotero-mcp update-db' to initialize.",
+                query=params.query,
+                total=0,
+                count=0,
+                offset=0,
+                limit=params.limit,
+                has_more=False,
+                items=[],
+            )
         except Exception as e:
-            return handle_error(e, ctx, "semantic search")
+            await ctx.error(f"Semantic search failed: {str(e)}")
+            return SearchResponse(
+                success=False,
+                error=f"Semantic search error: {str(e)}",
+                query=params.query,
+                total=0,
+                count=0,
+                offset=0,
+                limit=params.limit,
+                has_more=False,
+                items=[],
+            )
 
     @mcp.tool(
         name="zotero_get_recent",
-        description="Get recently added items from your Zotero library.",
+        annotations=ToolAnnotations(
+            title="Get Recently Added Items",
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
+            openWorldHint=False,
+        ),
     )
     async def zotero_get_recent(
-        limit: int = 10,
-        days: int = 30,
-        response_format: Literal["markdown", "json"] = "markdown",
-        *,
-        ctx: Context,
-    ) -> str:
+        params: RecentItemsInput, ctx: Context
+    ) -> SearchResponse:
         """
-        Get recently added items.
+        Get recently added items from your Zotero library.
 
         Args:
-            limit: Maximum items to return (1-50)
-            days: Look back this many days
-            response_format: Output format
+            params: Parameters with days lookback and pagination.
 
         Returns:
-            Recently added items
+            SearchResponse: Items added within the specified timeframe.
+
+        Example:
+            Use when: "What papers did I add recently?"
+            Use when: "Show me items added in the last week"
         """
         try:
             service = get_data_service()
             results = await service.get_recent_items(
-                limit=min(limit, 50),
-                days=days,
+                limit=params.limit,
+                days=params.days,
             )
 
-            formatter = service.get_formatter(ResponseFormat(response_format))
-            items_data = [
-                {
-                    "key": r.key,
-                    "title": r.title,
-                    "authors": r.authors,
-                    "date": r.date,
-                    "item_type": r.item_type,
-                    "tags": r.tags,
-                }
+            items = [
+                SearchResultItem(
+                    key=r.key,
+                    title=r.title,
+                    authors=r.authors,
+                    date=r.date,
+                    item_type=r.item_type,
+                    tags=r.tags or [],
+                )
                 for r in results
             ]
 
-            return formatter.format_items(
-                items=items_data,
-                title=f"Recently Added Items (last {days} days)",
+            return SearchResponse(
+                query=f"recent (last {params.days} days)",
+                total=len(items),
+                count=len(items),
+                offset=0,
+                limit=params.limit,
+                has_more=False,
+                items=items,
             )
 
         except Exception as e:
-            return handle_error(e, ctx, "get recent items")
+            await ctx.error(f"Failed to get recent items: {str(e)}")
+            return SearchResponse(
+                success=False,
+                error=f"Error retrieving recent items: {str(e)}",
+                query=f"recent ({params.days} days)",
+                total=0,
+                count=0,
+                offset=0,
+                limit=params.limit,
+                has_more=False,
+                items=[],
+            )

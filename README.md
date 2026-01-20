@@ -47,6 +47,13 @@
 - Web API for cloud library access
 - Perfect for both local research and remote collaboration
 
+### 🎯 Structured Output (NEW)
+- **Type-safe responses** - All tools return structured Pydantic models
+- **Consistent error handling** - Standard `success`/`error` fields across all tools
+- **Built-in pagination** - `has_more` and `next_offset` for large result sets
+- **Machine-readable** - Easy integration with scripts and automation
+- See [Structured Output Examples](./docs/STRUCTURED-OUTPUT-EXAMPLES.md) for details
+
 ## 🚀 Quick Install
 
 We recommend using `uv` for installation.
@@ -309,6 +316,39 @@ The first time you use PDF annotation features, the necessary tools will be auto
 - `zotero_get_notes`: Retrieve notes from your Zotero library
 - `zotero_search_notes`: Search in notes and annotations (including PDF-extracted)
 - `zotero_create_note`: Create a new note for an item (beta feature)
+
+## 📖 Documentation
+
+### Structured Responses
+All tools now return **structured Pydantic models** instead of formatted strings:
+- ✅ **Type Safety** - Full type checking for inputs and outputs
+- ✅ **Consistent Errors** - Standard `success`/`error` fields
+- ✅ **Pagination** - Built-in `has_more` and `next_offset` support
+- ✅ **Machine-Readable** - Easy to parse and integrate
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "query": "machine learning",
+  "count": 10,
+  "total_count": 45,
+  "has_more": true,
+  "next_offset": 10,
+  "results": [
+    {
+      "key": "ABC123",
+      "title": "Deep Learning for Computer Vision",
+      "creators": ["Smith, J.", "Doe, A."],
+      "year": 2023,
+      "item_type": "journalArticle"
+    }
+  ]
+}
+```
+
+📚 **[View Complete Output Examples](./docs/STRUCTURED-OUTPUT-EXAMPLES.md)**  
+🔄 **[Migration Guide from v1.x](./docs/MIGRATION-GUIDE.md)**
 
 ## 🔍 Troubleshooting
 
