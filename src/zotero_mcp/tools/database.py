@@ -58,7 +58,7 @@ def register_database_tools(mcp: FastMCP) -> None:
             # Import semantic search module
             from zotero_mcp.services.semantic import update_database
 
-            ctx.info("Starting semantic search database update...")
+            await ctx.info("Starting semantic search database update...")
 
             result = await update_database(
                 force_rebuild=params.force_rebuild,

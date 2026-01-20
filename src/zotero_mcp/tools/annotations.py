@@ -373,7 +373,11 @@ def register_annotation_tools(mcp: FastMCP) -> None:
                 success=False,
                 error=f"Note search error: {str(e)}",
                 query=params.query,
+                total=0,
                 count=0,
+                offset=0,
+                limit=params.limit,
+                has_more=False,
                 results=[],
             )
 
@@ -412,7 +416,8 @@ def register_annotation_tools(mcp: FastMCP) -> None:
             Use when: "Create a summary note for this item"
 
         Note:
-            This is a beta feature. Requires web API access.
+            This feature requires Web API access (ZOTERO_API_KEY).
+            It is NOT supported when using the Local API only.
         """
         try:
             service = get_data_service()
