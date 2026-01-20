@@ -132,8 +132,6 @@ result = await call_tool("zotero_search", params={"query": "AI", "limit": 10})
 
 ### 🔄 Migration Guide
 
-See [`docs/MIGRATION-GUIDE.md`](./docs/MIGRATION-GUIDE.md) for detailed migration instructions.
-
 **Key Migration Steps:**
 1. Wrap all parameters in `params={}` object
 2. Check `result["success"]` before processing
@@ -144,8 +142,6 @@ See [`docs/MIGRATION-GUIDE.md`](./docs/MIGRATION-GUIDE.md) for detailed migratio
 ### 📚 Documentation
 
 - **API Examples**: See [`docs/STRUCTURED-OUTPUT-EXAMPLES.md`](./docs/STRUCTURED-OUTPUT-EXAMPLES.md)
-- **Migration Guide**: See [`docs/MIGRATION-GUIDE.md`](./docs/MIGRATION-GUIDE.md)
-- **Quick Reference**: See [`QUICK-REFERENCE.md`](./QUICK-REFERENCE.md)
 
 ---
 

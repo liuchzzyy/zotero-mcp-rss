@@ -148,8 +148,6 @@ Full documentation is available at [Zotero MCP docs](https://stevenyuyy.us/zoter
 - Zotero 7+ (for local API with full-text access)
 - An MCP-compatible client (e.g., Claude Desktop, Cherry Studio, Chorus)
 
-See the [Getting Started guide](./docs/getting-started.md) for detailed instructions.
-
 ### For Claude Desktop (example MCP client)
 
 #### Configuration
@@ -348,8 +346,6 @@ All tools now return **structured Pydantic models** instead of formatted strings
 ```
 
 📚 **[View Complete Output Examples](./docs/STRUCTURED-OUTPUT-EXAMPLES.md)**  
-🔄 **[Migration Guide from v1.x](./docs/MIGRATION-GUIDE.md)**
-
 ## 🔍 Troubleshooting
 
 ### General Issues

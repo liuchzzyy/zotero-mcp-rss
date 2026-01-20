@@ -502,4 +502,4 @@ When working with large result sets, use offset and limit:
 
 ## Migration from Old Format
 
-See [MIGRATION-GUIDE.md](./MIGRATION-GUIDE.md) for details on migrating from the old string-based responses to the new structured format.
+The new structured format replaces the previous string-based responses. The `success` field now explicitly indicates operation status, and `error` contains details if something went wrong.
