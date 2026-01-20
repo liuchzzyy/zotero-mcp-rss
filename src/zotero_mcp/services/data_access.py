@@ -287,6 +287,54 @@ class DataAccessService:
         tags = await self.api_client.get_tags(limit)
         return [t.get("tag", "") for t in tags if t.get("tag")]
 
+    # -------------------- Collection Search Operations --------------------
+
+    async def find_collection_by_name(
+        self,
+        name: str,
+        exact_match: bool = False,
+    ) -> list[dict[str, Any]]:
+        """
+        Find collections by name.
+
+        Args:
+            name: Collection name to search for
+            exact_match: Whether to require exact name match
+
+        Returns:
+            List of matching collections with match scores
+        """
+        all_collections = await self.get_collections()
+        matches = []
+
+        search_name = name.lower().strip()
+
+        for coll in all_collections:
+            data = coll.get("data", {})
+            coll_name = data.get("name", "")
+            coll_name_lower = coll_name.lower()
+
+            # Calculate match score
+            if exact_match:
+                if coll_name_lower == search_name:
+                    matches.append({**coll, "match_score": 1.0})
+            else:
+                # Fuzzy matching
+                if search_name in coll_name_lower:
+                    # Calculate score based on position and length
+                    if coll_name_lower == search_name:
+                        score = 1.0  # Exact match
+                    elif coll_name_lower.startswith(search_name):
+                        score = 0.9  # Starts with
+                    else:
+                        score = 0.7  # Contains
+                    matches.append({**coll, "match_score": score})
+
+        # Sort by match score (descending)
+        matches.sort(key=lambda x: x.get("match_score", 0), reverse=True)
+
+        return matches
+
     # -------------------- BibTeX Operations --------------------
 
     async def get_bibtex(
