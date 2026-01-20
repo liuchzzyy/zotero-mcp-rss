@@ -14,8 +14,7 @@ from zotero_mcp.utils.config import load_config
 # Initialize FastMCP server
 mcp = FastMCP(
     name="Zotero",
-    version=__version__,
-    description="Access your Zotero research library (local or web)",
+    # description param removed for compatibility
 )
 
 # Load configuration

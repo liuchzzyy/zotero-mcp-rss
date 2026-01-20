@@ -3,7 +3,7 @@ Batch operation tools for Zotero MCP.
 """
 
 from fastmcp import Context, FastMCP
-from mcp.server.fastmcp import ToolAnnotations
+from mcp.types import ToolAnnotations
 
 from zotero_mcp.models.batch import (
     BatchGetMetadataInput,

@@ -10,15 +10,15 @@ Provides tools for searching the Zotero library:
 """
 
 from fastmcp import FastMCP, Context
-from mcp.server.fastmcp import ToolAnnotations
+from mcp.types import ToolAnnotations
 
 from zotero_mcp.models.common import SearchResponse, SearchResultItem
 from zotero_mcp.models.search import (
     SearchItemsInput,
-    TagSearchInput,
+    SearchByTagInput,
     AdvancedSearchInput,
     SemanticSearchInput,
-    RecentItemsInput,
+    GetRecentInput,
 )
 from zotero_mcp.services import get_data_service
 from zotero_mcp.utils.cache import cached_tool
@@ -75,7 +75,7 @@ def register_search_tools(mcp: FastMCP) -> None:
                 query=params.query,
                 limit=params.limit,
                 offset=params.offset,
-                qmode=params.search_mode.value,
+                qmode=params.qmode.value,
             )
 
             items = [
@@ -130,15 +130,14 @@ def register_search_tools(mcp: FastMCP) -> None:
         ),
     )
     async def zotero_search_by_tag(
-        params: TagSearchInput, ctx: Context
+        params: SearchByTagInput, ctx: Context
     ) -> SearchResponse:
         """
         Search items by tags with include/exclude logic.
 
         Args:
             params: Validated input containing:
-                - tags (str): Comma-separated required tags (AND logic)
-                - exclude_tags (str): Comma-separated tags to exclude
+                - tags (list[str]): List of tags. Use '-' prefix to exclude.
                 - limit, offset: Pagination
 
         Returns:
@@ -150,14 +149,19 @@ def register_search_tools(mcp: FastMCP) -> None:
         """
         try:
             # Parse tags
-            include_tags = [t.strip() for t in params.tags.split(",") if t.strip()]
-            exclude_list = (
-                [t.strip() for t in params.exclude_tags.split(",") if t.strip()]
-                if params.exclude_tags
-                else None
-            )
+            include_tags = []
+            exclude_list = []
 
-            if not include_tags:
+            for tag in params.tags:
+                tag = tag.strip()
+                if not tag:
+                    continue
+                if tag.startswith("-"):
+                    exclude_list.append(tag[1:].strip())
+                else:
+                    include_tags.append(tag)
+
+            if not include_tags and not exclude_list:
                 return SearchResponse(
                     success=False,
                     error="Please provide at least one tag to search for",
@@ -189,8 +193,8 @@ def register_search_tools(mcp: FastMCP) -> None:
                 for r in results
             ]
 
-            tag_query = f"tags={params.tags}" + (
-                f", exclude={params.exclude_tags}" if params.exclude_tags else ""
+            tag_query = f"tags={include_tags}" + (
+                f", exclude={exclude_list}" if exclude_list else ""
             )
 
             return SearchResponse(
@@ -470,9 +474,7 @@ def register_search_tools(mcp: FastMCP) -> None:
             openWorldHint=False,
         ),
     )
-    async def zotero_get_recent(
-        params: RecentItemsInput, ctx: Context
-    ) -> SearchResponse:
+    async def zotero_get_recent(params: GetRecentInput, ctx: Context) -> SearchResponse:
         """
         Get recently added items from your Zotero library.
 
@@ -490,7 +492,7 @@ def register_search_tools(mcp: FastMCP) -> None:
             service = get_data_service()
             results = await service.get_recent_items(
                 limit=params.limit,
-                days=params.days,
+                days=params.days or 30,  # Default to 30 days if not specified
             )
 
             items = [

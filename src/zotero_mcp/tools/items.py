@@ -10,7 +10,7 @@ Provides tools for accessing item data:
 """
 
 from fastmcp import FastMCP, Context
-from mcp.server.fastmcp import ToolAnnotations
+from mcp.types import ToolAnnotations
 
 from zotero_mcp.models.common import (
     ItemDetailResponse,
@@ -223,7 +223,7 @@ def register_item_tools(mcp: FastMCP) -> None:
         try:
             service = get_data_service()
 
-            type_filter = None if params.item_type == "all" else params.item_type
+            type_filter = None if params.child_type == "all" else params.child_type
             children = await service.get_item_children(
                 params.item_key.strip().upper(),
                 item_type=type_filter,
@@ -318,15 +318,23 @@ def register_item_tools(mcp: FastMCP) -> None:
             # List all collections
             collections = await service.get_collections()
 
-            collection_items = [
-                CollectionItem(
-                    key=coll.get("data", {}).get("key", coll.get("key", "")),
-                    name=coll.get("data", {}).get("name", "Unnamed"),
-                    item_count=coll.get("data", {}).get("numItems"),
-                    parent_key=coll.get("data", {}).get("parentCollection"),
+            collection_items = []
+            for coll in collections:
+                data = coll.get("data", {})
+                parent_coll = data.get("parentCollection")
+
+                # Handle Zotero API quirk where parentCollection is False for root items
+                if parent_coll is False:
+                    parent_coll = None
+
+                collection_items.append(
+                    CollectionItem(
+                        key=data.get("key", coll.get("key", "")),
+                        name=data.get("name", "Unnamed"),
+                        item_count=data.get("numItems"),
+                        parent_key=parent_coll,
+                    )
                 )
-                for coll in collections
-            ]
 
             return CollectionsResponse(
                 count=len(collection_items),
