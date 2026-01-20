@@ -1,11 +1,10 @@
 """
-Zotero MCP - Model Context Protocol server for Zotero
+Zotero MCP.
 
-This module provides tools for AI assistants to interact with Zotero libraries.
+A Model Context Protocol server for Zotero research libraries.
 """
 
 from ._version import __version__
-from .server import mcp
+from .server import mcp, run
 
-# These modules are not imported by default but are available
-# pdfannots_helper and pdfannots_downloader
+__all__ = ["__version__", "mcp", "run"]
