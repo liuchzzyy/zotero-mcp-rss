@@ -36,3 +36,7 @@ Thumbs.db
 # Environment variables
 .env
 .env.local
+.example.yml
+
+# personal settings
+demand.md

@@ -232,6 +232,35 @@ def get_semantic_search_config() -> dict[str, Any]:
     return config.get("semantic_search", {})
 
 
+def get_llm_config() -> dict[str, Any]:
+    """
+    Get LLM configuration for workflow tools.
+
+    Returns:
+        Dictionary with LLM provider settings and API keys.
+    """
+    config = load_config()
+    env = config.get("env", {})
+
+    # Build LLM config from environment variables
+    llm_config = {
+        "deepseek_api_key": env.get("DEEPSEEK_API_KEY", os.getenv("DEEPSEEK_API_KEY")),
+        "openai_api_key": env.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY")),
+        "gemini_api_key": env.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY")),
+        "deepseek_model": env.get(
+            "DEEPSEEK_MODEL", os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+        ),
+        "openai_model": env.get(
+            "OPENAI_MODEL", os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        ),
+        "gemini_model": env.get(
+            "GEMINI_MODEL", os.getenv("GEMINI_MODEL", "gemini-2.0-flash-exp")
+        ),
+    }
+
+    return llm_config
+
+
 def save_config(config: dict[str, Any]) -> bool:
     """
     Save configuration to standalone config file.
