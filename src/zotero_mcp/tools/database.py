@@ -6,13 +6,11 @@ Provides tools for managing the semantic search database:
 - zotero_database_status: Check database status
 """
 
-from typing import Literal
+from fastmcp import Context, FastMCP
+from fastmcp.tools.base import ToolAnnotations
 
-from fastmcp import FastMCP, Context
-
-from zotero_mcp.models.common import ResponseFormat
-from zotero_mcp.services import get_data_service
-from zotero_mcp.utils.errors import handle_error
+from zotero_mcp.models.common import DatabaseStatusResponse, DatabaseUpdateResponse
+from zotero_mcp.models.database import DatabaseStatusInput, UpdateDatabaseInput
 
 
 def register_database_tools(mcp: FastMCP) -> None:
@@ -20,26 +18,41 @@ def register_database_tools(mcp: FastMCP) -> None:
 
     @mcp.tool(
         name="zotero_update_database",
-        description="Update the semantic search database. "
-        "Run this after adding new items to your Zotero library.",
+        annotations=ToolAnnotations(
+            title="Update Semantic Search Database",
+            readOnlyHint=False,
+            destructiveHint=False,
+            idempotentHint=False,
+            openWorldHint=False,
+        ),
     )
     async def zotero_update_database(
-        force_rebuild: bool = False,
-        include_fulltext: bool = False,
-        limit: int | None = None,
-        *,
-        ctx: Context,
-    ) -> str:
+        params: UpdateDatabaseInput, ctx: Context
+    ) -> DatabaseUpdateResponse:
         """
         Update the semantic search database.
 
+        Indexes your Zotero library for semantic similarity search using embeddings.
+        Run this after adding new items to your library to make them searchable.
+
         Args:
-            force_rebuild: Force complete rebuild (slower but fixes issues)
-            include_fulltext: Include full-text from PDFs (slower but more comprehensive)
-            limit: Limit number of items to process (useful for testing)
+            params: Input containing:
+                - force_rebuild (bool): Whether to rebuild the entire database from scratch
+                - limit (int | None): Maximum number of items to process (useful for testing)
+                - extract_fulltext (bool): Whether to extract and index full text content (slower but more comprehensive)
+                - response_format (str): Output format preference (inherited from BaseInput)
 
         Returns:
-            Status message with update results
+            DatabaseUpdateResponse: Update results with statistics.
+
+        Example:
+            Use when: "Update my library's search database"
+            Use when: "Rebuild the semantic search index"
+            Use when: "Index new papers I added"
+
+        Note:
+            First-time indexing may take several minutes depending on library size.
+            Subsequent updates are incremental and faster.
         """
         try:
             # Import semantic search module
@@ -48,9 +61,9 @@ def register_database_tools(mcp: FastMCP) -> None:
             ctx.info("Starting semantic search database update...")
 
             result = await update_database(
-                force_rebuild=force_rebuild,
-                include_fulltext=include_fulltext,
-                limit=limit,
+                force_rebuild=params.force_rebuild,
+                include_fulltext=params.extract_fulltext,
+                limit=params.limit,
             )
 
             if isinstance(result, dict):
@@ -59,51 +72,87 @@ def register_database_tools(mcp: FastMCP) -> None:
                 items_updated = result.get("items_updated", 0)
                 duration = result.get("duration_seconds", 0)
 
-                lines = [
-                    "# Semantic Search Database Update Complete",
-                    "",
-                    f"**Items Processed:** {items_processed}",
-                    f"**Items Added:** {items_added}",
-                    f"**Items Updated:** {items_updated}",
-                    f"**Duration:** {duration:.1f} seconds",
-                    "",
+                message_lines = [
+                    f"Processed {items_processed} items",
+                    f"Added {items_added} new items",
+                    f"Updated {items_updated} items",
+                    f"Completed in {duration:.1f} seconds",
                 ]
 
-                if force_rebuild:
-                    lines.append("*Database was rebuilt from scratch.*")
-                if include_fulltext:
-                    lines.append("*Full-text content was indexed.*")
+                if params.force_rebuild:
+                    message_lines.insert(0, "Database rebuilt from scratch")
+                if params.extract_fulltext:
+                    message_lines.insert(0, "Full-text content indexed")
 
-                return "\n".join(lines)
+                return DatabaseUpdateResponse(
+                    items_processed=items_processed,
+                    items_added=items_added,
+                    items_updated=items_updated,
+                    duration_seconds=duration,
+                    message="\n".join(message_lines),
+                )
 
-            return "✅ Database update completed successfully."
+            # Fallback if result format is unexpected
+            return DatabaseUpdateResponse(
+                items_processed=0,
+                items_added=0,
+                items_updated=0,
+                duration_seconds=0,
+                message="Database update completed successfully",
+            )
 
         except ImportError:
-            return (
-                "❌ Semantic search module not available. "
-                "Please install the required dependencies: `pip install chromadb sentence-transformers`"
+            await ctx.error("Semantic search module not available")
+            return DatabaseUpdateResponse(
+                success=False,
+                error="Semantic search module not available. Install dependencies: pip install chromadb sentence-transformers",
+                items_processed=0,
+                items_added=0,
+                items_updated=0,
+                duration_seconds=0,
             )
         except Exception as e:
-            return handle_error(e, ctx, "update database")
+            await ctx.error(f"Failed to update database: {str(e)}")
+            return DatabaseUpdateResponse(
+                success=False,
+                error=f"Database update error: {str(e)}",
+                items_processed=0,
+                items_added=0,
+                items_updated=0,
+                duration_seconds=0,
+            )
 
     @mcp.tool(
         name="zotero_database_status",
-        description="Get the status of the semantic search database, "
-        "including item count, last update time, and configuration.",
+        annotations=ToolAnnotations(
+            title="Get Database Status",
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
+            openWorldHint=False,
+        ),
     )
     async def zotero_database_status(
-        response_format: Literal["markdown", "json"] = "markdown",
-        *,
-        ctx: Context,
-    ) -> str:
+        params: DatabaseStatusInput, ctx: Context
+    ) -> DatabaseStatusResponse:
         """
-        Get semantic search database status.
+        Get the status of the semantic search database.
+
+        Provides information about database initialization, item count,
+        last update time, embedding configuration, and update settings.
 
         Args:
-            response_format: Output format
+            params: Input containing:
+                - response_format (str): Output format preference (inherited from BaseInput)
 
         Returns:
-            Database status and configuration
+            DatabaseStatusResponse: Database status and configuration.
+
+        Example:
+            Use when: "Is my search database initialized?"
+            Use when: "How many papers are indexed?"
+            Use when: "When was the database last updated?"
+            Use when: "What embedding model am I using?"
         """
         try:
             # Import semantic search module
@@ -111,85 +160,78 @@ def register_database_tools(mcp: FastMCP) -> None:
 
             status = await get_database_status()
 
-            if response_format == "json":
-                import json
+            if not isinstance(status, dict):
+                status = {}
 
-                return json.dumps(status, indent=2, default=str)
+            exists = status.get("exists", False)
+            item_count = status.get("item_count", 0)
+            last_updated = status.get("last_updated", "Unknown")
+            embedding_model = status.get("embedding_model", "default")
+            model_name = status.get("model_name")
+            fulltext_enabled = status.get("fulltext_enabled", False)
 
-            # Markdown format
-            lines = [
-                "# Semantic Search Database Status",
-                "",
-            ]
+            # Extract update configuration
+            update_config = status.get("update_config", {})
+            auto_update = (
+                update_config.get("auto_update", False) if update_config else False
+            )
+            update_frequency = (
+                update_config.get("update_frequency", "manual")
+                if update_config
+                else "manual"
+            )
 
-            if status.get("exists", False):
-                lines.extend(
+            message_lines = []
+            if exists:
+                message_lines.extend(
                     [
-                        "**Status:** ✅ Initialized",
-                        "",
-                        f"**Total Items:** {status.get('item_count', 0)}",
-                        f"**Last Updated:** {status.get('last_updated', 'Unknown')}",
-                        "",
-                        "## Configuration",
-                        "",
-                        f"**Embedding Model:** {status.get('embedding_model', 'default')}",
+                        f"Database initialized with {item_count} items",
+                        f"Last updated: {last_updated}",
+                        f"Embedding model: {embedding_model}",
                     ]
                 )
-
-                if model_name := status.get("model_name"):
-                    lines.append(f"**Model Name:** {model_name}")
-
-                update_config = status.get("update_config", {})
-                if update_config:
-                    auto_update = update_config.get("auto_update", False)
-                    frequency = update_config.get("update_frequency", "manual")
-                    lines.extend(
-                        [
-                            "",
-                            "## Update Settings",
-                            "",
-                            f"**Auto Update:** {'Yes' if auto_update else 'No'}",
-                            f"**Frequency:** {frequency}",
-                        ]
-                    )
-
-                if fulltext_enabled := status.get("fulltext_enabled"):
-                    lines.append(
-                        f"**Full-text Indexing:** {'Enabled' if fulltext_enabled else 'Disabled'}"
-                    )
-
-                lines.extend(
-                    [
-                        "",
-                        "---",
-                        "*Use `zotero_update_database` to update the database.*",
-                    ]
+                if model_name:
+                    message_lines.append(f"Model name: {model_name}")
+                message_lines.append(
+                    f"Auto-update: {'Enabled' if auto_update else 'Disabled'} ({update_frequency})"
                 )
-
+                message_lines.append(
+                    f"Full-text indexing: {'Enabled' if fulltext_enabled else 'Disabled'}"
+                )
             else:
-                lines.extend(
-                    [
-                        "**Status:** ⚠️ Not Initialized",
-                        "",
-                        "The semantic search database has not been created yet.",
-                        "",
-                        "To initialize, run:",
-                        "```",
-                        "zotero-mcp update-db",
-                        "```",
-                        "",
-                        "Or use the `zotero_update_database` tool.",
-                    ]
+                message_lines.append(
+                    "Database not initialized. Run zotero_update_database to create it."
                 )
 
-            return "\n".join(lines)
+            return DatabaseStatusResponse(
+                exists=exists,
+                item_count=item_count,
+                last_updated=last_updated,
+                embedding_model=embedding_model,
+                model_name=model_name,
+                fulltext_enabled=fulltext_enabled,
+                auto_update=auto_update,
+                update_frequency=update_frequency,
+                message="\n".join(message_lines),
+            )
 
         except ImportError:
-            return (
-                "# Semantic Search Status\n\n"
-                "**Status:** ❌ Not Available\n\n"
-                "Semantic search dependencies are not installed.\n\n"
-                "Install with: `pip install chromadb sentence-transformers`"
+            await ctx.error("Semantic search module not available")
+            return DatabaseStatusResponse(
+                success=False,
+                error="Semantic search module not available. Install dependencies: pip install chromadb sentence-transformers",
+                exists=False,
+                item_count=0,
+                last_updated="Unknown",
+                embedding_model="unknown",
             )
         except Exception as e:
-            return handle_error(e, ctx, "database status")
+            await ctx.error(f"Failed to get database status: {str(e)}")
+            return DatabaseStatusResponse(
+                success=False,
+                error=f"Database status error: {str(e)}",
+                exists=False,
+                item_count=0,
+                last_updated="Unknown",
+                embedding_model="unknown",
+            )
