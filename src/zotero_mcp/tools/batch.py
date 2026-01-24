@@ -74,7 +74,7 @@ def register_batch_tools(mcp: FastMCP) -> None:
                         url=data.get("url"),
                         abstract=data.get("abstractNote"),
                         tags=tags,
-                        raw_data=item if params.format == "json" else None,
+                        raw_data=item if params.output_format == "json" else None,
                     )
 
                     results.append(

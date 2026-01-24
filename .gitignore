@@ -37,6 +37,3 @@ Thumbs.db
 .env
 .env.local
 .example.yml
-
-# personal settings
-demand.md

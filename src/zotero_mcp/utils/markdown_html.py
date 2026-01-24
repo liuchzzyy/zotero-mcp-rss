@@ -6,7 +6,6 @@ specifically optimized for Zotero notes.
 """
 
 import re
-from typing import Any
 
 
 def markdown_to_html(markdown: str) -> str:

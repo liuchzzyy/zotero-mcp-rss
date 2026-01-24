@@ -14,15 +14,14 @@ class GetAnnotationsInput(PaginatedInput):
 
     item_key: str | None = Field(
         default=None,
-        description="Zotero item key to filter annotations by parent item. None for all annotations."
+        description="Zotero item key to filter annotations by parent item. None for all annotations.",
     )
     use_pdf_extraction: bool = Field(
         default=False,
-        description="Whether to attempt direct PDF annotation extraction as fallback"
+        description="Whether to attempt direct PDF annotation extraction as fallback",
     )
     annotation_type: Literal["all", "highlight", "note", "underline", "image"] = Field(
-        default="all",
-        description="Filter by annotation type"
+        default="all", description="Filter by annotation type"
     )
 
 
@@ -31,11 +30,11 @@ class GetNotesInput(PaginatedInput):
 
     item_key: str | None = Field(
         default=None,
-        description="Zotero item key to filter notes by parent item. None for all notes."
+        description="Zotero item key to filter notes by parent item. None for all notes.",
     )
     include_standalone: bool = Field(
         default=True,
-        description="Whether to include standalone notes (not attached to items)"
+        description="Whether to include standalone notes (not attached to items)",
     )
 
 
@@ -46,15 +45,13 @@ class SearchNotesInput(PaginatedInput):
         ...,
         min_length=1,
         max_length=500,
-        description="Search query to find in notes and annotations"
+        description="Search query to find in notes and annotations",
     )
     include_annotations: bool = Field(
-        default=True,
-        description="Whether to also search in PDF annotations"
+        default=True, description="Whether to also search in PDF annotations"
     )
     case_sensitive: bool = Field(
-        default=False,
-        description="Whether the search should be case-sensitive"
+        default=False, description="Whether the search should be case-sensitive"
     )
 
     @field_validator("query")
@@ -72,17 +69,16 @@ class CreateNoteInput(BaseInput):
         ...,
         min_length=1,
         max_length=20,
-        description="Parent item key to attach the note to"
+        description="Parent item key to attach the note to",
     )
     content: str = Field(
         ...,
         min_length=1,
         max_length=100000,
-        description="Note content in HTML or plain text format"
+        description="Note content in HTML or plain text format",
     )
     tags: list[str] | None = Field(
-        default=None,
-        description="Optional tags to add to the note"
+        default=None, description="Optional tags to add to the note"
     )
 
     @field_validator("content")

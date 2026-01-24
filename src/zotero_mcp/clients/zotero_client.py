@@ -9,15 +9,12 @@ import asyncio
 import os
 from dataclasses import dataclass
 from functools import lru_cache
-from pathlib import Path
 from typing import Any, Literal
 
 from pyzotero import zotero
 
 from zotero_mcp.utils.errors import (
-    AuthenticationError,
     ConfigurationError,
-    ConnectionError,
     NotFoundError,
 )
 from zotero_mcp.utils.helpers import is_local_mode
@@ -227,7 +224,7 @@ class ZoteroAPIClient:
         try:
             result = await loop.run_in_executor(
                 None,
-                lambda: self.client.fulltext(item_key),
+                lambda: self.client.fulltext_item(item_key),
             )
             if isinstance(result, dict):
                 return result.get("content", "")

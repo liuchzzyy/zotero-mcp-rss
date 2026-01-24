@@ -6,12 +6,12 @@ for semantic search over Zotero libraries.
 """
 
 import json
+import logging
 import os
 import sys
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
-import logging
 
 import chromadb
 from chromadb import Documents, EmbeddingFunction, Embeddings
@@ -90,7 +90,7 @@ class GeminiEmbeddingFunction(EmbeddingFunction):
 
             client_kwargs = {"api_key": self.api_key}
             if self.base_url:
-                http_options = types.HttpOptions(baseUrl=self.base_url)
+                http_options = types.HttpOptions(base_url=self.base_url)
                 client_kwargs["http_options"] = http_options
             self.client = genai.Client(**client_kwargs)
             self.types = types
@@ -255,7 +255,10 @@ class ChromaClient:
             return chromadb.utils.embedding_functions.DefaultEmbeddingFunction()
 
     def add_documents(
-        self, documents: list[str], metadatas: list[dict[str, Any]], ids: list[str]
+        self,
+        documents: list[str],
+        metadatas: list[dict[str, str | int | float | None]],
+        ids: list[str],
     ) -> None:
         """
         Add documents to the collection.
@@ -273,7 +276,10 @@ class ChromaClient:
             raise
 
     def upsert_documents(
-        self, documents: list[str], metadatas: list[dict[str, Any]], ids: list[str]
+        self,
+        documents: list[str],
+        metadatas: list[dict[str, str | int | float | None]],
+        ids: list[str],
     ) -> None:
         """
         Upsert (update or insert) documents to the collection.

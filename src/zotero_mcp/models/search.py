@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import Field, field_validator
 
-from .common import BaseInput, PaginatedInput, ResponseFormat, SearchMode
+from .common import BaseInput, PaginatedInput, SearchMode
 
 
 class SearchItemsInput(PaginatedInput):
@@ -16,19 +16,18 @@ class SearchItemsInput(PaginatedInput):
         ...,
         min_length=1,
         max_length=500,
-        description="Search query string (e.g., 'machine learning', 'Smith 2023')"
+        description="Search query string (e.g., 'machine learning', 'Smith 2023')",
     )
     qmode: SearchMode = Field(
         default=SearchMode.TITLE_CREATOR_YEAR,
-        description="Search mode: 'titleCreatorYear' searches title/author/year, 'everything' searches all fields"
+        description="Search mode: 'titleCreatorYear' searches title/author/year, 'everything' searches all fields",
     )
     item_type: str = Field(
         default="-attachment",
-        description="Item type filter. Use '-' prefix to exclude (e.g., '-attachment', '-note')"
+        description="Item type filter. Use '-' prefix to exclude (e.g., '-attachment', '-note')",
     )
     tags: list[str] | None = Field(
-        default=None,
-        description="Filter by tags. Items must have all specified tags."
+        default=None, description="Filter by tags. Items must have all specified tags."
     )
 
     @field_validator("query")
@@ -51,11 +50,11 @@ class SearchByTagInput(PaginatedInput):
             "use '-' prefix to exclude (e.g., '-draft'). "
             "Example: ['research || important', '-draft'] matches items with "
             "(research OR important) AND NOT draft"
-        )
+        ),
     )
     item_type: str = Field(
         default="-attachment",
-        description="Item type filter. Use '-' prefix to exclude."
+        description="Item type filter. Use '-' prefix to exclude.",
     )
 
     @field_validator("tags")
@@ -68,34 +67,26 @@ class SearchByTagInput(PaginatedInput):
 
 class AdvancedSearchCondition(BaseInput):
     """A single condition for advanced search."""
-    
+
     field: str = Field(
         ...,
-        description="Field to search (e.g., 'title', 'creator', 'date', 'abstractNote')"
+        description="Field to search (e.g., 'title', 'creator', 'date', 'abstractNote')",
     )
-    operation: Literal["contains", "is", "isNot", "beginsWith", "isLessThan", "isGreaterThan"] = Field(
-        default="contains",
-        description="Search operation"
-    )
-    value: str = Field(
-        ...,
-        min_length=1,
-        description="Value to search for"
-    )
+    operation: Literal[
+        "contains", "is", "isNot", "beginsWith", "isLessThan", "isGreaterThan"
+    ] = Field(default="contains", description="Search operation")
+    value: str = Field(..., min_length=1, description="Value to search for")
 
 
 class AdvancedSearchInput(PaginatedInput):
     """Input for zotero_advanced_search tool."""
 
     conditions: list[AdvancedSearchCondition] = Field(
-        ...,
-        min_length=1,
-        max_length=10,
-        description="List of search conditions"
+        ..., min_length=1, max_length=10, description="List of search conditions"
     )
     join_mode: Literal["all", "any"] = Field(
         default="all",
-        description="How to combine conditions: 'all' (AND) or 'any' (OR)"
+        description="How to combine conditions: 'all' (AND) or 'any' (OR)",
     )
 
     @field_validator("conditions")
@@ -118,14 +109,14 @@ class SemanticSearchInput(PaginatedInput):
             "Can be a phrase, question, or abstract snippet. "
             "Examples: 'papers about machine learning in healthcare', "
             "'research on climate change impacts on agriculture'"
-        )
+        ),
     )
     filters: dict[str, str] | None = Field(
         default=None,
         description=(
             "Optional metadata filters as key-value pairs. "
             "Example: {'item_type': 'journalArticle'}"
-        )
+        ),
     )
 
     @field_validator("query")
@@ -143,9 +134,9 @@ class GetRecentInput(PaginatedInput):
         default=None,
         ge=1,
         le=365,
-        description="Only show items added within the last N days (1-365)"
+        description="Only show items added within the last N days (1-365)",
     )
     item_type: str = Field(
         default="-attachment",
-        description="Item type filter. Use '-' prefix to exclude."
+        description="Item type filter. Use '-' prefix to exclude.",
     )

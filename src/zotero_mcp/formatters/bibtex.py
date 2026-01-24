@@ -6,8 +6,8 @@ import re
 from typing import Any
 
 from zotero_mcp.utils.helpers import clean_html
-from .base import BaseFormatter
 
+from .base import BaseFormatter
 
 # BibTeX type mapping from Zotero item types
 ZOTERO_TO_BIBTEX_TYPE: dict[str, str] = {

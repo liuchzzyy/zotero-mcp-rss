@@ -69,9 +69,9 @@ class MetricsCollector:
                 "avg_duration_ms": round(avg_duration, 2),
                 "min_duration_ms": round(metrics.min_duration_ms, 2),
                 "max_duration_ms": round(metrics.max_duration_ms, 2),
-                "last_called": metrics.last_called.isoformat()
-                if metrics.last_called
-                else None,
+                "last_called": (
+                    metrics.last_called.isoformat() if metrics.last_called else None
+                ),
             }
 
         return report

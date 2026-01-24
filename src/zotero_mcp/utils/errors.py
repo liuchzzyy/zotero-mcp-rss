@@ -2,8 +2,8 @@
 Unified error handling for Zotero MCP.
 """
 
-from typing import TYPE_CHECKING
 import logging
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from fastmcp import Context
@@ -27,38 +27,42 @@ class ZoteroMCPError(Exception):
 
 class ConnectionError(ZoteroMCPError):
     """Error connecting to Zotero or external services."""
+
     pass
 
 
 class AuthenticationError(ZoteroMCPError):
     """Authentication or authorization error."""
+
     pass
 
 
 class NotFoundError(ZoteroMCPError):
     """Resource not found error."""
+
     pass
 
 
 class ValidationError(ZoteroMCPError):
     """Input validation error."""
+
     pass
 
 
 class DatabaseError(ZoteroMCPError):
     """Database operation error."""
+
     pass
 
 
 class ConfigurationError(ZoteroMCPError):
     """Configuration error."""
+
     pass
 
 
 def handle_error(
-    error: Exception,
-    ctx: "Context | None" = None,
-    operation: str = "operation"
+    error: Exception, ctx: "Context | None" = None, operation: str = "operation"
 ) -> str:
     """
     Handle errors consistently across all tools.
@@ -87,37 +91,37 @@ def handle_error(
 
     if "connection" in error_str or "timeout" in error_str:
         return (
-            f"Error: Could not connect to Zotero. "
+            "Error: Could not connect to Zotero. "
             "Please ensure Zotero is running and 'Allow other applications' is enabled in preferences."
         )
 
     if "401" in error_str or "unauthorized" in error_str:
         return (
-            f"Error: Authentication failed. "
+            "Error: Authentication failed. "
             "Please check your ZOTERO_API_KEY is correct and has proper permissions."
         )
 
     if "403" in error_str or "forbidden" in error_str:
         return (
-            f"Error: Access denied. "
+            "Error: Access denied. "
             "You don't have permission to access this resource."
         )
 
     if "404" in error_str or "not found" in error_str:
         return (
-            f"Error: Resource not found. "
+            "Error: Resource not found. "
             "Please check the item key or collection key is correct."
         )
 
     if "429" in error_str or "rate limit" in error_str:
         return (
-            f"Error: Rate limit exceeded. "
+            "Error: Rate limit exceeded. "
             "Please wait a moment before making more requests."
         )
 
     if "chromadb" in error_str or "embedding" in error_str:
         return (
-            f"Error: Semantic search database error. "
+            "Error: Semantic search database error. "
             "Try running 'zotero-mcp update-db --force-rebuild' to rebuild the database."
         )
 

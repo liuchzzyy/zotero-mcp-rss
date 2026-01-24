@@ -6,7 +6,7 @@ Provides tools for managing the semantic search database:
 - zotero_database_status: Check database status
 """
 
-from fastmcp import FastMCP, Context
+from fastmcp import Context, FastMCP
 from mcp.types import ToolAnnotations
 
 from zotero_mcp.models.common import DatabaseStatusResponse, DatabaseUpdateResponse

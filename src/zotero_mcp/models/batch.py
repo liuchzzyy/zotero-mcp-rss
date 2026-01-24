@@ -16,7 +16,7 @@ class BatchGetMetadataInput(BaseInput):
         max_length=50,  # Limit batch size
         description="List of item keys to retrieve",
     )
-    format: str = Field(default="json", description="Output format")
+    output_format: str = Field(default="json", description="Output format")
 
 
 class BatchItemResult(BaseModel):

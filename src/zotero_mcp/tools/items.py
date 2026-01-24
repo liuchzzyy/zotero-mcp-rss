@@ -9,25 +9,25 @@ Provides tools for accessing item data:
 - zotero_get_bundle: Get comprehensive item data bundle
 """
 
-from fastmcp import FastMCP, Context
+from fastmcp import Context, FastMCP
 from mcp.types import ToolAnnotations
 
 from zotero_mcp.models.common import (
-    ItemDetailResponse,
-    FulltextResponse,
-    CollectionsResponse,
+    AnnotationItem,
+    BundleResponse,
     CollectionItem,
+    CollectionsResponse,
+    FulltextResponse,
+    ItemDetailResponse,
     SearchResponse,
     SearchResultItem,
-    BundleResponse,
-    AnnotationItem,
 )
 from zotero_mcp.models.items import (
-    GetMetadataInput,
-    GetFulltextInput,
+    GetBundleInput,
     GetChildrenInput,
     GetCollectionsInput,
-    GetBundleInput,
+    GetFulltextInput,
+    GetMetadataInput,
 )
 from zotero_mcp.services import get_data_service
 from zotero_mcp.utils.helpers import format_creators
@@ -77,7 +77,7 @@ def register_item_tools(mcp: FastMCP) -> None:
             item = await service.get_item(params.item_key.strip().upper())
 
             # Special handling for BibTeX format
-            if params.format.value == "bibtex":
+            if params.output_format.value == "bibtex":
                 bibtex = await service.get_bibtex(params.item_key)
                 if not bibtex:
                     return ItemDetailResponse(
@@ -111,7 +111,7 @@ def register_item_tools(mcp: FastMCP) -> None:
                 url=data.get("url"),
                 abstract=data.get("abstractNote") if params.include_abstract else None,
                 tags=tags,
-                raw_data=item if params.format.value == "json" else None,
+                raw_data=item if params.output_format.value == "json" else None,
             )
 
         except Exception as e:

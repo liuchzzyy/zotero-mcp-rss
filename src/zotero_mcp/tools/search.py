@@ -9,16 +9,16 @@ Provides tools for searching the Zotero library:
 - zotero_get_recent: Recently added items
 """
 
-from fastmcp import FastMCP, Context
+from fastmcp import Context, FastMCP
 from mcp.types import ToolAnnotations
 
 from zotero_mcp.models.common import SearchResponse, SearchResultItem
 from zotero_mcp.models.search import (
-    SearchItemsInput,
-    SearchByTagInput,
     AdvancedSearchInput,
-    SemanticSearchInput,
     GetRecentInput,
+    SearchByTagInput,
+    SearchItemsInput,
+    SemanticSearchInput,
 )
 from zotero_mcp.services import get_data_service
 from zotero_mcp.utils.cache import cached_tool
@@ -99,9 +99,9 @@ def register_search_tools(mcp: FastMCP) -> None:
                 offset=params.offset,
                 limit=params.limit,
                 has_more=len(items) == params.limit,
-                next_offset=params.offset + len(items)
-                if len(items) == params.limit
-                else None,
+                next_offset=(
+                    params.offset + len(items) if len(items) == params.limit else None
+                ),
                 items=items,
             )
 

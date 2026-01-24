@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from .common import BaseInput, PaginatedInput, OutputFormat
+from .common import BaseInput, OutputFormat, PaginatedInput
 
 
 class GetMetadataInput(BaseInput):
@@ -21,7 +21,7 @@ class GetMetadataInput(BaseInput):
     include_abstract: bool = Field(
         default=True, description="Whether to include the abstract in the output"
     )
-    format: OutputFormat = Field(
+    output_format: OutputFormat = Field(
         default=OutputFormat.MARKDOWN,
         description="Output format: 'markdown', 'bibtex', or 'json'",
     )
@@ -98,7 +98,7 @@ class GetBundleInput(BaseInput):
         default=True, description="Whether to include full text content"
     )
     include_children: bool = Field(
-        default=True, description="Whether to include attachments"
+        default=True, description="Whether to include attachments and notes"
     )
     include_notes: bool = Field(default=True, description="Whether to include notes")
     include_annotations: bool = Field(
@@ -106,22 +106,6 @@ class GetBundleInput(BaseInput):
     )
     include_bibtex: bool = Field(
         default=False, description="Whether to include BibTeX citation"
-    )
-    fulltext_max_length: int | None = Field(
-        default=10000,
-        ge=100,
-        le=100000,
-        description="Maximum characters for full text. None for unlimited.",
-    )
-
-    include_fulltext: bool = Field(
-        default=True, description="Whether to include full text content"
-    )
-    include_children: bool = Field(
-        default=True, description="Whether to include attachments and notes"
-    )
-    include_annotations: bool = Field(
-        default=False, description="Whether to include annotations from PDF attachments"
     )
     fulltext_max_length: int | None = Field(
         default=10000,

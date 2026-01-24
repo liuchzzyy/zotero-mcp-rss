@@ -7,7 +7,6 @@ your research library, search for papers, and manage annotations.
 
 from fastmcp import FastMCP
 
-from zotero_mcp import __version__
 from zotero_mcp.tools import register_all_tools
 from zotero_mcp.utils.config import load_config
 

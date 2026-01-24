@@ -5,24 +5,24 @@ Provides a single interface for accessing Zotero data through
 multiple backends (API, local database, Better BibTeX).
 """
 
-import logging
 from dataclasses import dataclass
 from functools import lru_cache
+import logging
 from typing import Any, Literal
 
-from zotero_mcp.clients.zotero_client import ZoteroAPIClient, get_zotero_client
 from zotero_mcp.clients.better_bibtex import (
     BetterBibTeXClient,
     get_better_bibtex_client,
 )
 from zotero_mcp.clients.local_db import (
     LocalDatabaseClient,
-    get_local_database_client,
     ZoteroItem,
+    get_local_database_client,
 )
-from zotero_mcp.utils.helpers import is_local_mode, format_creators
-from zotero_mcp.formatters import MarkdownFormatter, JSONFormatter, BibTeXFormatter
+from zotero_mcp.clients.zotero_client import ZoteroAPIClient, get_zotero_client
+from zotero_mcp.formatters import BibTeXFormatter, JSONFormatter, MarkdownFormatter
 from zotero_mcp.models.common import ResponseFormat
+from zotero_mcp.utils.helpers import format_creators, is_local_mode
 
 logger = logging.getLogger(__name__)
 
@@ -98,10 +98,12 @@ class DataAccessService:
         return self._bibtex_client
 
     def get_formatter(
-        self, format: ResponseFormat
+        self, response_format: ResponseFormat
     ) -> MarkdownFormatter | JSONFormatter:
         """Get formatter for response format."""
-        return self._formatters.get(format, self._formatters[ResponseFormat.MARKDOWN])
+        return self._formatters.get(
+            response_format, self._formatters[ResponseFormat.MARKDOWN]
+        )
 
     # -------------------- Search Operations --------------------
 

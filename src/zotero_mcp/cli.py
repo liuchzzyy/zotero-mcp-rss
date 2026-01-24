@@ -4,9 +4,7 @@ Command-line interface for Zotero MCP server.
 
 import argparse
 import json
-import os
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 
@@ -308,9 +306,9 @@ def main():
 
             results = col.get(
                 limit=args.limit,
-                include=["metadatas", "documents"]
-                if args.show_documents
-                else ["metadatas"],
+                include=(
+                    ["metadatas", "documents"] if args.show_documents else ["metadatas"]
+                ),
             )
 
             for i, meta in enumerate(results["metadatas"]):

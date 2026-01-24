@@ -12,11 +12,11 @@ from typing import Any, Callable
 from zotero_mcp.clients.llm import get_llm_client
 from zotero_mcp.models.workflow import (
     AnalysisItem,
-    ItemAnalysisResult,
     BatchAnalyzeResponse,
+    ItemAnalysisResult,
     PrepareAnalysisResponse,
 )
-from zotero_mcp.services.checkpoint import get_checkpoint_manager, WorkflowState
+from zotero_mcp.services.checkpoint import get_checkpoint_manager
 from zotero_mcp.services.data_access import get_data_service
 from zotero_mcp.utils.markdown_html import markdown_to_html
 

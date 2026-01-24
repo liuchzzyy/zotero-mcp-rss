@@ -6,11 +6,11 @@ This module registers all Zotero MCP tools with the FastMCP server.
 
 from fastmcp import FastMCP
 
-from .search import register_search_tools
-from .items import register_item_tools
 from .annotations import register_annotation_tools
-from .database import register_database_tools
 from .batch import register_batch_tools
+from .database import register_database_tools
+from .items import register_item_tools
+from .search import register_search_tools
 from .workflow import register_workflow_tools
 
 

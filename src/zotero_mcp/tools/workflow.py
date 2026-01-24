@@ -4,24 +4,24 @@ Workflow tools for Zotero MCP.
 Provides MCP tools for batch PDF analysis workflows.
 """
 
-from fastmcp import FastMCP, Context
+from fastmcp import Context, FastMCP
 from mcp.types import ToolAnnotations
 
 from zotero_mcp.models.workflow import (
-    PrepareAnalysisInput,
-    PrepareAnalysisResponse,
     BatchAnalyzeInput,
     BatchAnalyzeResponse,
-    ResumeWorkflowInput,
+    CollectionMatch,
     FindCollectionInput,
     FindCollectionResponse,
-    WorkflowListResponse,
+    PrepareAnalysisInput,
+    PrepareAnalysisResponse,
+    ResumeWorkflowInput,
     WorkflowInfo,
-    CollectionMatch,
+    WorkflowListResponse,
 )
-from zotero_mcp.services.workflow import get_workflow_service
 from zotero_mcp.services.checkpoint import get_checkpoint_manager
 from zotero_mcp.services.data_access import get_data_service
+from zotero_mcp.services.workflow import get_workflow_service
 
 
 def register_workflow_tools(mcp: FastMCP) -> None:
@@ -385,9 +385,11 @@ def register_workflow_tools(mcp: FastMCP) -> None:
                         key=data.get("key", ""),
                         name=data.get("name", ""),
                         item_count=data.get("numItems"),
-                        parent_key=data.get("parentCollection")
-                        if data.get("parentCollection") is not False
-                        else None,
+                        parent_key=(
+                            data.get("parentCollection")
+                            if data.get("parentCollection") is not False
+                            else None
+                        ),
                         match_score=match.get("match_score", 1.0),
                     )
                 )

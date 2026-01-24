@@ -4,7 +4,8 @@ Markdown formatter for Zotero MCP responses.
 
 from typing import Any
 
-from zotero_mcp.utils.helpers import format_creators, clean_html, truncate_text
+from zotero_mcp.utils.helpers import clean_html, format_creators, truncate_text
+
 from .base import BaseFormatter
 
 

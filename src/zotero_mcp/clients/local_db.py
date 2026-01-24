@@ -171,14 +171,12 @@ class LocalDatabaseClient:
     def get_item_count(self) -> int:
         """Get total count of library items (excluding attachments/notes)."""
         conn = self._get_connection()
-        cursor = conn.execute(
-            """
+        cursor = conn.execute("""
             SELECT COUNT(*)
             FROM items i
             JOIN itemTypes it ON i.itemTypeID = it.itemTypeID
             WHERE it.typeName NOT IN ('attachment', 'note', 'annotation')
-            """
-        )
+            """)
         return cursor.fetchone()[0]
 
     def get_items(

@@ -10,7 +10,7 @@ Provides tools for working with annotations and notes:
 
 import re
 
-from fastmcp import FastMCP, Context
+from fastmcp import Context, FastMCP
 from mcp.types import ToolAnnotations
 
 from zotero_mcp.models.annotations import (

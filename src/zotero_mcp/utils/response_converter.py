@@ -6,7 +6,6 @@ for clients that haven't migrated to the new schema.
 """
 
 import json
-from typing import Any
 
 from zotero_mcp.models.common import (
     AnnotationsResponse,

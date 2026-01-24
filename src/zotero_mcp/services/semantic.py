@@ -17,10 +17,10 @@ from pathlib import Path
 from typing import Any
 
 from zotero_mcp.clients.chroma import ChromaClient, create_chroma_client
+from zotero_mcp.clients.local_db import LocalDatabaseClient
 from zotero_mcp.clients.zotero_client import get_zotero_client
-from zotero_mcp.clients.local_db import LocalDatabaseClient, get_local_database_client
-from zotero_mcp.utils.helpers import format_creators, is_local_mode
 from zotero_mcp.utils.config import get_config_path
+from zotero_mcp.utils.helpers import format_creators, is_local_mode
 
 logger = logging.getLogger(__name__)
 
@@ -352,9 +352,9 @@ class ZoteroSemanticSearch:
                             "abstractNote": item.abstract or "",
                             "extra": item.extra or "",
                             "fulltext": item.fulltext or "" if extract_fulltext else "",
-                            "fulltextSource": item.fulltext_source or ""
-                            if extract_fulltext
-                            else "",
+                            "fulltextSource": (
+                                item.fulltext_source or "" if extract_fulltext else ""
+                            ),
                             "dateAdded": item.date_added,
                             "dateModified": item.date_modified,
                             "creators": self._parse_creators_string(item.creators),
@@ -625,9 +625,9 @@ class ZoteroSemanticSearch:
                 enriched.append(
                     {
                         "item_key": item_key,
-                        "similarity_score": 1 - distances[i]
-                        if i < len(distances)
-                        else 0,
+                        "similarity_score": (
+                            1 - distances[i] if i < len(distances) else 0
+                        ),
                         "matched_text": documents[i] if i < len(documents) else "",
                         "metadata": metadatas[i] if i < len(metadatas) else {},
                         "query": query,

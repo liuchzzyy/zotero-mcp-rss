@@ -4,13 +4,11 @@ Workflow models for Zotero MCP.
 Provides Pydantic models for batch PDF analysis workflows.
 """
 
-from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 from zotero_mcp.models.common import BaseInput, BaseResponse
-
 
 # -------------------- Input Models --------------------
 
@@ -138,7 +136,7 @@ class FindCollectionInput(BaseInput):
 # -------------------- Output Models --------------------
 
 
-class AnalysisItem:
+class AnalysisItem(BaseModel):
     """Single item prepared for analysis (Mode A)."""
 
     item_key: str = Field(..., description="Zotero item key")
@@ -173,7 +171,7 @@ class PrepareAnalysisResponse(BaseResponse):
     )
 
 
-class ItemAnalysisResult:
+class ItemAnalysisResult(BaseModel):
     """Result for a single analyzed item."""
 
     item_key: str = Field(..., description="Zotero item key")
@@ -209,7 +207,7 @@ class BatchAnalyzeResponse(BaseResponse):
     )
 
 
-class WorkflowInfo:
+class WorkflowInfo(BaseModel):
     """Information about a saved workflow."""
 
     workflow_id: str = Field(..., description="Workflow ID")
@@ -234,7 +232,7 @@ class WorkflowListResponse(BaseResponse):
     )
 
 
-class CollectionMatch:
+class CollectionMatch(BaseModel):
     """A matched collection."""
 
     key: str = Field(..., description="Collection key")
