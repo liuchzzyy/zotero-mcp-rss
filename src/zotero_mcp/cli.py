@@ -114,12 +114,6 @@ def main():
         help="Zotero library type",
     )
     setup_parser.add_argument(
-        "--no-claude", action="store_true", help="Skip Claude Desktop config"
-    )
-    setup_parser.add_argument(
-        "--config-path", help="Path to Claude Desktop config file"
-    )
-    setup_parser.add_argument(
         "--skip-semantic-search",
         action="store_true",
         help="Skip semantic search configuration",

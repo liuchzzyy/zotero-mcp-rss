@@ -150,38 +150,6 @@ def backup_configurations() -> Path:
     """
     backup_dir = Path(tempfile.mkdtemp(prefix="zotero_mcp_backup_"))
 
-    # Backup Claude Desktop configs
-    claude_config_paths = [
-        Path.home()
-        / "Library"
-        / "Application Support"
-        / "Claude"
-        / "claude_desktop_config.json",
-        Path.home()
-        / "Library"
-        / "Application Support"
-        / "Claude Desktop"
-        / "claude_desktop_config.json",
-        Path(os.environ.get("APPDATA", "")) / "Claude" / "claude_desktop_config.json",
-        Path(os.environ.get("APPDATA", ""))
-        / "Claude Desktop"
-        / "claude_desktop_config.json",
-        Path.home() / ".config" / "Claude" / "claude_desktop_config.json",
-        Path.home() / ".config" / "Claude Desktop" / "claude_desktop_config.json",
-    ]
-
-    for config_path in claude_config_paths:
-        if config_path.exists():
-            try:
-                backup_path = backup_dir / "claude_desktop_config.json"
-                shutil.copy2(config_path, backup_path)
-                print(f"Backed up Claude Desktop config from: {config_path}")
-                break
-            except Exception as e:
-                logger.warning(
-                    f"Could not backup Claude config from {config_path}: {e}"
-                )
-
     # Backup semantic search config
     semantic_config_path = Path.home() / ".config" / "zotero-mcp" / "config.json"
     if semantic_config_path.exists():
@@ -216,21 +184,6 @@ def restore_configurations(backup_dir: Path) -> bool:
         True if restore was successful
     """
     success = True
-
-    # Restore Claude Desktop config
-    claude_backup = backup_dir / "claude_desktop_config.json"
-    if claude_backup.exists():
-        # Find the current Claude config location
-        from zotero_mcp.utils.config import find_claude_config
-
-        try:
-            current_config_path = find_claude_config()
-            if current_config_path:
-                shutil.copy2(claude_backup, current_config_path)
-                print(f"Restored Claude Desktop config to: {current_config_path}")
-        except Exception as e:
-            logger.error(f"Could not restore Claude Desktop config: {e}")
-            success = False
 
     # Restore semantic search config
     semantic_backup = backup_dir / "semantic_config.json"

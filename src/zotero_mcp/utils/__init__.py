@@ -3,7 +3,6 @@ Utility functions and helpers for Zotero MCP.
 """
 
 from .config import (
-    find_claude_config,
     find_opencode_config,
     get_config_path,
     load_config,
@@ -32,7 +31,6 @@ __all__ = [
     "is_local_mode",
     # Config
     "load_config",
-    "find_claude_config",
     "find_opencode_config",
     "get_config_path",
 ]

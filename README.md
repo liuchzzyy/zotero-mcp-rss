@@ -69,15 +69,7 @@ We recommend using `uv` for installation.
 
 ```bash
 uv tool install "git+https://github.com/54yyyu/zotero-mcp.git"
-zotero-mcp setup  # Auto-configure (Claude Desktop supported)
-```
-
-### Installing via Smithery
-
-To install Zotero MCP via [Smithery](https://smithery.ai/server/@54yyyu/zotero-mcp) for Claude Desktop:
-
-```bash
-npx -y @smithery/cli install @54yyyu/zotero-mcp --client claude
+zotero-mcp setup  # Auto-configure for Opencode CLI
 ```
 
 ### Updating Your Installation
@@ -153,38 +145,26 @@ Full documentation is available at [Zotero MCP docs](https://stevenyuyy.us/zoter
 **Requirements**
 - Python 3.10+
 - Zotero 7+ (for local API with full-text access)
-- An MCP-compatible client (e.g., Claude Desktop, Cherry Studio, Chorus)
+- An MCP-compatible client (e.g., Opencode CLI, Cherry Studio, Chorus)
 
-### For Claude Desktop (example MCP client)
+### For Opencode CLI
 
 #### Configuration
-After installation, either:
+After installation, run:
 
-1. **Auto-configure** (recommended):
-   ```bash
-   zotero-mcp setup
-   ```
+```bash
+zotero-mcp setup
+```
 
-2. **Manual configuration**:
-   Add to your `claude_desktop_config.json`:
-   ```json
-   {
-     "mcpServers": {
-       "zotero": {
-         "command": "zotero-mcp",
-         "env": {
-           "ZOTERO_LOCAL": "true"
-         }
-       }
-     }
-   }
-   ```
+This will create a configuration file at `~/.config/zotero-mcp/config.json` with your settings.
+
+For Opencode CLI, you can add the environment variables to your Opencode configuration or use them directly.
 
 #### Usage
 
 1. Start Zotero desktop (make sure local API is enabled in preferences)
-2. Launch Claude Desktop
-3. Access the Zotero-MCP tool through Claude Desktop's tools interface
+2. Configure your MCP client with the zotero-mcp command
+3. Access the Zotero-MCP tools through your AI assistant
 
 Example prompts:
 - "Search my library for papers on machine learning"
@@ -195,12 +175,12 @@ Example prompts:
 - "Show me papers tagged '#Arm' excluding those with '#Crypt' in my library"
 - "Export the BibTeX citation for papers on machine learning"
 - **"Find papers conceptually similar to deep learning in computer vision"** *(semantic search)*
-- **"分析最近 5 篇论文"** *(batch PDF analysis with AI)*
+- **\"分析最近 5 篇论文\"** *(batch PDF analysis with AI)*
 
-### For Cherry Studio
+### For Other MCP Clients
 
 #### Configuration
-Go to Settings -> MCP Servers -> Edit MCP Configuration, and add the following:
+For Cherry Studio and other MCP clients, add the following MCP server configuration:
 
 ```json
 {
@@ -218,9 +198,8 @@ Go to Settings -> MCP Servers -> Edit MCP Configuration, and add the following:
   }
 }
 ```
-Then click "Save".
 
-Cherry Studio also provides a visual configuration method for general settings and tools selection.
+Most MCP clients provide a visual configuration method for MCP servers.
 
 ## 🔧 Advanced Configuration
 
@@ -379,7 +358,7 @@ All tools now return **structured Pydantic models** instead of formatted strings
 - **Installation/search option switching issues**: Database problems from changing install methods or search options can often be resolved with `zotero-mcp update-db --force-rebuild`
 
 ### Semantic Search Issues
-- **"Missing required environment variables" when running update-db**: Run `zotero-mcp setup` to configure your environment, or the CLI will automatically load settings from your MCP client config (e.g., Claude Desktop)
+- **\"Missing required environment variables\" when running update-db**: Run `zotero-mcp setup` to configure your environment, or the CLI will automatically load settings from your MCP client config
 - **Database update takes long**: By default, `update-db` is fast (metadata-only). For comprehensive indexing with full-text, use `--fulltext` flag. Use `--limit` parameter for testing: `zotero-mcp update-db --limit 100`
 - **Semantic search returns no results**: Ensure the database is initialized with `zotero-mcp update-db` and check status with `zotero-mcp db-status`
 - **Limited search quality**: For better semantic search results, use `zotero-mcp update-db --fulltext` to index full-text content (requires local Zotero setup)

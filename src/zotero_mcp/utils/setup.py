@@ -2,7 +2,7 @@
 Setup helper for zotero-mcp.
 
 This script provides utilities to automatically configure zotero-mcp
-by finding the installed executable and updating Claude Desktop's config.
+for Opencode CLI and standalone usage.
 """
 
 import argparse
@@ -12,8 +12,6 @@ import os
 import shutil
 import sys
 from pathlib import Path
-
-from zotero_mcp.utils.config import find_claude_config
 
 
 def find_executable():
@@ -53,34 +51,6 @@ def find_executable():
         if path.exists() and os.access(path, os.X_OK):
             print(f"Found zotero-mcp at: {path}")
             return str(path)
-
-    # If still not found, search in common directories
-    print("Searching for zotero-mcp in common locations...")
-    try:
-        # On Unix-like systems, try using the 'find' command
-        if sys.platform != "win32":
-            import subprocess
-
-            result = subprocess.run(
-                [
-                    "find",
-                    os.path.expanduser("~"),
-                    "-name",
-                    "zotero-mcp",
-                    "-type",
-                    "f",
-                    "-executable",
-                ],
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
-            paths = result.stdout.strip().split("\n")
-            if paths and paths[0]:
-                print(f"Found zotero-mcp at {paths[0]}")
-                return paths[0]
-    except Exception as e:
-        print(f"Error searching for zotero-mcp: {e}")
 
     print("Warning: Could not find zotero-mcp executable.")
     print("Make sure zotero-mcp is installed and in your PATH.")
@@ -364,96 +334,12 @@ def load_semantic_search_config(semantic_config_path: Path) -> dict:
         return {}
 
 
-def update_claude_config(
-    config_path,
-    zotero_mcp_path,
-    local=True,
-    api_key=None,
-    library_id=None,
-    library_type="user",
-    semantic_config=None,
-):
-    """Update Claude Desktop config to add zotero-mcp."""
-    # Create directory if it doesn't exist
-    config_dir = config_path.parent
-    config_dir.mkdir(parents=True, exist_ok=True)
-
-    # Load existing config or create new one
-    if config_path.exists():
-        try:
-            with open(config_path) as f:
-                config = json.load(f)
-            print(f"Loaded existing config from: {config_path}")
-        except json.JSONDecodeError:
-            print(
-                f"Error: Config file at {config_path} is not valid JSON. Creating new config."
-            )
-            config = {}
-    else:
-        print(f"Creating new config file at: {config_path}")
-        config = {}
-
-    # Ensure mcpServers key exists
-    if "mcpServers" not in config:
-        config["mcpServers"] = {}
-
-    # Create environment settings based on local vs web API
-    env_settings = {"ZOTERO_LOCAL": "true" if local else "false"}
-
-    # Add API key and library settings for web API
-    if not local:
-        if api_key:
-            env_settings["ZOTERO_API_KEY"] = api_key
-        if library_id:
-            env_settings["ZOTERO_LIBRARY_ID"] = library_id
-        if library_type:
-            env_settings["ZOTERO_LIBRARY_TYPE"] = library_type
-
-    # Add semantic search settings if provided
-    if semantic_config:
-        env_settings["ZOTERO_EMBEDDING_MODEL"] = semantic_config.get(
-            "embedding_model", "default"
-        )
-
-        embedding_config = semantic_config.get("embedding_config", {})
-        if semantic_config.get("embedding_model") == "openai":
-            if api_key := embedding_config.get("api_key"):
-                env_settings["OPENAI_API_KEY"] = api_key
-            if model := embedding_config.get("model_name"):
-                env_settings["OPENAI_EMBEDDING_MODEL"] = model
-            if base_url := embedding_config.get("base_url"):
-                env_settings["OPENAI_BASE_URL"] = base_url
-
-        elif semantic_config.get("embedding_model") == "gemini":
-            if api_key := embedding_config.get("api_key"):
-                env_settings["GEMINI_API_KEY"] = api_key
-            if model := embedding_config.get("model_name"):
-                env_settings["GEMINI_EMBEDDING_MODEL"] = model
-            if base_url := embedding_config.get("base_url"):
-                env_settings["GEMINI_BASE_URL"] = base_url
-
-    # Add or update zotero config
-    config["mcpServers"]["zotero"] = {"command": zotero_mcp_path, "env": env_settings}
-
-    # Write updated config
-    try:
-        with open(config_path, "w") as f:
-            json.dump(config, f, indent=2)
-        print(f"\nSuccessfully wrote config to: {config_path}")
-    except Exception as e:
-        print(f"Error writing config file: {str(e)}")
-        return False
-
-    return config_path
-
-
-def _write_standalone_config(
+def write_standalone_config(
     local: bool,
     api_key: str,
     library_id: str,
     library_type: str,
     semantic_config: dict,
-    no_claude: bool = False,
 ) -> Path:
     """Write a central config file used by semantic search and provide client env."""
     cfg_dir = Path.home() / ".config" / "zotero-mcp"
@@ -473,11 +359,8 @@ def _write_standalone_config(
     if semantic_config:
         full["semantic_search"] = semantic_config
 
-    # Provide a helper env section for web-based clients
+    # Provide environment variables for client
     client_env = {"ZOTERO_LOCAL": "true" if local else "false"}
-    # Persist global guard to disable Claude detection/output if requested
-    if no_claude:
-        client_env["ZOTERO_NO_CLAUDE"] = "true"
     if not local:
         if api_key:
             client_env["ZOTERO_API_KEY"] = api_key
@@ -485,6 +368,29 @@ def _write_standalone_config(
             client_env["ZOTERO_LIBRARY_ID"] = library_id
         if library_type:
             client_env["ZOTERO_LIBRARY_TYPE"] = library_type
+
+    # Add semantic search env vars if configured
+    if semantic_config:
+        client_env["ZOTERO_EMBEDDING_MODEL"] = semantic_config.get(
+            "embedding_model", "default"
+        )
+
+        embedding_config = semantic_config.get("embedding_config", {})
+        if semantic_config.get("embedding_model") == "openai":
+            if api_key := embedding_config.get("api_key"):
+                client_env["OPENAI_API_KEY"] = api_key
+            if model := embedding_config.get("model_name"):
+                client_env["OPENAI_EMBEDDING_MODEL"] = model
+            if base_url := embedding_config.get("base_url"):
+                client_env["OPENAI_BASE_URL"] = base_url
+
+        elif semantic_config.get("embedding_model") == "gemini":
+            if api_key := embedding_config.get("api_key"):
+                client_env["GEMINI_API_KEY"] = api_key
+            if model := embedding_config.get("model_name"):
+                client_env["GEMINI_EMBEDDING_MODEL"] = model
+            if base_url := embedding_config.get("base_url"):
+                client_env["GEMINI_BASE_URL"] = base_url
 
     full["client_env"] = client_env
 
@@ -497,17 +403,12 @@ def _write_standalone_config(
 def main(cli_args=None):
     """Main function to run the setup helper."""
     parser = argparse.ArgumentParser(
-        description="Configure zotero-mcp for Claude Desktop"
+        description="Configure zotero-mcp for Opencode CLI and standalone usage"
     )
     parser.add_argument(
         "--no-local",
         action="store_true",
         help="Configure for Zotero Web API instead of local API",
-    )
-    parser.add_argument(
-        "--no-claude",
-        action="store_true",
-        help="Don't setup Claude Desktop config: instead store settings in config file.",
     )
     parser.add_argument(
         "--api-key", help="Zotero API key (only needed with --no-local)"
@@ -521,7 +422,6 @@ def main(cli_args=None):
         default="user",
         help="Zotero library type (only needed with --no-local)",
     )
-    parser.add_argument("--config-path", help="Path to Claude Desktop config file")
     parser.add_argument(
         "--skip-semantic-search",
         action="store_true",
@@ -574,19 +474,6 @@ def main(cli_args=None):
         return 1
     print(f"Using zotero-mcp at: {exe_path}")
 
-    # Find Claude Desktop config unless --no-claude
-    config_path = None
-    if not args.no_claude:
-        config_path = args.config_path
-        if not config_path:
-            config_path = find_claude_config()
-        else:
-            print(f"Using specified config path: {config_path}")
-            config_path = Path(config_path)
-        if not config_path:
-            print("Error: Could not determine Claude Desktop config path.")
-            return 1
-
     # Update config
     use_local = not args.no_local
     api_key = args.api_key
@@ -598,7 +485,7 @@ def main(cli_args=None):
         # if there is already a semantic search configuration in the config file:
         if existing_semantic_config:
             print(
-                "\nFound an exisiting semantic search configuration in the config file."
+                "\nFound an existing semantic search configuration in the config file."
             )
             print("Would you like to reconfigure semantic search? (y/n): ", end="")
         # if otherwise, slightly different message...
@@ -626,92 +513,58 @@ def main(cli_args=None):
     # Use the potentially updated semantic config
     semantic_config = existing_semantic_config
 
-    # Update configuration based on mode
+    # Write configuration
     try:
-        if args.no_claude:
-            cfg_path = _write_standalone_config(
-                local=use_local,
-                api_key=api_key,
-                library_id=library_id,
-                library_type=library_type,
-                semantic_config=semantic_config,
-                no_claude=args.no_claude,
+        cfg_path = write_standalone_config(
+            local=use_local,
+            api_key=api_key,
+            library_id=library_id,
+            library_type=library_type,
+            semantic_config=semantic_config,
+        )
+        print("\nSetup complete!")
+        print(f"Config saved to: {cfg_path}")
+
+        # Emit one-line client_env for easy copy/paste
+        try:
+            with open(cfg_path) as f:
+                full = json.load(f)
+            env_line = json.dumps(full.get("client_env", {}), separators=(",", ":"))
+            print("\nClient environment (single-line JSON):")
+            print(env_line)
+            print(
+                "\nYou can add these to your Opencode CLI config or use them as environment variables."
             )
-            print("\nSetup complete (standalone/web mode)!")
-            print(f"Config saved to: {cfg_path}")
-            # Emit one-line client_env for easy copy/paste
-            try:
-                with open(cfg_path) as f:
-                    full = json.load(f)
-                env_line = json.dumps(full.get("client_env", {}), separators=(",", ":"))
-                print("Client environment (single-line JSON):")
-                print(env_line)
-            except Exception:
-                pass
-            if semantic_config_changed:
-                print(
-                    "\nNote: You changed semantic search settings. Consider rebuilding the DB:"
-                )
-                print("  zotero-mcp update-db --force-rebuild")
-            return 0
+        except Exception:
+            pass
+
+        if semantic_config_changed:
+            print(
+                "\nNote: You changed semantic search settings. Consider rebuilding the DB:"
+            )
+            print("  zotero-mcp update-db --force-rebuild")
         else:
-            updated_config_path = update_claude_config(
-                config_path,
-                exe_path,
-                local=use_local,
-                api_key=api_key,
-                library_id=library_id,
-                library_type=library_type,
-                semantic_config=semantic_config,
+            print("\nTo initialize the semantic search database, run:")
+            print("  zotero-mcp update-db")
+
+        if use_local:
+            print(
+                "\nNote: Make sure Zotero desktop is running and the local API is enabled in preferences."
             )
-            if updated_config_path:
-                print("\nSetup complete!")
-                print("To use Zotero in Claude Desktop:")
-                print("1. Restart Claude Desktop if it's running")
-                print("2. In Claude, type: /tools zotero")
-                if semantic_config_changed:
-                    print("\nSemantic Search:")
-                    print(
-                        "- Configured with",
-                        semantic_config.get("embedding_model", "default"),
-                        "embedding model",
-                    )
-                    print(
-                        "- To change the configuration, run: zotero-mcp setup --semantic-config-only"
-                    )
-                    print(
-                        "- The config file is located at: ~/.config/zotero-mcp/config.json"
-                    )
-                    print(
-                        "- You may need to rebuild your database: zotero-mcp update-db --force-rebuild"
-                    )
-                else:
-                    print("\nSemantic Search:")
-                    print("- To update the database, run: zotero-mcp update-db")
-                    print(
-                        "- Use zotero_semantic_search tool in Claude for AI-powered search"
-                    )
-                if use_local:
-                    print(
-                        "\nNote: Make sure Zotero desktop is running and the local API is enabled in preferences."
-                    )
-                else:
-                    missing = []
-                    if not api_key:
-                        missing.append("API key")
-                    if not library_id:
-                        missing.append("Library ID")
-                    if missing:
-                        print(
-                            f"\nWarning: The following required settings for Web API were not provided: {', '.join(missing)}"
-                        )
-                        print(
-                            "You may need to set these as environment variables or reconfigure."
-                        )
-                return 0
-            else:
-                print("\nSetup failed. See errors above.")
-                return 1
+        else:
+            missing = []
+            if not api_key:
+                missing.append("API key")
+            if not library_id:
+                missing.append("Library ID")
+            if missing:
+                print(
+                    f"\nWarning: The following required settings for Web API were not provided: {', '.join(missing)}"
+                )
+                print(
+                    "You may need to set these as environment variables or reconfigure."
+                )
+        return 0
     except Exception as e:
         print(f"\nSetup failed with error: {str(e)}")
         return 1

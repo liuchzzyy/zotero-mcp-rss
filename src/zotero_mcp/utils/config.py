@@ -2,7 +2,6 @@
 Configuration loading and management for Zotero MCP.
 
 Supports loading configuration from:
-- Claude Desktop config (macOS, Windows, Linux)
 - Opencode CLI config (~/.opencode/)
 - Standalone config (~/.config/zotero-mcp/config.json)
 """
@@ -36,57 +35,6 @@ def get_config_file_path() -> Path:
     return get_config_path() / "config.json"
 
 
-def find_claude_config() -> Path | None:
-    """
-    Find Claude Desktop config file path.
-
-    Searches platform-specific locations for Claude Desktop config.
-
-    Returns:
-        Path to claude_desktop_config.json if found, None otherwise.
-    """
-    config_paths: list[Path] = []
-
-    if sys.platform == "darwin":  # macOS
-        config_paths.extend(
-            [
-                Path.home()
-                / "Library"
-                / "Application Support"
-                / "Claude"
-                / "claude_desktop_config.json",
-                Path.home()
-                / "Library"
-                / "Application Support"
-                / "Claude Desktop"
-                / "claude_desktop_config.json",
-            ]
-        )
-    elif sys.platform == "win32":  # Windows
-        appdata = os.environ.get("APPDATA")
-        if appdata:
-            config_paths.extend(
-                [
-                    Path(appdata) / "Claude" / "claude_desktop_config.json",
-                    Path(appdata) / "Claude Desktop" / "claude_desktop_config.json",
-                ]
-            )
-    else:  # Linux and others
-        config_home = os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")
-        config_paths.extend(
-            [
-                Path(config_home) / "Claude" / "claude_desktop_config.json",
-                Path(config_home) / "Claude Desktop" / "claude_desktop_config.json",
-            ]
-        )
-
-    for path in config_paths:
-        if path.exists():
-            return path
-
-    return None
-
-
 def find_opencode_config() -> Path | None:
     """
     Find Opencode CLI config file path.
@@ -108,31 +56,6 @@ def find_opencode_config() -> Path | None:
             return config_path
 
     return None
-
-
-def load_claude_config() -> dict[str, Any]:
-    """
-    Load configuration from Claude Desktop config.
-
-    Returns:
-        Dictionary with environment variables from Claude config,
-        or empty dict if not found.
-    """
-    config_path = find_claude_config()
-    if not config_path:
-        return {}
-
-    try:
-        with open(config_path) as f:
-            config = json.load(f)
-
-        # Extract zotero server config
-        mcp_servers = config.get("mcpServers", {})
-        zotero_config = mcp_servers.get("zotero", {})
-
-        return zotero_config.get("env", {})
-    except (json.JSONDecodeError, OSError):
-        return {}
 
 
 def load_opencode_config() -> dict[str, Any]:
@@ -187,8 +110,7 @@ def load_config() -> dict[str, Any]:
     Priority order:
     1. Environment variables (highest priority)
     2. Standalone config (~/.config/zotero-mcp/config.json)
-    3. Claude Desktop config
-    4. Opencode CLI config (lowest priority)
+    3. Opencode CLI config (lowest priority)
 
     Returns:
         Merged configuration dictionary with 'env' and 'semantic_search' keys.
@@ -199,10 +121,6 @@ def load_config() -> dict[str, Any]:
     # Load from Opencode (lowest priority)
     opencode_env = load_opencode_config()
     env_config.update(opencode_env)
-
-    # Load from Claude Desktop
-    claude_env = load_claude_config()
-    env_config.update(claude_env)
 
     # Load standalone config
     standalone = load_standalone_config()
@@ -279,11 +197,6 @@ def save_config(config: dict[str, Any]) -> bool:
         return True
     except OSError:
         return False
-
-
-def is_claude_configured() -> bool:
-    """Check if Claude Desktop is configured with Zotero MCP."""
-    return find_claude_config() is not None and bool(load_claude_config())
 
 
 def is_opencode_configured() -> bool:

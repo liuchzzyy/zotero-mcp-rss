@@ -17,7 +17,7 @@ This ensures you follow the correct procedures for this specific project.
 
 ## Project Overview
 
-**Zotero MCP** is a Model Context Protocol server connecting Zotero research libraries with AI assistants (Claude, ChatGPT, etc.). Built with Python 3.10+, FastMCP, and ChromaDB for semantic search.
+**Zotero MCP** is a Model Context Protocol server connecting Zotero research libraries with AI assistants (ChatGPT, OpenAI assistants, etc.). Built with Python 3.10+, FastMCP, and ChromaDB for semantic search.
 
 **Architecture:**
 The project follows a modular, layered architecture:
@@ -278,8 +278,7 @@ Configuration is handled by `zotero_mcp.utils.config`. It automatically loads fr
 
 1. Environment variables
 2. Standalone config (`~/.config/zotero-mcp/config.json`)
-3. Claude Desktop config
-4. Opencode CLI config (`~/.opencode/config.json`)
+3. Opencode CLI config (`~/.opencode/config.json`)
 
 ---
 
