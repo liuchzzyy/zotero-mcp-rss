@@ -5,13 +5,14 @@ Provides direct SQLite access to Zotero's local database for faster
 operations when running in local mode.
 """
 
+from collections.abc import Iterator
+from dataclasses import dataclass, field
 import logging
 import os
+from pathlib import Path
 import platform
 import sqlite3
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
