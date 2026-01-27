@@ -9,9 +9,9 @@ import argparse
 import getpass
 import json
 import os
+from pathlib import Path
 import shutil
 import sys
-from pathlib import Path
 
 
 def find_executable():
@@ -506,7 +506,10 @@ def main(cli_args=None):
     print("\nSetup with the following settings:")
     print(f"  Local API: {use_local}")
     if not use_local:
-        print(f"  API Key: {api_key or 'Not provided'}")
+        masked_key = (
+            f"{api_key[:4]}...{api_key[-4:]}" if api_key and len(api_key) > 8 else "***"
+        )
+        print(f"  API Key: {masked_key if api_key else 'Not provided'}")
         print(f"  Library ID: {library_id or 'Not provided'}")
         print(f"  Library Type: {library_type}")
 

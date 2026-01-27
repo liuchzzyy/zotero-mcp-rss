@@ -4,9 +4,9 @@ Command-line interface for Zotero MCP server.
 
 import argparse
 import json
+from pathlib import Path
 import shutil
 import sys
-from pathlib import Path
 
 from zotero_mcp.server import mcp
 from zotero_mcp.utils.config import load_config
@@ -331,7 +331,7 @@ def main():
         elif args.transport == "sse":
             import warnings
 
-            warnings.warn("SSE deprecated", UserWarning)
+            warnings.warn("SSE deprecated", UserWarning, stacklevel=2)
             mcp.run(transport="sse", host=args.host, port=args.port)
 
 

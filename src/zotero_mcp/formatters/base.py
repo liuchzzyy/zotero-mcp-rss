@@ -2,8 +2,8 @@
 Base formatter for Zotero MCP responses.
 """
 
-import json
 from abc import ABC, abstractmethod
+import json
 from typing import Any
 
 from zotero_mcp.models.common import ResponseFormat

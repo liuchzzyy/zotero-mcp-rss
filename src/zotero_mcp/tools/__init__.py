@@ -11,9 +11,9 @@ from .batch import register_batch_tools
 from .collections import register_collection_tools
 from .database import register_database_tools
 from .items import register_item_tools
+from .rss import register_rss_tools
 from .search import register_search_tools
 from .workflow import register_workflow_tools
-from .rss import register_rss_tools
 
 
 def register_all_tools(mcp: FastMCP) -> None:

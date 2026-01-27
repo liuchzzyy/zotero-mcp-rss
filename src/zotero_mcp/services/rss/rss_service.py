@@ -1,10 +1,11 @@
 import asyncio
-import logging
-import feedparser
-import time
 from datetime import datetime
-from typing import List, Optional, Any, Dict, cast
+import logging
+import time
+from typing import Any
 from xml.etree import ElementTree as ET
+
+import feedparser
 
 from zotero_mcp.models.rss import RSSFeed, RSSItem
 
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 class RSSService:
     """Service for fetching and parsing RSS feeds."""
 
-    async def fetch_feed(self, url: str) -> Optional[RSSFeed]:
+    async def fetch_feed(self, url: str) -> RSSFeed | None:
         """Fetch and parse a single RSS feed asynchronously."""
         return await asyncio.to_thread(self._fetch_sync, url)
 
@@ -24,7 +25,7 @@ class RSSService:
             return entry.get(key, default)
         return getattr(entry, key, default)
 
-    def _fetch_sync(self, url: str) -> Optional[RSSFeed]:
+    def _fetch_sync(self, url: str) -> RSSFeed | None:
         try:
             # Type ignore because feedparser returns a complex object
             feed: Any = feedparser.parse(url)
@@ -105,7 +106,7 @@ class RSSService:
             logger.error(f"Error fetching RSS feed {url}: {e}")
             return None
 
-    async def parse_opml(self, content: str) -> List[str]:
+    async def parse_opml(self, content: str) -> list[str]:
         """Parse OPML content to extract feed URLs."""
         try:
             urls = []
@@ -120,10 +121,10 @@ class RSSService:
             logger.error(f"Error parsing OPML: {e}")
             return []
 
-    async def fetch_feeds_from_opml(self, opml_path: str) -> List[RSSFeed]:
+    async def fetch_feeds_from_opml(self, opml_path: str) -> list[RSSFeed]:
         """Read OPML file and fetch all feeds."""
         try:
-            with open(opml_path, "r", encoding="utf-8") as f:
+            with open(opml_path, encoding="utf-8") as f:
                 content = f.read()
 
             urls = await self.parse_opml(content)

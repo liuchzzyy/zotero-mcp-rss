@@ -5,12 +5,12 @@ This module provides persistent vector database storage and embedding functions
 for semantic search over Zotero libraries.
 """
 
+from contextlib import contextmanager
 import json
 import logging
 import os
-import sys
-from contextlib import contextmanager
 from pathlib import Path
+import sys
 from typing import Any
 
 import chromadb
@@ -54,8 +54,8 @@ class OpenAIEmbeddingFunction(EmbeddingFunction):
             if self.base_url:
                 client_kwargs["base_url"] = self.base_url
             self.client = openai.OpenAI(**client_kwargs)
-        except ImportError:
-            raise ImportError("openai package is required for OpenAI embeddings")
+        except ImportError as e:
+            raise ImportError("openai package is required for OpenAI embeddings") from e
 
     def name(self) -> str:
         """Return the name of this embedding function."""
@@ -94,8 +94,10 @@ class GeminiEmbeddingFunction(EmbeddingFunction):
                 client_kwargs["http_options"] = http_options
             self.client = genai.Client(**client_kwargs)
             self.types = types
-        except ImportError:
-            raise ImportError("google-genai package is required for Gemini embeddings")
+        except ImportError as e:
+            raise ImportError(
+                "google-genai package is required for Gemini embeddings"
+            ) from e
 
     def name(self) -> str:
         """Return the name of this embedding function."""
@@ -127,10 +129,10 @@ class HuggingFaceEmbeddingFunction(EmbeddingFunction):
 
             logger.info(f"Loading embedding model: {model_name}")
             self.model = SentenceTransformer(model_name, trust_remote_code=True)
-        except ImportError:
+        except ImportError as e:
             raise ImportError(
                 "sentence-transformers package is required for HuggingFace embeddings. Install with: pip install sentence-transformers"
-            )
+            ) from e
 
     def name(self) -> str:
         """Return the name of this embedding function."""

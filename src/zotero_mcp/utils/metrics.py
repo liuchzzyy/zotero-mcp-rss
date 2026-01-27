@@ -2,10 +2,10 @@
 Performance monitoring metrics.
 """
 
-import time
 from dataclasses import dataclass
 from datetime import datetime
 from functools import wraps
+import time
 from typing import Any
 
 

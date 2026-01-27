@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, List
+
 from pydantic import BaseModel, Field
 
 
@@ -8,14 +8,14 @@ class RSSItem(BaseModel):
 
     title: str
     link: str
-    description: Optional[str] = None
-    content: Optional[str] = None
-    pub_date: Optional[datetime] = None
-    author: Optional[str] = None
-    categories: List[str] = Field(default_factory=list)
-    guid: Optional[str] = None
-    source_title: Optional[str] = None
-    source_url: Optional[str] = None
+    description: str | None = None
+    content: str | None = None
+    pub_date: datetime | None = None
+    author: str | None = None
+    categories: list[str] = Field(default_factory=list)
+    guid: str | None = None
+    source_title: str | None = None
+    source_url: str | None = None
 
 
 class RSSFeed(BaseModel):
@@ -23,6 +23,6 @@ class RSSFeed(BaseModel):
 
     title: str
     link: str
-    description: Optional[str] = None
-    items: List[RSSItem] = Field(default_factory=list)
-    last_updated: Optional[datetime] = None
+    description: str | None = None
+    items: list[RSSItem] = Field(default_factory=list)
+    last_updated: datetime | None = None

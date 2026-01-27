@@ -5,7 +5,6 @@ Provides a single interface for accessing Zotero data through
 multiple backends (API, local database, Better BibTeX).
 """
 
-from dataclasses import dataclass
 from functools import lru_cache
 import logging
 from typing import Any, Literal
@@ -21,26 +20,10 @@ from zotero_mcp.clients.local_db import (
 )
 from zotero_mcp.clients.zotero_client import ZoteroAPIClient, get_zotero_client
 from zotero_mcp.formatters import BibTeXFormatter, JSONFormatter, MarkdownFormatter
-from zotero_mcp.models.common import ResponseFormat
+from zotero_mcp.models.common import ResponseFormat, SearchResultItem
 from zotero_mcp.utils.helpers import format_creators, is_local_mode
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class SearchResult:
-    """Unified search result."""
-
-    key: str
-    title: str
-    authors: str
-    date: str | None
-    item_type: str
-    abstract: str | None = None
-    doi: str | None = None
-    tags: list[str] | None = None
-    similarity_score: float | None = None
-    raw_data: dict[str, Any] | None = None
 
 
 class DataAccessService:
@@ -113,7 +96,7 @@ class DataAccessService:
         limit: int = 25,
         offset: int = 0,
         qmode: Literal["titleCreatorYear", "everything"] = "titleCreatorYear",
-    ) -> list[SearchResult]:
+    ) -> list[SearchResultItem]:
         """
         Search items in the library.
 
@@ -152,7 +135,7 @@ class DataAccessService:
         self,
         limit: int = 10,
         days: int = 7,
-    ) -> list[SearchResult]:
+    ) -> list[SearchResultItem]:
         """
         Get recently added items.
 
@@ -171,7 +154,7 @@ class DataAccessService:
         tags: list[str],
         exclude_tags: list[str] | None = None,
         limit: int = 25,
-    ) -> list[SearchResult]:
+    ) -> list[SearchResultItem]:
         """
         Search items by tags.
 
@@ -305,7 +288,7 @@ class DataAccessService:
         self,
         collection_key: str,
         limit: int = 100,
-    ) -> list[SearchResult]:
+    ) -> list[SearchResultItem]:
         """
         Get items in a collection.
 
@@ -608,12 +591,12 @@ class DataAccessService:
 
     # -------------------- Helper Methods --------------------
 
-    def _api_item_to_result(self, item: dict[str, Any]) -> SearchResult:
-        """Convert API item to SearchResult."""
+    def _api_item_to_result(self, item: dict[str, Any]) -> SearchResultItem:
+        """Convert API item to SearchResultItem."""
         data = item.get("data", {})
         tags = [t.get("tag", "") for t in data.get("tags", []) if t.get("tag")]
 
-        return SearchResult(
+        return SearchResultItem(
             key=data.get("key", item.get("key", "")),
             title=data.get("title", "Untitled"),
             authors=format_creators(data.get("creators", [])),
@@ -621,13 +604,16 @@ class DataAccessService:
             item_type=data.get("itemType", "unknown"),
             abstract=data.get("abstractNote"),
             doi=data.get("DOI"),
-            tags=tags if tags else None,
-            raw_data=item,
+            tags=tags if tags else [],
+            # SearchResultItem uses 'matched_text' instead of 'raw_data' but inherits ZoteroItemResult which allows extra fields
+            # We map raw_data if needed or rely on Pydantic extra="allow"
+            # Looking at SearchResultItem definition: it has similarity_score and matched_text
+            # It inherits ZoteroItemResult which has extra="allow"
         )
 
-    def _zotero_item_to_result(self, item: ZoteroItem) -> SearchResult:
-        """Convert ZoteroItem to SearchResult."""
-        return SearchResult(
+    def _zotero_item_to_result(self, item: ZoteroItem) -> SearchResultItem:
+        """Convert ZoteroItem to SearchResultItem."""
+        return SearchResultItem(
             key=item.key,
             title=item.title or "Untitled",
             authors=item.creators or "",
@@ -635,7 +621,7 @@ class DataAccessService:
             item_type=item.item_type or "unknown",
             abstract=item.abstract,
             doi=item.doi,
-            tags=item.tags if item.tags else None,
+            tags=item.tags if item.tags else [],
         )
 
 

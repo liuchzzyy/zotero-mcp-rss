@@ -1,8 +1,9 @@
-import os
 import json
-import pytest
-from pathlib import Path
+import os
 from unittest.mock import patch
+
+import pytest
+
 from zotero_mcp.utils.config import load_config
 
 

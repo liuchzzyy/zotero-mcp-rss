@@ -1,8 +1,9 @@
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
 from zotero_mcp.clients.llm import LLMClient
 from zotero_mcp.services.workflow import WorkflowService
-from zotero_mcp.models.workflow import AnalysisItem
 
 
 @pytest.mark.asyncio

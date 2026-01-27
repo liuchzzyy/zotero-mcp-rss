@@ -92,12 +92,12 @@ class BetterBibTeXClient:
 
             return data.get("result")
 
-        except requests.exceptions.ConnectionError:
+        except requests.exceptions.ConnectionError as e:
             raise ConnectionError(
                 "Cannot connect to Zotero. Is Zotero running with Better BibTeX?"
-            )
-        except requests.exceptions.Timeout:
-            raise ConnectionError("Zotero request timed out")
+            ) from e
+        except requests.exceptions.Timeout as e:
+            raise ConnectionError("Zotero request timed out") from e
 
     def is_available(self) -> bool:
         """

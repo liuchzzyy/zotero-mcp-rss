@@ -5,9 +5,10 @@ Provides core business logic for analyzing research papers in batch,
 with checkpoint support for resuming interrupted workflows.
 """
 
+from collections.abc import Callable
 import logging
 import time
-from typing import Any, Callable
+from typing import Any, Literal
 
 from zotero_mcp.clients.llm import get_llm_client
 from zotero_mcp.models.workflow import (
@@ -151,7 +152,7 @@ class WorkflowService:
 
     async def batch_analyze(
         self,
-        source: str,
+        source: Literal["collection", "recent"],
         collection_key: str | None = None,
         collection_name: str | None = None,
         days: int = 7,
@@ -322,6 +323,44 @@ class WorkflowService:
             can_resume=False,
         )
 
+    async def _check_existing_notes(self, item_key: str) -> bool:
+        """Check if item already has notes."""
+        try:
+            notes = await self.data_service.get_notes(item_key)
+            return len(notes) > 0
+        except Exception:
+            return False
+
+    async def _fetch_item_context(
+        self, item_key: str, include_annotations: bool
+    ) -> dict[str, Any]:
+        """Fetch metadata, fulltext, and annotations for an item."""
+        context = {
+            "metadata": {},
+            "fulltext": None,
+            "annotations": [],
+            "error": None,
+        }
+
+        try:
+            # Get item metadata
+            item_data = await self.data_service.get_item(item_key)
+            context["metadata"] = item_data.get("data", {})
+
+            # Get full text
+            context["fulltext"] = await self.data_service.get_fulltext(item_key)
+
+            # Get annotations
+            if include_annotations:
+                context["annotations"] = await self.data_service.get_annotations(
+                    item_key
+                )
+
+        except Exception as e:
+            context["error"] = str(e)
+
+        return context
+
     async def _analyze_single_item(
         self,
         item: Any,
@@ -335,10 +374,10 @@ class WorkflowService:
         start_time = time.time()
 
         try:
-            # Check if already has notes
+            # 1. Check skip condition
             if skip_existing:
-                notes = await self.data_service.get_notes(item.key)
-                if notes:
+                has_notes = await self._check_existing_notes(item.key)
+                if has_notes:
                     return ItemAnalysisResult(
                         item_key=item.key,
                         title=item.title,
@@ -348,12 +387,18 @@ class WorkflowService:
                         processing_time=time.time() - start_time,
                     )
 
-            # Get item metadata
-            item_data = await self.data_service.get_item(item.key)
-            data = item_data.get("data", {})
+            # 2. Fetch Context
+            context = await self._fetch_item_context(item.key, include_annotations)
+            if context.get("error"):
+                return ItemAnalysisResult(
+                    item_key=item.key,
+                    title=item.title,
+                    success=False,
+                    error=f"数据获取失败: {context['error']}",
+                    processing_time=time.time() - start_time,
+                )
 
-            # Get full text
-            fulltext = await self.data_service.get_fulltext(item.key)
+            fulltext = context.get("fulltext")
             if not fulltext:
                 return ItemAnalysisResult(
                     item_key=item.key,
@@ -363,20 +408,16 @@ class WorkflowService:
                     processing_time=time.time() - start_time,
                 )
 
-            # Get annotations
-            annotations = []
-            if include_annotations:
-                annotations = await self.data_service.get_annotations(item.key)
-
-            # Call LLM to analyze
+            # 3. Call LLM
+            metadata = context.get("metadata", {})
             markdown_note = await llm_client.analyze_paper(
                 title=item.title,
                 authors=item.authors,
-                journal=data.get("publicationTitle"),
+                journal=metadata.get("publicationTitle"),
                 date=item.date,
                 doi=item.doi,
                 fulltext=fulltext,
-                annotations=annotations,
+                annotations=context.get("annotations"),
                 template=template,
             )
 
@@ -389,19 +430,17 @@ class WorkflowService:
                     processing_time=time.time() - start_time,
                 )
 
-            # Convert Markdown to HTML
-            html_note = markdown_to_html(markdown_note)
-
-            # Create note (unless dry run)
+            # 4. Save Result
             note_key = None
             if not dry_run:
+                html_note = markdown_to_html(markdown_note)
                 result = await self.data_service.create_note(
                     parent_key=item.key,
                     content=html_note,
                     tags=["AI分析", "自动生成"],
                 )
 
-                # Extract note key from result
+                # Extract note key
                 if isinstance(result, dict):
                     success = result.get("successful", {})
                     if success:

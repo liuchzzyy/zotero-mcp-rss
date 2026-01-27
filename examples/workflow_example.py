@@ -27,14 +27,14 @@ Usage:
 
 import asyncio
 import os
-import sys
 from pathlib import Path
+import sys
 
 # Setup path to import zotero_mcp modules
 sys.path.insert(0, str(Path.cwd() / "src"))
 
-from zotero_mcp.services.workflow import WorkflowService
 from zotero_mcp.services.data_access import get_data_service
+from zotero_mcp.services.workflow import WorkflowService
 
 
 async def use_workflow_service():
@@ -127,8 +127,8 @@ async def use_workflow_service():
         print(f"   失败: {result.failed}")
 
         if result.can_resume:
-            print(f"\n💡 工作流可恢复")
-            print(f"   使用以下命令继续:")
+            print("\n💡 工作流可恢复")
+            print("   使用以下命令继续:")
             print(f'   resume_workflow_id="{result.workflow_id}"')
 
         if result.error:

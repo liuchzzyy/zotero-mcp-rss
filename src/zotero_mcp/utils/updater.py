@@ -7,11 +7,11 @@ method and preserves all user configurations.
 
 import logging
 import os
+from pathlib import Path
 import shutil
 import subprocess
 import sys
 import tempfile
-from pathlib import Path
 from typing import Any
 
 try:

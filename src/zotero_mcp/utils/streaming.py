@@ -2,7 +2,8 @@
 Streaming response utilities.
 """
 
-from typing import Any, AsyncIterator, TypeVar
+from collections.abc import AsyncIterator
+from typing import Any, TypeVar
 
 from zotero_mcp.models.common import SearchResultItem
 from zotero_mcp.services import get_data_service
@@ -69,7 +70,7 @@ async def process_all_results(query: str):
 
     async for batch in stream_search_results(service, query):
         # Process each batch
-        for item in batch:
+        for _ in batch:
             # Do something with item
             # process_item(item)
             pass

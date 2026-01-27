@@ -2,11 +2,11 @@
 Response caching layer.
 """
 
-import hashlib
-import json
 from datetime import datetime, timedelta
 from functools import wraps
-from typing import Any, Optional
+import hashlib
+import json
+from typing import Any
 
 
 class ResponseCache:
@@ -29,7 +29,7 @@ class ResponseCache:
         key_str = f"{tool_name}:{param_str}"
         return hashlib.md5(key_str.encode()).hexdigest()
 
-    def get(self, tool_name: str, params: dict) -> Optional[Any]:
+    def get(self, tool_name: str, params: dict) -> Any | None:
         """Get cached response if available and not expired."""
         key = self._make_key(tool_name, params)
 
@@ -65,7 +65,7 @@ class ResponseCache:
 _global_cache = ResponseCache(ttl_seconds=300)
 
 
-def cached_tool(ttl_seconds: Optional[int] = None):
+def cached_tool(ttl_seconds: int | None = None):
     """
     Decorator to cache tool responses.
 

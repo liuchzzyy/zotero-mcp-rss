@@ -1,4 +1,4 @@
-from typing import List, Optional
+
 from fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
@@ -20,15 +20,15 @@ class OPMLRequest(BaseModel):
 
 class RSSResponse(BaseModel):
     success: bool
-    data: Optional[RSSFeed] = None
-    error: Optional[str] = None
+    data: RSSFeed | None = None
+    error: str | None = None
 
 
 class MultiRSSResponse(BaseModel):
     success: bool
     count: int
-    feeds: List[RSSFeed] = Field(default_factory=list)
-    error: Optional[str] = None
+    feeds: list[RSSFeed] = Field(default_factory=list)
+    error: str | None = None
 
 
 def register_rss_tools(mcp: FastMCP) -> None:

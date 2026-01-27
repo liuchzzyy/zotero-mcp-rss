@@ -4,13 +4,13 @@ Checkpoint manager for workflow state persistence.
 Enables resuming interrupted batch analysis workflows.
 """
 
-import json
-import logging
-import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
+import json
+import logging
 from pathlib import Path
 from typing import Any, Literal
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -180,7 +180,7 @@ class CheckpointManager:
             return None
 
         try:
-            with open(state_file, "r", encoding="utf-8") as f:
+            with open(state_file, encoding="utf-8") as f:
                 data = json.load(f)
 
             state = WorkflowState.from_dict(data)
@@ -210,7 +210,7 @@ class CheckpointManager:
 
         for state_file in self.state_dir.glob("wf_*.json"):
             try:
-                with open(state_file, "r", encoding="utf-8") as f:
+                with open(state_file, encoding="utf-8") as f:
                     data = json.load(f)
 
                 state = WorkflowState.from_dict(data)
@@ -265,7 +265,7 @@ class CheckpointManager:
                 # Check file modification time
                 if state_file.stat().st_mtime < cutoff:
                     # Load to check status
-                    with open(state_file, "r", encoding="utf-8") as f:
+                    with open(state_file, encoding="utf-8") as f:
                         data = json.load(f)
 
                     state = WorkflowState.from_dict(data)

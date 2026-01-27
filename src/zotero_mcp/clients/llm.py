@@ -394,10 +394,10 @@ class LLMClient:
         """Call OpenAI-compatible API (DeepSeek, OpenAI)."""
         try:
             from openai import AsyncOpenAI
-        except ImportError:
+        except ImportError as e:
             raise ImportError(
                 "openai package not installed. Install with: pip install openai"
-            )
+            ) from e
 
         client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
 
@@ -425,11 +425,11 @@ class LLMClient:
         """Call Google Gemini API."""
         try:
             import google.generativeai as genai
-        except ImportError:
+        except ImportError as e:
             raise ImportError(
                 "google-generativeai package not installed. "
                 "Install with: pip install google-generativeai"
-            )
+            ) from e
 
         genai.configure(api_key=self.api_key)
 

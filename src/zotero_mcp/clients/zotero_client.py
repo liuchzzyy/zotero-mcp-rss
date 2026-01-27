@@ -12,6 +12,7 @@ import os
 from typing import Any, Literal
 
 from pyzotero import zotero
+
 from zotero_mcp.utils.errors import (
     ConfigurationError,
     NotFoundError,
@@ -178,7 +179,7 @@ class ZoteroAPIClient:
             )
         except Exception as e:
             if "404" in str(e).lower() or "not found" in str(e).lower():
-                raise NotFoundError(f"Item not found: {item_key}")
+                raise NotFoundError(f"Item not found: {item_key}") from e
             raise
 
     async def get_item_children(

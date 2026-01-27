@@ -2,7 +2,6 @@
 Pydantic models for collection management tools.
 """
 
-from typing import Literal
 
 from pydantic import Field
 
