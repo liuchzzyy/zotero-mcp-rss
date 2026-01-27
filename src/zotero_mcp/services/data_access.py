@@ -250,13 +250,31 @@ class DataAccessService:
         """
         Get full-text content for an item.
 
+        Tries API first (fast if indexed), then falls back to direct PDF
+        extraction from local files when available.
+
         Args:
             item_key: Item key
 
         Returns:
             Full-text content if available
         """
-        return await self.api_client.get_fulltext(item_key)
+        # Try API first (existing behavior)
+        result = await self.api_client.get_fulltext(item_key)
+        if result:
+            return result
+
+        # Fallback to local extraction if available
+        if self.local_client:
+            logger.info(f"API fulltext empty, trying local extraction for {item_key}")
+            local_result = self.local_client.get_fulltext_by_key(item_key)
+            if local_result:
+                text, source = local_result
+                logger.info(f"Local extraction succeeded from {source}")
+                return text
+            logger.warning(f"Local extraction also failed for {item_key}")
+
+        return None
 
     # -------------------- Collection Operations --------------------
 
