@@ -296,6 +296,52 @@ class LocalDatabaseClient:
                 return item
         return None
 
+    def get_item_id_by_key(self, key: str) -> int | None:
+        """
+        Look up item ID from key using SQL query.
+
+        Args:
+            key: Item key (8-character string)
+
+        Returns:
+            Item ID or None if not found
+        """
+        conn = self._get_connection()
+        query = "SELECT itemID FROM items WHERE key = ?"
+        result = conn.execute(query, (key,)).fetchone()
+        return result["itemID"] if result else None
+
+    def get_fulltext_by_key(self, key: str) -> tuple[str, str] | None:
+        """
+        Extract fulltext content for an item by its key.
+
+        This method enables direct PDF extraction even when the item
+        hasn't been indexed by Zotero's fulltext index.
+
+        Args:
+            key: Item key (8-character string)
+
+        Returns:
+            Tuple of (text, source) or None if extraction fails
+        """
+        # Look up item ID
+        item_id = self.get_item_id_by_key(key)
+        if item_id is None:
+            logger.warning(f"Item with key {key} not found in local database")
+            return None
+
+        # Use existing fulltext extraction logic
+        try:
+            result = self._extract_fulltext(item_id)
+            if result:
+                logger.debug(f"Extracted fulltext for {key} from {result[1]}")
+            else:
+                logger.debug(f"No fulltext found for {key}")
+            return result
+        except Exception as e:
+            logger.error(f"Failed to extract fulltext for {key}: {e}")
+            return None
+
     def search_items(
         self,
         query: str,
