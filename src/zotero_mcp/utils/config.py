@@ -8,7 +8,6 @@ Supports loading configuration from:
 
 import json
 import os
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -184,6 +183,41 @@ def get_llm_config() -> dict[str, Any]:
     }
 
     return llm_config
+
+
+def get_pdf_max_pages() -> int:
+    """
+    Get PDF max pages configuration for fulltext extraction.
+
+    Priority order:
+    1. ZOTERO_PDF_MAXPAGES environment variable (highest)
+    2. config.json semantic_search.extraction.pdf_max_pages
+    3. Default value: 10
+
+    Returns:
+        Maximum number of pages to extract from PDFs.
+    """
+    # Check environment variable first
+    env_value = os.getenv("ZOTERO_PDF_MAXPAGES")
+    if env_value:
+        try:
+            return int(env_value)
+        except ValueError:
+            pass  # Fall through to config file
+
+    # Check config file
+    config = load_config()
+    semantic_config = config.get("semantic_search", {})
+    extraction_config = semantic_config.get("extraction", {})
+    config_value = extraction_config.get("pdf_max_pages")
+    if config_value is not None:
+        try:
+            return int(config_value)
+        except ValueError:
+            pass  # Fall through to default
+
+    # Default value
+    return 10
 
 
 def save_config(config: dict[str, Any]) -> bool:
