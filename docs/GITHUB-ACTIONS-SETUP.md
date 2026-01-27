@@ -52,7 +52,8 @@ Ensure these files exist in your repository:
 .github/
 └── workflows/
     └── auto-analyze.yml          # GitHub Actions workflow
-scripts/
+src/scripts/
+
 └── auto_analyze.py               # Analysis script
 ```
 
@@ -116,7 +117,8 @@ graph TD
 
 ### Modify Collection Name
 
-Edit `scripts/auto_analyze.py`:
+Edit `src/scripts/auto_analyze.py`:
+
 
 ```python
 COLLECTION_NAME = "1 - 中转过滤：较短期"  # Change this
@@ -149,7 +151,8 @@ on:
 
 ### Limit Number of Items
 
-Edit `scripts/auto_analyze.py`:
+Edit `src/scripts/auto_analyze.py`:
+
 
 ```python
 MAX_ITEMS = 10  # Process max 10 items per run
@@ -178,7 +181,8 @@ MAX_ITEMS = 10  # Process max 10 items per run
 ### "Collection not found" Error
 
 **Solution**:
-- Check the collection name in `scripts/auto_analyze.py`
+- Check the collection name in `src/scripts/auto_analyze.py`
+
 - Collection names are case-sensitive
 - Use fuzzy matching: the script will find "1 - 中转过滤" in "1 - 中转过滤：较短期"
 
@@ -237,9 +241,11 @@ git push
 
 ### Update Python Script
 
-Edit `scripts/auto_analyze.py` and commit changes:
+Edit `src/scripts/auto_analyze.py` and commit changes:
+
 ```bash
-git add scripts/auto_analyze.py
+git add src/scripts/auto_analyze.py
+
 git commit -m "feat: update analysis script"
 git push
 ```

@@ -1,0 +1,78 @@
+[
+  {
+    "date": "2026-01-21T22:08:01.922671",
+    "title": "Corrigendum to “Modulating metal-free Zn-bromine batteries with covalent organic framework anode” [Energy Storage Materials 67 (2024) 103294]",
+    "journal": "Energy Storage Materials",
+    "authors": [
+      "Ruanye Zhang",
+      "Hai Xu",
+      "Derong Luo",
+      "Jiuqing Wang",
+      "Hui Dou",
+      "Xiaogang Zhang"
+    ],
+    "url": "https://www.sciencedirect.com/science/article/pii/S2405829725007652?dgcid=rss_sd_all",
+    "doi": "10.1016/j.ensm.2025.104767",
+    "relevance_reason": "Matched keyword: energy storage",
+    "abstract": "Failed to fetch abstract: 403 Forbidden (anti-bot protection detected)"
+  },
+  {
+    "date": "2026-01-21T00:00:00+00:00",
+    "title": "Air Stable Photo-Redox Active Elusive Cr(III)-Tri-dithiolene-radical Complexes as a New Class of Pseudo-Supercapacitor with High Capacitance: Enhancement of Energy Storage with Heavier Chalcogenide",
+    "journal": "Journal of Materials Chemistry A",
+    "authors": [
+      "Sujit Das",
+      "Mayur  Thosare",
+      "Saurav Ghosh",
+      "T Kedara Shivasharma",
+      "Subuhan Ahamed",
+      "Harsha S. Karnamkkott",
+      "Björn Schwarz",
+      "Babasaheb R. Sankapal",
+      "Liviu Ungur",
+      "Kartik Chandra Mondal"
+    ],
+    "url": "http://pubs.rsc.org/en/Content/ArticleLanding/2026/TA/D5TA08423G",
+    "relevance_reason": "Matched keyword: energy storage",
+    "abstract": "Chromium, an earth-abundant metal with exceptionally high theoretical specific capacity (1546 mAh g⁻¹) at an accessible redox potential -0.74 V vs. RHE, emerges as a promising element for designing high energy density supercapacitors. Besides their exciting chemistry, energy storage devices employing stable redox-active radicals of main-group elements gain increasing attention for sustainable applications. Herein, we present the pseudosupercapacitor properties of two unprecedented, photo-redox active, air-stable Cr(III)-triradical complexes with the general formula [Cr(III)(SS-NHC=EElectrochemical anodes fabricated by coating these complexes onto stainless-steel substrates demonstrate excellent supercapacitance performance. Complex 1 delivers a specific capacitance of 145.2 F g⁻¹, while complex 2 achieves a markedly higher 340.9 F g⁻¹ at 5 mV s⁻¹, centered at E₁/₂ = -0.72 V. Cycling stability is found to reach 81.2% for 1 and 87.3% for 2 after 3000 cycles. The superior activity of 2 arises from substituting sulfur with selenium in the SS-NHC=E •‾ ligand, enhancing redox activity, conductivity, and ion transport. Ragone plot analysis confirms higher energy density (14.63 Wh kg⁻¹ at 252 W kg⁻¹) for 2 compared to 1 (8.76 Wh kg⁻¹ at 211 W kg⁻¹). Mechanistic studies reveal that 1 operates via mixed surfaceand diffusion-controlled processes, while 2 predominantly follows diffusion control, enabling efficient charge transport and improved pseudocapacitive behavior."
+  },
+  {
+    "date": "2026-01-21T00:00:00+00:00",
+    "title": "Synergistic Regulation of Dual Monomers for Constructing High Bandgap and High Polarity Polyimide with High-Temperature Capacitive Energy Storage Performance",
+    "journal": "Journal of Materials Chemistry A",
+    "authors": [
+      "Chuanjia Jiao",
+      "Jiayan Li",
+      "Caixia Wan",
+      "Jiawei Zou",
+      "Shifang Luan"
+    ],
+    "url": "http://pubs.rsc.org/en/Content/ArticleLanding/2026/TA/D5TA09731B",
+    "relevance_reason": "Matched keyword: energy storage",
+    "abstract": "The high-temperature and high-field energy storage performances of film capacitors are a key bottleneck restricting their applications in new energy, aerospace and other fields. Traditional dielectric biaxially oriented polypropylene (BOPP) has insufficient high-temperature resistance, while high-temperature resistant polymers such as polyimide (PI) exhibit excellent thermal stability but suffer from narrow bandgap and poor insulation performance. They cannot meet current demands under the common operating conditions of 200°C and 100~400 MV/m. Existing composite modification and intrinsic modification strategies have problems such as poor filler dispersion and high time cost, respectively. To address these issues, this study modifies Kapton through molecular design using commercial monomers as raw materials: high bandgap monomers are introduced to disrupt the conjugated structure, widen the material's bandgap, and thereby enhance high-temperature insulation; high polarity monomers are introduced to improve permittivity by virtue of their high dipole moment, strengthening polarization and energy storage capacity under unit electric field. Through the synergistic regulation of dual monomers, a PI material with both high bandgap and high polarity was successfully prepared. Under the high-temperature and high-field conditions of 200°C and 400 MV/m, it maintains a charge-discharge efficiency of over 90% and achieves a discharge energy density of 2.68 J/cm³, which is significantly superior to BOPP and traditional PI. This work provides a feasible polymer design path for the development of high-performance high-temperature energy storage dielectrics."
+  },
+  {
+    "date": "2026-01-20T21:37:13-08:00",
+    "title": "Dynamic Dipole Engineering Enables Ultrahigh Energy Storage With Minimal Losses",
+    "journal": "Advanced Materials",
+    "authors": [
+      "Yunyao Huang,  Leiyang Zhang,  Ruiyi Jing,  Yule Yang,  Kaiyuan Liu,  Yuxiao Du,  Xiaoming Shi,  Jiyang Xie,  Zibin Chen,  Dawei Wang,  Limei Zheng,  Houbing Huang,  Wanbiao Hu,  Xuefeng Chen,  Hua Tan,  Haibo Zhang,  Shujun Zhang,  Li Jin"
+    ],
+    "url": "https://advanced.onlinelibrary.wiley.com/doi/10.1002/adma.202522905?af=R",
+    "doi": "10.1002/adma.202522905",
+    "relevance_reason": "Matched keyword: energy storage",
+    "abstract": "Achieving high recoverable energy density ( W rec ) with near‐unity efficiency ( η ) in lead‐free dielectrics remains a major challenge for advanced pulse power capacitors, given their central role in emerging pulsed power systems and high‐voltage electronics. Here, we show that targeted engineering of dynamic dipole behavior provides an effective route to remarkable energy storage performance. Guided by phase‐field simulations, we design (Bi 0.5 Na 0.5 )TiO 3 (BNT)‐based multilayer ceramic capacitors that transform a continuous network of strongly correlated dipoles into discrete nano‐domains. Within each nano‐domain, dipoles retain strong local cooperativity, which maintains high polarization while markedly suppressing hysteresis losses. As a result, the optimized multilayer ceramic capacitors (MLCCs) achieve a recoverable energy density of 16.2 J cm −3 , an η below 1.5%, and a record‐high figure of merit ( W F ) of 1080 at 650 kV cm −1 . This moderate operating field also produces an ultrahigh energy storage strength ( ξ ) of 249 J kV −1 m −2 , highlighting the efficiency of the dipole‐regulation strategy. These findings demonstrate that weakly correlated and dynamic dipoles can be harnessed to advance high‐performance, lead‐free energy storage devices and offer a viable design principle for next‐generation capacitive technologies."
+  },
+  {
+    "date": "2026-01-20T02:09:56-08:00",
+    "title": "Atomic Defects in Layered Transition Metal Dichalcogenides for Sustainable Energy Storage and the Intelligent Trends in Data Analytics",
+    "journal": "Advanced Science",
+    "authors": [
+      "Zheng Luo,  Ying Yang,  Zizhen Fu,  Fengqi Liu,  Susu Fang,  Kele Xu,  Shanshan Wang"
+    ],
+    "url": "https://advanced.onlinelibrary.wiley.com/doi/10.1002/advs.202521502?af=R",
+    "doi": "10.1002/advs.202521502",
+    "relevance_reason": "Matched keyword: energy storage",
+    "abstract": "Defects in layered transition metal dichalcogenides play a crucial role in the development of high‐energy‐density and high‐safety electrochemical devices for sustainable energy storage systems. Although transmission electron microscopy prevails as an indispensable tool for visualizing defects at the atomic scale, manual analysis in such data‐intensive scenarios generally lacks both efficiency and accuracy. Fortunately, the emergence of machine learning is transforming the paradigm of electron microscopy data analytics, offering a potent tool to expedite the discovery of novel structures and knowledge. In this review, we briefly introduce the atomic structures of typical defect configurations in transition metal dichalcogenides, along with their beneficial effects on electrochemical redox kinetics and stability when used in batteries and supercapacitors. Then, the latest innovations in the defect‐engineered transition metal dichalcogenides for advanced energy storage devices, and the progress made in machine learning methodologies for their application in high‐throughput electron microscopy analytics are systematically summarized. Finally, this review is concluded with perspectives on the remaining challenges and future opportunities in intelligent defect characterizations and engineering toward the next‐generation energy storage systems."
+  }
+]

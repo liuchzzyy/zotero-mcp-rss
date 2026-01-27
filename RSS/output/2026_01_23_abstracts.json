@@ -1,0 +1,38 @@
+[
+  {
+    "date": "2026-01-23T12:34:42-08:00",
+    "title": "In Situ Characterization of Strontium Titanium Ferrite Perovskites for Application as Electrodes of Solid Oxide Cells",
+    "journal": "Applied Energy Materials",
+    "authors": [
+      "Maria Carmenza Diaz Lacharme, Martina Marasi, Virginia Pérez Dieste, Belen Ballesteros, and Alessandro Donazzi"
+    ],
+    "url": "http://dx.doi.org/10.1021/acsaem.5c03226",
+    "doi": "10.1021/acsaem.5c03226",
+    "relevance_reason": "Matched keyword: in situ characterization",
+    "abstract": "Failed to fetch abstract: 403 Forbidden (anti-bot protection detected)"
+  },
+  {
+    "date": "2026-01-23T00:00:00+00:00",
+    "title": "Evaluation of the Galvanostatic Charging Current Diagnostics for the In Situ Characterization of Aged MEAs in PEMFCs",
+    "journal": "Journal of The Electrochemical Society",
+    "authors": [
+      "Yan-Sheng Li, Leonardo I. Astudillo, Markus R. Pietsch, Ana Marija Damjanović and Hubert A. Gasteiger"
+    ],
+    "url": "https://iopscience.iop.org/article/10.1149/1945-7111/ae35aa",
+    "doi": "10.1149/1945-7111/ae35aa",
+    "relevance_reason": "Matched keyword: in situ characterization",
+    "abstract": "Unlike in the case of single-cell proton exchange membrane fuel cells (PEMFCs), implementing voltage-controlled in situ diagnostics in PEMFC stack tests is challenging, as the single cell voltage cannot be controlled precisely. Consequently, in PEMFC stacks, current-controlled methods must be used. Here we evaluate the so-called charging current (CC) diagnostics for its suitability to quantify the electrochemically active surface area (ECSA) of a platinum-catalyzed electrode of a membrane electrode assembly (MEA) as well as the H 2 -crossover ( i H 2 − x , memb ) and the ohmic-shorting currents ( i short , memb ) of MEAs. As the here proposed analysis method enables an independent quantification of both i H 2 − x , memb and i short , memb , reliable ECSA values can be obtained not only for pristine MEAs but also for severely aged MEAs that exhibit low electrode roughness factors ( rf ) and significant H 2 -crossover and shorting currents. This is validated using model MEAs with very low rf values and/or high H 2 -crossover/shorting currents, characteristic for MEAs after accelerated stress tests (ASTs). The CC diagnostics was also applied to an automotive-scale short-stack (manufactured and tested at EKPO Fuel Cell Technologies) after ∼8000 h of a load-cycling AST. Finally, a brief guideline on how to conduct the CC diagnostics and its limitations for PEMFC stacks is presented."
+  },
+  {
+    "date": "2026-01-22T04:40:46-08:00",
+    "title": "Solvothermal Self‐Assembly of Hollow Square‐Tubular Polyimides for Aqueous Batteries",
+    "journal": "Small Methods",
+    "authors": [
+      "Ya Zhao,  Chaoqiao Yang,  Hexiang Zhong,  Lin Li,  Jiaxin Fan"
+    ],
+    "url": "https://onlinelibrary.wiley.com/doi/10.1002/smtd.202500251?af=R",
+    "doi": "10.1002/smtd.202500251",
+    "relevance_reason": "Matched keyword: aqueous batteries",
+    "abstract": "In this study, a straightforward and environmentally benign solvothermal method for synthesizing hollow square‐tubular polyimides (HST‐PIs) is introduced. The process utilizes 1,4,5,8‐naphthalenetetracarboxylic anhydride and urea as reactants, replacing traditional toxic organic solvents with water and ethanol. This investigation explores the effects of various reaction conditions, such as the water‐to‐ethanol volume ratio, reaction time, and temperature, on product morphology, resulting in distinct structures like sheets, columns, and layers. Notably, hollow square‐tubular polyimides (HST‐PIs) are synthesized under specific conditions: a 2:1 water‐to‐ethanol volume ratio, 24 h reaction time, and 200 °C temperature. This study attributes self‐assembly to three primary non‐covalent interactions: hydrogen bonding, π–π stacking, and hydrophobic interactions. The gel permeation chromatography (GPC) analysis indicates that the PIs molecular weight predominantly ranges from 10 000 to 15 000. As an electrode material, hollow square tubular polyimides (HST‐PIs) exhibit an initial discharge capacity of 297.9 mAh·g −1 at a current rate of 0.1 C, with a coulombic efficiency of 79%. After ten cycles, the coulombic efficiency improves to 97% and maintains above 98% in the subsequent cycles. This study presents an innovative and environmentally friendly method for the molecular self‐assembly of hollow tubular organic polymers."
+  }
+]

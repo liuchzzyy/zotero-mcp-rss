@@ -543,6 +543,18 @@ class DataAccessService:
         """
         return await self.api_client.update_item(item)
 
+    async def create_items(self, items: list[dict[str, Any]]) -> dict[str, Any]:
+        """
+        Create new items.
+
+        Args:
+            items: List of item templates
+
+        Returns:
+            Creation result
+        """
+        return await self.api_client.create_items(items)
+
     # -------------------- Bundle Operations --------------------
 
     async def get_item_bundle(

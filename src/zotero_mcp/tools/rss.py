@@ -1,0 +1,64 @@
+from typing import List, Optional
+from fastmcp import Context, FastMCP
+from pydantic import BaseModel, Field
+
+from zotero_mcp.models.rss import RSSFeed
+from zotero_mcp.services.rss import RSSService
+
+# Initialize the service globally or inside the register function
+# For now, global is fine as it's stateless-ish
+rss_service = RSSService()
+
+
+class RSSFeedRequest(BaseModel):
+    url: str = Field(..., description="The URL of the RSS feed to fetch")
+
+
+class OPMLRequest(BaseModel):
+    path: str = Field(..., description="Path to the OPML file containing feed URLs")
+
+
+class RSSResponse(BaseModel):
+    success: bool
+    data: Optional[RSSFeed] = None
+    error: Optional[str] = None
+
+
+class MultiRSSResponse(BaseModel):
+    success: bool
+    count: int
+    feeds: List[RSSFeed] = Field(default_factory=list)
+    error: Optional[str] = None
+
+
+def register_rss_tools(mcp: FastMCP) -> None:
+    """Register RSS tools with the MCP server."""
+
+    @mcp.tool()
+    async def rss_fetch_feed(url: str, ctx: Context) -> RSSResponse:
+        """Fetch and parse a single RSS feed.
+
+        Args:
+            url: The URL of the RSS feed.
+        """
+        try:
+            feed = await rss_service.fetch_feed(url)
+            if not feed:
+                return RSSResponse(success=False, error="Failed to fetch or parse feed")
+
+            return RSSResponse(success=True, data=feed)
+        except Exception as e:
+            return RSSResponse(success=False, error=str(e))
+
+    @mcp.tool()
+    async def rss_fetch_from_opml(path: str, ctx: Context) -> MultiRSSResponse:
+        """Fetch multiple RSS feeds from an OPML file.
+
+        Args:
+            path: Absolute path to the OPML file.
+        """
+        try:
+            feeds = await rss_service.fetch_feeds_from_opml(path)
+            return MultiRSSResponse(success=True, count=len(feeds), feeds=feeds)
+        except Exception as e:
+            return MultiRSSResponse(success=False, count=0, error=str(e))

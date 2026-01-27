@@ -392,6 +392,19 @@ class ZoteroAPIClient:
 
     # -------------------- Write Methods --------------------
 
+    async def create_items(self, items: list[dict[str, Any]]) -> dict[str, Any]:
+        """
+        Create multiple items.
+
+        Args:
+            items: List of item templates/dictionaries
+
+        Returns:
+            Creation result (successful keys, failed items)
+        """
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, lambda: self.client.create_items(items))
+
     async def create_note(
         self,
         parent_key: str,

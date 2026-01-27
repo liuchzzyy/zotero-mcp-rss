@@ -1,0 +1,219 @@
+[
+  {
+    "date": "2026-01-13T22:07:16.747184",
+    "title": "Chelate reconstruction with a H<sub>2</sub>O-poor and zinc-rich interface toward robust anti-corrosion Ah-level zinc aqueous batteries",
+    "journal": "Energy Storage Materials",
+    "authors": [
+      "Yupeng Huang",
+      "Kai Lu",
+      "Jianbo Dong",
+      "Xia Wang",
+      "Jinchi Li",
+      "Ziyi Gong",
+      "Yule He",
+      "Hua Jia",
+      "Guocai Yuan",
+      "Pan Wang",
+      "Hong Tan",
+      "Lihong Huang",
+      "Dongliang Chao",
+      "Wanhai Zhou"
+    ],
+    "url": "https://www.sciencedirect.com/science/article/pii/S2405829725008189?dgcid=rss_sd_all",
+    "relevance_reason": "Matched keyword: aqueous batteries",
+    "abstract": "Failed to fetch abstract: 403 Forbidden (anti-bot protection detected)"
+  },
+  {
+    "date": "2026-01-13T22:07:16.648690",
+    "title": "Proton-dominant charge storage in layered H<sub>2</sub>V<sub>3</sub>O<sub>8</sub> for Mn<sup>2+</sup>/H<sup>+</sup> hybrid aqueous batteries",
+    "journal": "Energy Storage Materials",
+    "authors": [
+      "Jangwook Pyun",
+      "Hyeonjun Lee",
+      "Yeonu Lee",
+      "Sangki Lee",
+      "Seung-Tae Hong",
+      "Doron Aurbach",
+      "Munseok S. Chae"
+    ],
+    "url": "https://www.sciencedirect.com/science/article/pii/S2405829725008402?dgcid=rss_sd_all",
+    "relevance_reason": "Matched keyword: aqueous batteries",
+    "abstract": "Failed to fetch abstract: 403 Forbidden (anti-bot protection detected)"
+  },
+  {
+    "date": "2026-01-13T22:07:16.633580",
+    "title": "Regulation chemistry of redox mediators in aqueous batteries",
+    "journal": "Materials Today",
+    "authors": [
+      "Chaoyi Qiu",
+      "Yaoyuan Zhan",
+      "Boao Wanyan",
+      "Yiwen Liu",
+      "Zhiwei Chen",
+      "Junwei Zhang",
+      "Zhichao Wang",
+      "Haoxiang Yu",
+      "Lei Yan",
+      "Liyuan Zhang",
+      "Ting-Feng Yi",
+      "Jie Shu"
+    ],
+    "url": "https://www.sciencedirect.com/science/article/pii/S1369702125004778?dgcid=rss_sd_all",
+    "doi": "10.1016/j.mattod.2025.11.019",
+    "relevance_reason": "Matched keyword: aqueous batteries",
+    "abstract": "Failed to fetch abstract: 403 Forbidden (anti-bot protection detected)"
+  },
+  {
+    "date": "2026-01-10T07:15:15-08:00",
+    "title": "In Situ and Operando Characterization Techniques for In‐Depth Understanding of Hybrid Water Electrolysis",
+    "journal": "Small Methods",
+    "authors": [
+      "Obeylaw Moyo,  Jiaqiao Yang,  Jiqiang Ding,  Yuan Zhang,  Juan He,  Junxiong Zhang,  Hainan Sun"
+    ],
+    "url": "https://onlinelibrary.wiley.com/doi/10.1002/smtd.202502013?af=R",
+    "doi": "10.1002/smtd.202502013",
+    "relevance_reason": "Matched keyword: operando characterization",
+    "abstract": "Hybrid water electrolysis provides an energy‐efficient route for hydrogen production by replacing the oxygen evolution reaction (OER) with oxidation of small organic or biomass‐derived substrates, lowering cell voltages and enabling co‐production of value‐added chemicals. However, competition with OER, transient intermediates, and dynamic catalyst transformations complicates mechanistic understanding. Conventional ex situ techniques cannot capture these short‐lived processes, whereas in situ and operando characterization techniques provide real‐time insights into reaction pathways, active phases, and degradation mechanisms. This review highlights recent advances in applying these techniques to uncover catalyst dynamics in hybrid electrolysis. How such mechanistic insights are guiding the rational design of catalysts toward improved efficiency, selectivity, and durability is emphasized. Finally, opportunities for developing next‐generation electrolyzers powered by renewable energy for sustainable hydrogen and chemical production are discussed."
+  },
+  {
+    "date": "2026-01-05T07:13:34-08:00",
+    "title": "Amide Molecules Induced Desolvated Zinc Ion Enables Stable Aqueous Batteries",
+    "journal": "Advanced Functional Materials",
+    "authors": [
+      "Bo‐Hao Xiao,  Yinxiang Zeng,  Kang Xiao,  Xinwen Peng,  Shunsheng Cao,  Christopher A Howard,  Zhao‐Qing Liu"
+    ],
+    "url": "https://advanced.onlinelibrary.wiley.com/doi/10.1002/adfm.202510536?af=R",
+    "doi": "10.1002/adfm.202510536",
+    "relevance_reason": "Matched keyword: aqueous batteries",
+    "abstract": "Zinc‐ion batteries (ZIBs), characterized by high theoretical capacity, cost‐effectiveness, and environmental friendliness, hold promising prospects in large‐scale energy storage. However, the slow desolvation process of hydrated Zn 2+ leads to unstable Zn 2+ ion flow and further hinders uniform Zn deposition. Moreover, the release of active H 2 O during the desolvation process will exacerbate the hydrogen evolution reaction. Herein, a zincophilic and electrophilic amide is introduced as a stabilizer to Zn 2+ flow by optimizing the desolvation process of hydrated Zn 2+ . The amide molecules enter the solvation structure of Zn 2+ through acyl coordination sites, reducing the desolvation energy barrier, hence facilitating uniform Zn deposition. Moreover, electrophilic amino groups effectively suppress hydrogen evolution by capturing active H 2 O. As a result, a symmetric cell with thioacetamide additive exhibits a remarkable lifespan of 2000 h at 1 mA/1 mAh cm −2 . Even with an increased current density of 5 mA cm −2 , the cell maintains stable cycling for 1000 h. This study offers a novel perspective on the crucial factors contributing to the irreversible growth of Zn dendrites in ZIBs, providing valuable insights for the development of electrolyte additives."
+  },
+  {
+    "date": "2026-01-05T07:13:34-08:00",
+    "title": "Tailored Polymer‐Based SEI via iCVD for Stable Zinc Metal Anodes in Aqueous Batteries through Modulation of Hydrophilicity and Elasticity to Inhibit Hydrogen Evolution Reactions",
+    "journal": "Advanced Functional Materials",
+    "authors": [
+      "Jaeyeon Lee,  Moonwon Lee,  Boyeon Kim,  Hyunjin Jung,  Kanghoon Yim,  Myunghyun Ryu,  Gi Su Doo,  Jae‐Hak Choi,  Jiyun Heo,  Sung Gap Im,  Kyu‐Nam Jung,  Myung Seok Oh,  Jinhong Lee"
+    ],
+    "url": "https://advanced.onlinelibrary.wiley.com/doi/10.1002/adfm.202507730?af=R",
+    "doi": "10.1002/adfm.202507730",
+    "relevance_reason": "Matched keyword: aqueous batteries",
+    "abstract": "Zinc is attractive for battery applications because of its high theoretical capacity, abundance, safety, low redox potential, cost, and toxicity. However, Zn suffers from poor reversibility due to its low coulombic efficiency, dendrite growth, and detrimental chemical side reactions, including the hydrogen evolution reaction (HER). A simple initiated chemical vapor deposition method for depositing 200‐nm‐thick superhydrophobic/elastic polymer coatings on Zn anodes as a protective artificial solid‐electrolyte interphase is demonstrated, which reduces the water activity to mitigate the HER and enhances the mechanical stability toward volume changes during cycling. Furthermore, density functional theory calculations show that the fluorinated polymer coating effectively reduces water activity, thus inhibiting the HER. A pouch‐type Zn||I 2 aqueous battery (5 × 5 cm 2 ) with a pF1V1 polymer coating delivered a capacity of 95 mAh at 4.6 mA∙cm −2 (≈1.2 C) and retained 98.4% of its capacity over 583 cycles. This study reveals novel prospects for incorporating superhydrophobic and elastic polymer compounds in Zn‐based battery research, offering a viable approach for enhancing cycling stability."
+  },
+  {
+    "date": "2026-01-05T07:13:34-08:00",
+    "title": "Amide Molecules Induced Desolvated Zinc Ion Enables Stable Aqueous Batteries",
+    "journal": "Advanced Functional Materials",
+    "authors": [
+      "Bo‐Hao Xiao,  Yinxiang Zeng,  Kang Xiao,  Xinwen Peng,  Shunsheng Cao,  Christopher A Howard,  Zhao‐Qing Liu"
+    ],
+    "url": "https://advanced.onlinelibrary.wiley.com/doi/10.1002/adfm.202510536?af=R",
+    "doi": "10.1002/adfm.202510536",
+    "relevance_reason": "Matched keyword: aqueous batteries",
+    "abstract": "Zinc‐ion batteries (ZIBs), characterized by high theoretical capacity, cost‐effectiveness, and environmental friendliness, hold promising prospects in large‐scale energy storage. However, the slow desolvation process of hydrated Zn 2+ leads to unstable Zn 2+ ion flow and further hinders uniform Zn deposition. Moreover, the release of active H 2 O during the desolvation process will exacerbate the hydrogen evolution reaction. Herein, a zincophilic and electrophilic amide is introduced as a stabilizer to Zn 2+ flow by optimizing the desolvation process of hydrated Zn 2+ . The amide molecules enter the solvation structure of Zn 2+ through acyl coordination sites, reducing the desolvation energy barrier, hence facilitating uniform Zn deposition. Moreover, electrophilic amino groups effectively suppress hydrogen evolution by capturing active H 2 O. As a result, a symmetric cell with thioacetamide additive exhibits a remarkable lifespan of 2000 h at 1 mA/1 mAh cm −2 . Even with an increased current density of 5 mA cm −2 , the cell maintains stable cycling for 1000 h. This study offers a novel perspective on the crucial factors contributing to the irreversible growth of Zn dendrites in ZIBs, providing valuable insights for the development of electrolyte additives."
+  },
+  {
+    "date": "2026-01-05T07:13:34-08:00",
+    "title": "Tailored Polymer‐Based SEI via iCVD for Stable Zinc Metal Anodes in Aqueous Batteries through Modulation of Hydrophilicity and Elasticity to Inhibit Hydrogen Evolution Reactions",
+    "journal": "Advanced Functional Materials",
+    "authors": [
+      "Jaeyeon Lee,  Moonwon Lee,  Boyeon Kim,  Hyunjin Jung,  Kanghoon Yim,  Myunghyun Ryu,  Gi Su Doo,  Jae‐Hak Choi,  Jiyun Heo,  Sung Gap Im,  Kyu‐Nam Jung,  Myung Seok Oh,  Jinhong Lee"
+    ],
+    "url": "https://advanced.onlinelibrary.wiley.com/doi/10.1002/adfm.202507730?af=R",
+    "doi": "10.1002/adfm.202507730",
+    "relevance_reason": "Matched keyword: aqueous batteries",
+    "abstract": "Zinc is attractive for battery applications because of its high theoretical capacity, abundance, safety, low redox potential, cost, and toxicity. However, Zn suffers from poor reversibility due to its low coulombic efficiency, dendrite growth, and detrimental chemical side reactions, including the hydrogen evolution reaction (HER). A simple initiated chemical vapor deposition method for depositing 200‐nm‐thick superhydrophobic/elastic polymer coatings on Zn anodes as a protective artificial solid‐electrolyte interphase is demonstrated, which reduces the water activity to mitigate the HER and enhances the mechanical stability toward volume changes during cycling. Furthermore, density functional theory calculations show that the fluorinated polymer coating effectively reduces water activity, thus inhibiting the HER. A pouch‐type Zn||I 2 aqueous battery (5 × 5 cm 2 ) with a pF1V1 polymer coating delivered a capacity of 95 mAh at 4.6 mA∙cm −2 (≈1.2 C) and retained 98.4% of its capacity over 583 cycles. This study reveals novel prospects for incorporating superhydrophobic and elastic polymer compounds in Zn‐based battery research, offering a viable approach for enhancing cycling stability."
+  },
+  {
+    "date": "2026-01-02T22:20:51-08:00",
+    "title": "Dynamic Protective Multi‐Layers for MnO2 Cathodes: Ion Sorting and Structural Protection for Superior Zinc‐Ion Battery Cycling Performance",
+    "journal": "Advanced Materials",
+    "authors": [
+      "Xiaomin Han,  Ran Zhao,  Luyang Yu,  Lihua Wang,  Xinyu Zhang,  Anqi Zhang,  Jingjing Yang,  Zhifan Hu,  Mengge Lv,  Tingxuan Miao,  Feng Wu,  Ying Bai,  Chuan Wu"
+    ],
+    "url": "https://advanced.onlinelibrary.wiley.com/doi/10.1002/adma.202513548?af=R",
+    "doi": "10.1002/adma.202513548",
+    "relevance_reason": "Matched keyword: mno2 cathode",
+    "abstract": "Aqueous zinc metal batteries (AZMBs) are characterized by high safety, low cost, and eco‐friendliness, among which manganese‐based cathodes stand out due to their abundance and high theoretical capacity. However, failure behaviors such as lattice collapse, Mn dissolution, and sluggish kinetics hinder their application. Herein, a dynamic multi‐protective interface has been designed through a simple one‐step manufacturing process, emulating the structural and functional attributes of biological membranes and cell walls. It comprises three distinct layers: an outer high‐valent oxide layer that enhances chemical stability and selectively facilitates proton intercalation while governing the intercalation of Zn 2+ ; a middle low‐valent oxide and metal composite layer, which functions as a buffer to selectively adsorb Mn 2+ , thereby inhibiting Mn dissolution and augmenting the chemical stability of the cathode; and an inner heterojunction layer, which boosts conductivity and alleviates Jahn–Teller distortion through lattice distortion and entropy‐mediated electronic delocalization. The surface modified cathode exhibits outstanding stability, with nearly zero capacity decay observed over 300 cycles at a low current density of 0.4 A g −1 , and 15 000 cycles under a high current of 10 A g −1 . With significantly enhanced cycling stability, rate capability, and electrochemical reversibility, this strategy presents a promising solution for high‐performance MnO 2 ‐based cathodes in AZMBs."
+  },
+  {
+    "date": "2026-01-02T22:20:51-08:00",
+    "title": "Dynamic Protective Multi‐Layers for MnO2 Cathodes: Ion Sorting and Structural Protection for Superior Zinc‐Ion Battery Cycling Performance",
+    "journal": "Advanced Materials",
+    "authors": [
+      "Xiaomin Han,  Ran Zhao,  Luyang Yu,  Lihua Wang,  Xinyu Zhang,  Anqi Zhang,  Jingjing Yang,  Zhifan Hu,  Mengge Lv,  Tingxuan Miao,  Feng Wu,  Ying Bai,  Chuan Wu"
+    ],
+    "url": "https://advanced.onlinelibrary.wiley.com/doi/10.1002/adma.202513548?af=R",
+    "doi": "10.1002/adma.202513548",
+    "relevance_reason": "Matched keyword: mno2 cathode",
+    "abstract": "Aqueous zinc metal batteries (AZMBs) are characterized by high safety, low cost, and eco‐friendliness, among which manganese‐based cathodes stand out due to their abundance and high theoretical capacity. However, failure behaviors such as lattice collapse, Mn dissolution, and sluggish kinetics hinder their application. Herein, a dynamic multi‐protective interface has been designed through a simple one‐step manufacturing process, emulating the structural and functional attributes of biological membranes and cell walls. It comprises three distinct layers: an outer high‐valent oxide layer that enhances chemical stability and selectively facilitates proton intercalation while governing the intercalation of Zn 2+ ; a middle low‐valent oxide and metal composite layer, which functions as a buffer to selectively adsorb Mn 2+ , thereby inhibiting Mn dissolution and augmenting the chemical stability of the cathode; and an inner heterojunction layer, which boosts conductivity and alleviates Jahn–Teller distortion through lattice distortion and entropy‐mediated electronic delocalization. The surface modified cathode exhibits outstanding stability, with nearly zero capacity decay observed over 300 cycles at a low current density of 0.4 A g −1 , and 15 000 cycles under a high current of 10 A g −1 . With significantly enhanced cycling stability, rate capability, and electrochemical reversibility, this strategy presents a promising solution for high‐performance MnO 2 ‐based cathodes in AZMBs."
+  },
+  {
+    "date": "2025-12-15T20:40:25-08:00",
+    "title": "Defect‐Free P2‐Type Layered KxMnO2 Cathode Material for Anode‐Free Potassium‐Ion Battery",
+    "journal": "Small Science",
+    "authors": [
+      "Xijue Wang,  Niroshan Manoharan,  Ankit Dandriyal,  Mahesh Chougale,  Tony Wang,  Dmitri Golberg,  Deepak Dubal"
+    ],
+    "url": "https://onlinelibrary.wiley.com/doi/10.1002/sstr.202500650?af=R",
+    "doi": "10.1002/sstr.202500650",
+    "relevance_reason": "Matched keyword: mno2 cathode",
+    "abstract": "Potassium‐ion batteries (KIBs) require cathodes that combine structural robustness with fast K + transport and scalable manufacturing. Here, P2‐type KMO is developed using fast and efficient microwave heating process with controlled crystallite sizes (≈30–60 nm) and high crystallinity for Anode‐Free K‐ion batteries. In situ X‐ray powder diffraction (XRD) and Raman track reversible ‘breathing’ of the layered framework‐00l reflections shift smoothly to lower 2 θ on charge (c ≈ 12.6 → 12.8 Å) and return on discharge, with no persistent new phases‐evidence for mainly solid‐solution K + (de)intercalation. In K‐ion half‐cells, the cathode delivers 91.3 mAh g −1 with good rate capability; galvanostatic intermittent titration technique (GITT) (10 −11 –10 −9 cm 2 s −1 ) and electrochemical impedance spectroscopy (EIS) confirm favorable K + kinetics. Importantly, the material is further evaluated in an anode‐free K‐ion battery using carbon cloth as the current collector, achieving 83.5 mAh g −1 initially and 73.6% retention after 50 cycles with >99% Coulombic efficiency. The modest performance gap relative to half‐cells is attributed to limited K inventory and interfacial losses, indicating clear avenues for optimization. Microwave synthesis thus offers an efficient route to KMO compatible with both conventional and anode‐free operation."
+  },
+  {
+    "date": "2025-12-09T20:43:56-08:00",
+    "title": "Analysis of TiO2\n and Ti Nanolayers Irradiated With Highly Charged Xeq+\n Ions Using Synchrotron Radiation Based GIXRF Method",
+    "journal": "X-Ray Spectrometry",
+    "authors": [
+      "R. Stachura,  D. Banaś,  A. Kubala‐Kukuś,  P. Jagodziński,  M. Pajek,  K. Szary,  I. Stabrawa,  W. Biela‐Nowaczyk,  G. Aquilanti,  I. Božičević Mihalić,  Md. A. Alam,  M. K. Tiwari,  M. Teodorczyk"
+    ],
+    "url": "https://analyticalsciencejournals.onlinelibrary.wiley.com/doi/10.1002/xrs.70029?af=R",
+    "doi": "10.1002/xrs.70029",
+    "relevance_reason": "Matched keyword: synchrotron radiation",
+    "abstract": "Understanding the physical and chemical properties of nanolayers is crucial for developing new and advanced nanomaterials. Irradiation with low‐energy, highly charged ions allows the modification of materials, creating novel surface structure features. The nanolayers can be characterized using surface‐sensitive techniques such as X‐ray reflectometry or grazing incidence X‐ray fluorescence (GIXRF). GIXRF is a non‐destructive spectroscopy method for analyzing elemental depth distributions in thin layer structures. The aim of this work was to analyze titanium (Ti) and titanium dioxide (TiO 2 ) nanolayers deposited on Si substrate, unmodified and irradiated with low‐energy (100 of keV) highly charged Xe q+ ( q = 25, 30, 35), and to determine the influence of this process on the morphology of irradiated surfaces. The nanolayers were irradiated at the Kielce EBIS facility. The GIXRF measurements were performed at Elettra Synchrotron XRF beamline. The results obtained from the GIXRF method show that the intensity changes of analyzed fluorescence lines depend on the thickness of nanolayers and the ion charge states."
+  },
+  {
+    "date": "2025-11-28T00:00:00+00:00",
+    "title": "Kinetic modulation enabling densely oriented electrodeposition of Zn anodes in aqueous batteries",
+    "journal": "Energy & Environmental Science",
+    "authors": [
+      "Kuo Wang",
+      "Hongtu Zhan",
+      "Xiao-Xia Liu",
+      "Xiaoqi Sun"
+    ],
+    "url": "http://pubs.rsc.org/en/Content/ArticleLanding/2026/EE/D5EE04200C",
+    "doi": "10.1039/d5ee04200c",
+    "relevance_reason": "Matched keyword: aqueous batteries",
+    "abstract": "The unique charge distribution on the 2-methoxyethyl acetate additive enables the thermodynamic governed Zn deposition behavior in aqueous electrolytes, thereby extending the lifespan of Zn electrodes from 79 hours to around 8 months."
+  },
+  {
+    "date": "2025-11-27T00:00:00+00:00",
+    "title": "Dilute electrolyte-heterostructure interlocking regulates the amorphization conversion of Te cathodes for durable aqueous batteries",
+    "journal": "Energy & Environmental Science",
+    "authors": [
+      "Long Pan",
+      "Kaining Cao",
+      "Mufan Cao",
+      "Min Gao",
+      "Yuan Zhang",
+      "Yang Zhou",
+      "ZhengMing Sun"
+    ],
+    "url": "http://pubs.rsc.org/en/Content/ArticleLanding/2026/EE/D5EE06107E",
+    "doi": "10.1039/d5ee06107e",
+    "relevance_reason": "Matched keyword: aqueous batteries",
+    "abstract": "A dilute electrolyte–heterostructure interlocking strategy that couples a Te/ZnSe heterostructure with a dilute NH 4 Ac electrolyte is proposed to trigger and sustain the reversible Te ↔ amorphous TeO 2 conversion for durable aqueous batteries."
+  },
+  {
+    "date": "2025-10-31T01:47:44-07:00",
+    "title": "The Newly Discovered Pathway for Oxygen Evolution Reaction: In‐Situ/Operando Characterization Techniques for Catalyst Development",
+    "journal": "Carbon Energy",
+    "authors": [
+      "Rabia Khalid,  Muhammad Tahir,  Muhammad Umar,  Pin Fang,  Yujing Li"
+    ],
+    "url": "https://onlinelibrary.wiley.com/doi/10.1002/cey2.70067?af=R",
+    "doi": "10.1002/cey2.70067",
+    "relevance_reason": "Matched keyword: operando characterization",
+    "abstract": "Water electrolysis is pivotal for converting renewable energy into clean hydrogen fuel, addressing global energy demand sustainably. However, the development of highly efficient and cost‐effective catalysts for the oxygen evolution reaction (OER) remains a significant challenge, particularly at the industrial scale. This report explores a newly discovered pathway, the oxide path mechanism (OPM) for OER—mechanism involving the oxide formation and evolution during the reaction, emphasizing its potential to overcome existing limitations. OPM enables direct O─O coupling without oxygen vacancies, offering superior stability. We detail both classical and innovative in‐situ characterization techniques that are central to unraveling the OER mechanism. The advanced in‐situ electrochemical techniques, such as inductively coupled plasma mass spectroscopy, X‐ray photoelectron spectroscopy, and Mössbauer spectroscopy, coupled with in‐situ structural analyses, provide crucial insights into the catalyst surface, the electrode‐electrolyte interface and the kinetics of OER. This review provides a systematic analysis integrating classical electrochemical methods with advanced in‐situ/operando techniques, specifically focusing on understanding OPM. While numerous studies have examined individual characterization methods, this study systematically integrates traditional electrochemical approaches with in‐situ and operando techniques, offering critical insights into their complementary roles in elucidating reaction pathways. The integration of these methodologies provides unprecedented understanding of catalyst behavior under operational conditions, guiding the rational design of next‐generation OER catalysts. Furthermore, we discuss essential standardized test toolkits and protocols, such as those for rotating disk electrode and membrane electrode assembly, which are vital for ensuring reproducibility and scalability in OER catalyst research."
+  }
+]

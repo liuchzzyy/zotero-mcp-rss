@@ -1,0 +1,54 @@
+[
+  {
+    "date": "2026-01-15T22:07:11.671273",
+    "title": "Hierarchical dual-crosslinked hydrogel electrolyte with quaternary ammonium and nanofiber reinforcement for durable and flexible zinc-ion batteries",
+    "journal": "Chemical Engineering Journal",
+    "authors": [
+      "Jiahui Li",
+      "Yaxin Wang",
+      "Chengxu Wang",
+      "Hao Wu",
+      "Sheng Li",
+      "Jing Ma",
+      "Jian Ni",
+      "Zhonglong Zhao",
+      "Xiaofang Jia",
+      "Fuhua Hou",
+      "Yanlai Wang",
+      "Chengjun Zhu",
+      "Tiantian Li"
+    ],
+    "url": "https://www.sciencedirect.com/science/article/pii/S1385894726004067?dgcid=rss_sd_all",
+    "doi": "10.1016/j.cej.2026.172949",
+    "relevance_reason": "Matched keyword: zinc-ion batteries",
+    "abstract": "Failed to fetch abstract: 403 Forbidden (anti-bot protection detected)"
+  },
+  {
+    "date": "2026-01-14T06:17:12-08:00",
+    "title": "Asymmetric Ion Transport in Tunnel‐Type Cobalt Vanadate for High‐Performance Mn2+/H+ Hybrid Aqueous Batteries",
+    "journal": "Small",
+    "authors": [
+      "Sangki Lee,  Hyeju Kwon,  Seunghyeop Baek,  Jangwook Pyun,  Munseok S. Chae"
+    ],
+    "url": "https://onlinelibrary.wiley.com/doi/10.1002/smll.202511733?af=R",
+    "doi": "10.1002/smll.202511733",
+    "relevance_reason": "Matched keyword: aqueous batteries",
+    "abstract": "Aqueous manganese batteries are attractive owing to the deeper Mn/Mn 2 ⁺ redox potential (–1.19 V vs SHE) compared with Zn, yet their development has been hindered by sluggish Mn 2 ⁺ diffusion and parasitic interfacial reactions. Here, the concept of asymmetric‐ion transport is introduced, where Mn 2 ⁺ and protons occupy distinct diffusion channels and act synergistically rather than competitively. Using Co(VO 3 ) 2 ·2H 2 O as a model host, direct structural evidence is provided from Fourier electron density maps and ICP‐OES that 0.50 mol of Mn 2 ⁺ is reversibly accommodated alongside 0.14 mol of H⁺. Migration‐barrier calculations further reveal orthogonal pathways with balanced activation energies (0.602 eV for Mn 2 ⁺, 0.334 eV for H⁺), rationalizing the coexistence of Mn‐dominant storage and proton‐assisted kinetics. This dual‐ion mechanism enables high reversibility, robust cycling stability, and quasi–zero‐strain behavior. When paired with a Mn metal anode, the full cell delivers 1.3 V, substantially 0.4 V higher than Zn analogues, while highlighting the necessity of Mn anode interface stabilization. Beyond a new cathode material, this study establishes asymmetric‐ion transport as a generalizable paradigm for reconciling multivalent‐ion storage with fast kinetics in high‐voltage aqueous batteries."
+  },
+  {
+    "date": "2025-12-05T00:00:00+00:00",
+    "title": "Freestanding porous Mn2O3/carbon nanotube film cathodes for high-performance aqueous zinc-ion batteries",
+    "journal": "ChemComm",
+    "authors": [
+      "Linpo Li",
+      "Yuanyuan Lei",
+      "Zhenhao Zhao",
+      "Shihe Shen",
+      "Yanli Niu",
+      "Shengbo Gao"
+    ],
+    "url": "http://pubs.rsc.org/en/Content/ArticleLanding/2026/CC/D5CC06148B",
+    "relevance_reason": "Matched keyword: zinc-ion batteries",
+    "abstract": "Porous Mn2O3 nanocubes/single-walled carbon nanotube freestanding film electrodes were successfully prepared by a smart “coordination construction-pyrolysis-suction filtration” technology as advanced zinc-ion battery cathodes. Such rational design simultaneously addresses the key issues of volume expansion and poor conductivity in Mn2O3, enabling excellent rate capability and stable cycling."
+  }
+]

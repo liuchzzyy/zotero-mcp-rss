@@ -35,9 +35,12 @@ classifiers = [
 
 # Core dependencies (alphabetically sorted)
 dependencies = [
+    "beautifulsoup4>=4.14.3",
     "chromadb>=0.4.0",
     "fastmcp>=2.14.0",
+    "feedparser>=6.0.12",
     "google-generativeai>=0.3.0",
+    "lxml>=6.0.2",
     "markitdown[pdf]",
     "mcp>=1.2.0",
     "openai>=1.0.0",
@@ -46,6 +49,7 @@ dependencies = [
     "pyzotero>=1.5.0",
     "requests>=2.28.0",
     "sentence-transformers>=2.2.0",
+    "tenacity>=9.1.2",
 ]
 
 [dependency-groups]
