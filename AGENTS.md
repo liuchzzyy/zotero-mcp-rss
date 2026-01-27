@@ -23,6 +23,11 @@ uv run ruff check      # Lint
 uv run ruff format     # Format
 ```
 
+**Test Structure:**
+- `tests/test_config.py` - Configuration loading tests
+- `tests/test_custom_template.py` - Template propagation tests
+- `examples/workflow_example.py` - Usage example (not a test)
+
 ## 🏗️ Architecture
 
 - **Entry**: `server.py` (FastMCP), `cli.py` (Entry point)
@@ -33,6 +38,8 @@ uv run ruff format     # Format
   - `semantic.py`: Vector search logic
 - **Clients**: `src/zotero_mcp/clients/` (Zotero API, ChromaDB, LLM adapters)
 - **Models**: `src/zotero_mcp/models/` (Pydantic models for type safety)
+- **Examples**: `examples/` (Usage examples and integration patterns)
+  - `workflow_example.py`: Production-grade batch analysis example
 
 ## 💻 Development Standards
 
