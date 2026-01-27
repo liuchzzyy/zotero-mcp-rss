@@ -1,21 +1,28 @@
 #!/usr/bin/env python3
 """
-RSS Feed Fetcher and Zotero Importer
+RSS Feed Fetcher with AI Filtering and Zotero Import
 
 This script is designed to run in GitHub Actions on a schedule.
-It fetches RSS feeds from an OPML file and imports new items to Zotero:
+It fetches RSS feeds from an OPML file, filters them using DeepSeek-powered
+keyword matching, and imports relevant items to Zotero:
+
 1. Reads OPML file containing journal RSS feeds
 2. Fetches all RSS feeds
-3. Imports new articles to Zotero staging collection (00_INBOXS)
+3. Extracts keywords from research interest prompt using DeepSeek
+4. Filters articles by matching keywords against titles
+5. Imports ONLY relevant articles to Zotero staging collection (00_INBOXS)
 
 Requirements:
     - ZOTERO_LIBRARY_ID (env)
     - ZOTERO_API_KEY (env)
-    - DEEPSEEK_API_KEY (env) - for potential AI filtering
+    - DEEPSEEK_API_KEY (env) - for AI filtering
     - ZOTERO_LOCAL=false (to use Web API)
 
 Usage:
     python src/scripts/fetch_rss.py
+
+Reference:
+    https://github.com/liuchzzyy/RSS_Papers
 """
 
 import asyncio
@@ -29,7 +36,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from zotero_mcp.services.data_access import get_data_service
-from zotero_mcp.services.rss import RSSService
+from zotero_mcp.services.rss import RSSFilter, RSSService
 
 # Configure logging
 logging.basicConfig(
@@ -41,6 +48,7 @@ logger = logging.getLogger(__name__)
 
 # Configuration
 OPML_FILE_PATH = "RSS/RSS_official.opml"
+PROMPT_FILE_PATH = "RSS/prompt.txt"
 STAGING_COLLECTION_NAME = "00_INBOXS"
 DAYS_BACK = 7  # Only import articles from the last 7 days
 
@@ -77,7 +85,7 @@ async def create_zotero_item_from_rss(data_service, rss_item, collection_key: st
             "collections": [collection_key],
             "tags": [
                 {"tag": "from-rss"},
-                {"tag": "unprocessed"},
+                {"tag": "ai-filtered"},
             ],
         }
 
@@ -115,13 +123,14 @@ async def main():
     """Main execution function"""
 
     logger.info("=" * 70)
-    logger.info("RSS Feed Fetcher and Zotero Importer")
+    logger.info("RSS Feed Fetcher with AI Filtering and Zotero Import")
     logger.info("=" * 70)
 
     # Verify environment variables
     required_vars = {
         "ZOTERO_LIBRARY_ID": os.getenv("ZOTERO_LIBRARY_ID"),
         "ZOTERO_API_KEY": os.getenv("ZOTERO_API_KEY"),
+        "DEEPSEEK_API_KEY": os.getenv("DEEPSEEK_API_KEY"),
     }
 
     missing = [k for k, v in required_vars.items() if not v]
@@ -133,19 +142,27 @@ async def main():
     os.environ["ZOTERO_LOCAL"] = "false"
     logger.info("Using Zotero Web API (ZOTERO_LOCAL=false)")
 
-    # Check OPML file exists
+    # Check required files exist
     opml_path = Path(OPML_FILE_PATH)
+    prompt_path = Path(PROMPT_FILE_PATH)
+
     if not opml_path.exists():
         logger.error(f"OPML file not found: {OPML_FILE_PATH}")
         sys.exit(1)
 
+    if not prompt_path.exists():
+        logger.error(f"Prompt file not found: {PROMPT_FILE_PATH}")
+        sys.exit(1)
+
     logger.info(f"Using OPML file: {OPML_FILE_PATH}")
+    logger.info(f"Using prompt file: {PROMPT_FILE_PATH}")
 
     try:
         # Initialize services
         logger.info("Initializing services...")
         data_service = get_data_service()
         rss_service = RSSService()
+        rss_filter = RSSFilter(prompt_file=str(prompt_path))
         logger.info("Services initialized successfully")
 
         # Find staging collection
@@ -197,11 +214,37 @@ async def main():
         )
 
         if not all_recent_items:
-            logger.info("No recent items to import. Exiting.")
+            logger.info("No recent items to process. Exiting.")
             return
 
         # Sort by publication date (newest first)
         all_recent_items.sort(key=lambda x: x.pub_date or datetime.min, reverse=True)
+
+        # AI-powered filtering
+        logger.info("")
+        logger.info("=" * 70)
+        logger.info("AI-Powered Keyword Filtering")
+        logger.info("=" * 70)
+
+        (
+            relevant_items,
+            irrelevant_items,
+            keywords,
+        ) = await rss_filter.filter_with_keywords(all_recent_items, str(prompt_path))
+
+        logger.info(f"Keywords used: {keywords}")
+        logger.info(f"Relevant items: {len(relevant_items)}")
+        logger.info(f"Irrelevant items (filtered out): {len(irrelevant_items)}")
+
+        if not relevant_items:
+            logger.info("No relevant items found after filtering. Exiting.")
+            return
+
+        # Log some relevant titles for verification
+        logger.info("")
+        logger.info("Sample relevant articles:")
+        for item in relevant_items[:5]:
+            logger.info(f"  • {item.title[:70]}...")
 
         # Import items to Zotero
         logger.info("")
@@ -209,17 +252,15 @@ async def main():
         logger.info("Importing to Zotero")
         logger.info("=" * 70)
         logger.info(
-            f"Importing {len(all_recent_items)} items to '{staging_collection_name}'"
+            f"Importing {len(relevant_items)} relevant items to '{staging_collection_name}'"
         )
 
         created_count = 0
         skipped_count = 0
         failed_count = 0
 
-        for idx, item in enumerate(all_recent_items, 1):
-            logger.info(
-                f"[{idx}/{len(all_recent_items)}] Processing: {item.title[:50]}"
-            )
+        for idx, item in enumerate(relevant_items, 1):
+            logger.info(f"[{idx}/{len(relevant_items)}] Processing: {item.title[:50]}")
 
             result = await create_zotero_item_from_rss(
                 data_service, item, staging_collection_key
@@ -227,7 +268,7 @@ async def main():
 
             if result:
                 created_count += 1
-            elif result is None and "already exists" in str(result):
+            elif result is None:
                 skipped_count += 1
             else:
                 failed_count += 1
@@ -240,12 +281,14 @@ async def main():
         logger.info("=" * 70)
         logger.info("Import Complete")
         logger.info("=" * 70)
-        logger.info(f"Total items processed: {len(all_recent_items)}")
+        logger.info(f"Total items fetched: {len(all_recent_items)}")
+        logger.info(f"Items passed AI filter: {len(relevant_items)}")
+        logger.info(f"Items filtered out: {len(irrelevant_items)}")
         logger.info(f"Successfully created: {created_count}")
         logger.info(f"Skipped (duplicates): {skipped_count}")
         logger.info(f"Failed: {failed_count}")
         logger.info("")
-        logger.info("✓ RSS feed import completed successfully")
+        logger.info("✓ RSS feed import with AI filtering completed successfully")
 
     except Exception as e:
         logger.exception(f"Fatal error during execution: {e}")
