@@ -37,3 +37,18 @@ Thumbs.db
 .env
 .env.local
 .example.yml
+
+# Development artifacts
+.ruff_cache/
+.mypy_cache/
+.python-version
+*.log
+
+# Test outputs (Chinese)
+AI分析结果/
+AI分析结果.md
+说明.md
+
+# Local state
+.sisyphus/
+chroma_db/
