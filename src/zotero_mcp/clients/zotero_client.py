@@ -6,13 +6,12 @@ and unified error handling.
 """
 
 import asyncio
-import os
 from dataclasses import dataclass
 from functools import lru_cache
+import os
 from typing import Any, Literal
 
 from pyzotero import zotero
-
 from zotero_mcp.utils.errors import (
     ConfigurationError,
     NotFoundError,
@@ -423,6 +422,100 @@ class ZoteroAPIClient:
             None,
             lambda: self.client.create_items([note_template]),
         )
+
+    # -------------------- Collection Management --------------------
+
+    async def add_to_collection(
+        self, collection_key: str, item_key: str
+    ) -> dict[str, Any]:
+        """
+        Add an item to a collection.
+
+        Args:
+            collection_key: Collection key
+            item_key: Item key to add
+
+        Returns:
+            Updated item data
+        """
+        loop = asyncio.get_event_loop()
+        item = await self.get_item(item_key)
+        return await loop.run_in_executor(
+            None, lambda: self.client.addto_collection(collection_key, item)
+        )
+
+    async def remove_from_collection(
+        self, collection_key: str, item_key: str
+    ) -> dict[str, Any]:
+        """
+        Remove an item from a collection.
+
+        Args:
+            collection_key: Collection key
+            item_key: Item key to remove
+
+        Returns:
+            Updated item data
+        """
+        loop = asyncio.get_event_loop()
+        item = await self.get_item(item_key)
+        return await loop.run_in_executor(
+            None, lambda: self.client.deletefrom_collection(collection_key, item)
+        )
+
+    async def delete_item(self, item_key: str) -> dict[str, Any]:
+        """
+        Delete an item (moves to trash).
+
+        Args:
+            item_key: Item key to delete
+
+        Returns:
+            Deletion result
+        """
+        loop = asyncio.get_event_loop()
+        item = await self.get_item(item_key)
+        payload = {"key": item_key, "version": item.get("version", 0)}
+        return await loop.run_in_executor(
+            None, lambda: self.client.delete_item(payload)
+        )
+
+    async def add_tags(self, item_key: str, tags: list[str]) -> dict[str, Any]:
+        """
+        Add tags to an item (preserves existing tags).
+
+        Args:
+            item_key: Item key
+            tags: List of tag names to add
+
+        Returns:
+            Updated item data
+        """
+        loop = asyncio.get_event_loop()
+        item = await self.get_item(item_key)
+
+        # Get existing tags
+        existing_tags = {t.get("tag", "") for t in item.get("data", {}).get("tags", [])}
+
+        # Add new tags (deduplicate)
+        for tag in tags:
+            if tag and tag not in existing_tags:
+                item["data"]["tags"].append({"tag": tag})
+
+        return await loop.run_in_executor(None, lambda: self.client.update_item(item))
+
+    async def update_item(self, item: dict[str, Any]) -> dict[str, Any]:
+        """
+        Update an item's data.
+
+        Args:
+            item: Complete item object with modifications
+
+        Returns:
+            Updated item data
+        """
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, lambda: self.client.update_item(item))
 
 
 @lru_cache(maxsize=1)

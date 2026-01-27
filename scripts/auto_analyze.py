@@ -18,14 +18,14 @@ Usage:
 import asyncio
 import logging
 import os
-import sys
 from pathlib import Path
+import sys
 
 # Setup path to import zotero_mcp modules
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from zotero_mcp.services.workflow import WorkflowService
 from zotero_mcp.services.data_access import get_data_service
+from zotero_mcp.services.workflow import WorkflowService
 
 # Configure logging
 logging.basicConfig(
@@ -176,8 +176,8 @@ async def main():
         logger.info("Starting batch analysis with DeepSeek AI")
         logger.info("=" * 70)
         logger.info(f"Items to analyze: {len(items_to_process)}")
-        logger.info(f"LLM Provider: DeepSeek")
-        logger.info(f"Skip existing notes: Yes")
+        logger.info("LLM Provider: DeepSeek")
+        logger.info("Skip existing notes: Yes")
         logger.info("")
 
         result = await workflow_service.batch_analyze(

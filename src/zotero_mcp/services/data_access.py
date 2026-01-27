@@ -455,6 +455,75 @@ class DataAccessService:
         """
         return await self.api_client.create_note(parent_key, content, tags)
 
+    # -------------------- Item Management Operations --------------------
+
+    async def add_item_to_collection(
+        self, collection_key: str, item_key: str
+    ) -> dict[str, Any]:
+        """
+        Add an item to a collection.
+
+        Args:
+            collection_key: Target collection key
+            item_key: Item to add
+
+        Returns:
+            Updated item data
+        """
+        return await self.api_client.add_to_collection(collection_key, item_key)
+
+    async def remove_item_from_collection(
+        self, collection_key: str, item_key: str
+    ) -> dict[str, Any]:
+        """
+        Remove an item from a collection.
+
+        Args:
+            collection_key: Collection to remove from
+            item_key: Item to remove
+
+        Returns:
+            Updated item data
+        """
+        return await self.api_client.remove_from_collection(collection_key, item_key)
+
+    async def delete_item(self, item_key: str) -> dict[str, Any]:
+        """
+        Delete an item (moves to trash).
+
+        Args:
+            item_key: Item to delete
+
+        Returns:
+            Deletion result
+        """
+        return await self.api_client.delete_item(item_key)
+
+    async def add_tags_to_item(self, item_key: str, tags: list[str]) -> dict[str, Any]:
+        """
+        Add tags to an item (preserves existing tags).
+
+        Args:
+            item_key: Item to tag
+            tags: List of tag names
+
+        Returns:
+            Updated item data
+        """
+        return await self.api_client.add_tags(item_key, tags)
+
+    async def update_item(self, item: dict[str, Any]) -> dict[str, Any]:
+        """
+        Update an item's data.
+
+        Args:
+            item: Complete item object with modifications
+
+        Returns:
+            Updated item data
+        """
+        return await self.api_client.update_item(item)
+
     # -------------------- Bundle Operations --------------------
 
     async def get_item_bundle(

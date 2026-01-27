@@ -112,7 +112,7 @@ def run_filter_repo(replacements_file):
             print("  3. Notify collaborators to re-clone the repository")
             return True
         else:
-            print(f"\n✗ Error running git filter-repo:")
+            print("\n✗ Error running git filter-repo:")
             print(result.stderr)
             return False
     except Exception as e:
