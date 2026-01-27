@@ -5,10 +5,15 @@
 这是最完整、最强大的批量分析解决方案。
 
 Usage:
-    ZOTERO_LIBRARY_ID=5452188 \
-    ZOTERO_API_KEY=nYnc5ygaobQstQyxt3K2632N \
-    DEEPSEEK_API_KEY=sk-84adad772ff5439a853cf2159153861e \
-    uv run python tests/option3_use_workflow_service.py
+    # Method 1: Use .env file (recommended)
+    cp .env.example .env  # Copy template and fill in your credentials
+    uv run python examples/workflow_example.py
+    
+    # Method 2: Set environment variables directly
+    ZOTERO_LIBRARY_ID=your_library_id \
+    ZOTERO_API_KEY=your_api_key \
+    DEEPSEEK_API_KEY=your_deepseek_api_key \
+    uv run python examples/workflow_example.py
 
 功能:
     ✅ 使用完整的 WorkflowService（生产级代码）

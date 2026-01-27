@@ -36,7 +36,6 @@ Thumbs.db
 # Environment variables
 .env
 .env.local
-.example.yml
 
 # Development artifacts
 .ruff_cache/
