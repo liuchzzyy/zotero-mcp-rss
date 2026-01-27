@@ -52,7 +52,7 @@
 - **Checkpoint/resume support** - Automatically save progress and resume interrupted workflows
 - **Structured notes** - Generate formatted analysis notes following Chinese academic template
 - **Dual modes** - Preview data first or run fully automatic batch analysis
-- See [Batch Workflow Guide](./docs/BATCH-WORKFLOW.md) for details
+- See [examples/workflow_example.py](./examples/workflow_example.py) for a complete usage example
 
 ### 🎯 Structured Output
 - **Type-safe responses** - All tools return structured Pydantic models
@@ -317,6 +317,9 @@ The first time you use PDF annotation features, the necessary tools will be auto
 
 ## 📖 Documentation
 
+### Example Code
+📁 **[Batch Workflow Example](./examples/workflow_example.py)** - Production-grade example showing how to use `WorkflowService` for batch PDF analysis with progress tracking, error handling, and checkpoint/resume support.
+
 ### Structured Responses
 All tools now return **structured Pydantic models** instead of formatted strings:
 - ✅ **Type Safety** - Full type checking for inputs and outputs
@@ -345,8 +348,9 @@ All tools now return **structured Pydantic models** instead of formatted strings
 }
 ```
 
-📚 **[View Complete Output Examples](./docs/STRUCTURED-OUTPUT-EXAMPLES.md)**  
-📖 **[Batch PDF Analysis Guide](./docs/BATCH-WORKFLOW.md)** - AI-powered paper analysis workflow  
+📁 **[Batch Workflow Example](./examples/workflow_example.py)** - Complete example code  
+📖 **[Batch Workflow Guide](./docs/BATCH-WORKFLOW.md)** - Detailed documentation (Coming Soon)  
+📚 **[Structured Output Examples](./docs/STRUCTURED-OUTPUT-EXAMPLES.md)** - API response examples (Coming Soon)  
 
 ## 🔍 Troubleshooting
 
