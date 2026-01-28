@@ -66,10 +66,10 @@ def _save_zotero_db_path_to_config(config_path: Path, db_path: str) -> None:
         with open(config_path, "w") as f:
             json.dump(full_config, f, indent=2)
 
-        print(f"Saved Zotero database path to config: {config_path}")
+        print(f'Saved Zotero database path to config: {config_path}')
 
     except Exception as e:
-        print(f"Warning: Could not save db_path to config: {e}")
+        print(f'Warning: Could not save db_path to config: {e}')
 
 
 def main():
@@ -203,7 +203,7 @@ def main():
     if args.command == "version":
         from zotero_mcp import __version__
 
-        print(f"Zotero MCP v{__version__}")
+        print(f'Zotero MCP v{__version__}')
         sys.exit(0)
 
     elif args.command == "setup-info":
@@ -218,13 +218,13 @@ def main():
         print("=== Zotero MCP Setup Information ===")
         print()
         print("🔧 Installation Details:")
-        print(f"  Command path: {executable_path}")
-        print(f"  Python path: {sys.executable}")
+        print(f'  Command path: {executable_path}')
+        print(f'  Python path: {sys.executable}')
 
         print()
         print("⚙️  Configuration:")
         obfuscated = obfuscate_config_for_display(env_vars)
-        print(f"  Environment: {json.dumps(obfuscated, indent=2)}")
+        print(f'  Environment: {json.dumps(obfuscated, indent=2)}')
 
         # Check semantic search
         try:
@@ -236,12 +236,12 @@ def main():
             print()
             print("🧠 Semantic Search:")
             print(
-                f"  Status: {"Initialized" if status.get(\"exists\") else \"Not Initialized\"}"
+                f"  Status: {'Initialized' if status.get('exists') else 'Not Initialized'}"
             )
-            print(f"  Items: {status.get(\"item_count\")}")
-            print(f"  Model: {status.get(\"embedding_model\")}")
+            print(f"  Items: {status.get('item_count')}")
+            print(f"  Model: {status.get('embedding_model')}")
         except Exception as e:
-            print(f"\n❌ Semantic Search Error: {e}")
+            print(f'\n❌ Semantic Search Error: {e}')
 
         sys.exit(0)
 
@@ -279,10 +279,10 @@ def main():
 
             print("\nUpdate Complete:")
             for k, v in stats.items():
-                print(f"- {k}: {v}")
+                print(f'- {k}: {v}')
 
         except Exception as e:
-            print(f"Error: {e}")
+            print(f'Error: {e}')
             sys.exit(1)
 
     elif args.command == "db-status":
@@ -294,7 +294,7 @@ def main():
             status = search.get_database_status()
             print(json.dumps(status, indent=2, default=str))
         except Exception as e:
-            print(f"Error: {e}")
+            print(f'Error: {e}')
             sys.exit(1)
 
     elif args.command == "db-inspect":
@@ -307,7 +307,7 @@ def main():
             col = search.chroma_client.collection
 
             if args.stats:
-                print(f"Count: {col.count()}")
+                print(f'Count: {col.count()}')
                 return
 
             results = col.get(
@@ -319,12 +319,12 @@ def main():
 
             metadatas = results.get("metadatas") or []
             for i, meta in enumerate(metadatas):
-                print(f"- {meta.get(\"title\", \"Untitled\")}")
+                print(f"- {meta.get('title', 'Untitled')}")
                 if args.show_documents and results["documents"]:
-                    print(f"  {results[\"documents\"][i][:100]}...")
+                    print(f"  {results['documents'][i][:100]}...")
 
         except Exception as e:
-            print(f"Error: {e}")
+            print(f'Error: {e}')
             sys.exit(1)
 
     elif args.command == "update":
@@ -353,7 +353,7 @@ def main():
                     )
                 )
             except Exception as e:
-                print(f"Error: {e}")
+                print(f'Error: {e}')
                 sys.exit(1)
 
     elif args.command == "serve":
