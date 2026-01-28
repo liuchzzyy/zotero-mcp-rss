@@ -176,6 +176,18 @@ def main():
         help="Override installation method",
     )
 
+    # RSS command
+    rss_parser = subparsers.add_parser("rss", help="RSS feed management")
+    rss_subparsers = rss_parser.add_subparsers(dest="rss_command", help="RSS subcommand")
+
+    rss_fetch_parser = rss_subparsers.add_parser("fetch", help="Fetch and import RSS feeds")
+    rss_fetch_parser.add_argument("--opml", default="RSS/RSS_official.opml", help="Path to OPML file")
+    rss_fetch_parser.add_argument("--prompt", help="Path to research interest prompt file (falls back to RSS_PROMPT env var)")
+    rss_fetch_parser.add_argument("--collection", default="00_INBOXS", help="Target Zotero collection name")
+    rss_fetch_parser.add_argument("--days", type=int, default=15, help="Import articles from the last N days")
+    rss_fetch_parser.add_argument("--max-items", type=int, help="Limit items to import")
+    rss_fetch_parser.add_argument("--dry-run", action="store_true", help="Preview items without importing")
+
     # Version command
     subparsers.add_parser("version", help="Print version information")
 
@@ -224,10 +236,10 @@ def main():
             print()
             print("🧠 Semantic Search:")
             print(
-                f"  Status: {'Initialized' if status.get('exists') else 'Not Initialized'}"
+                f"  Status: {"Initialized" if status.get(\"exists\") else \"Not Initialized\"}"
             )
-            print(f"  Items: {status.get('item_count')}")
-            print(f"  Model: {status.get('embedding_model')}")
+            print(f"  Items: {status.get(\"item_count\")}")
+            print(f"  Model: {status.get(\"embedding_model\")}")
         except Exception as e:
             print(f"\n❌ Semantic Search Error: {e}")
 
@@ -307,9 +319,9 @@ def main():
 
             metadatas = results.get("metadatas") or []
             for i, meta in enumerate(metadatas):
-                print(f"- {meta.get('title', 'Untitled')}")
+                print(f"- {meta.get(\"title\", \"Untitled\")}")
                 if args.show_documents and results["documents"]:
-                    print(f"  {results['documents'][i][:100]}...")
+                    print(f"  {results[\"documents\"][i][:100]}...")
 
         except Exception as e:
             print(f"Error: {e}")
@@ -321,6 +333,28 @@ def main():
         update_zotero_mcp(
             check_only=args.check_only, force=args.force, method=args.method
         )
+
+    elif args.command == "rss":
+        if args.rss_command == "fetch":
+            load_config()
+            from zotero_mcp.services.rss.rss_service import RSSService
+            import asyncio
+
+            service = RSSService()
+            try:
+                asyncio.run(
+                    service.process_rss_workflow(
+                        opml_path=args.opml,
+                        prompt_path=args.prompt,
+                        collection_name=args.collection,
+                        days_back=args.days,
+                        max_items=args.max_items,
+                        dry_run=args.dry_run,
+                    )
+                )
+            except Exception as e:
+                print(f"Error: {e}")
+                sys.exit(1)
 
     elif args.command == "serve":
         load_config()

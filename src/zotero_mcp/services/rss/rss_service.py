@@ -192,3 +192,150 @@ class RSSService:
         except Exception as e:
             logger.error(f"Error processing OPML file {opml_path}: {e}")
             return []
+
+    @staticmethod
+    def clean_title(title: str) -> str:
+        """Clean article title by removing common prefixes."""
+        if not title:
+            return ""
+        cleaned = re.sub(r"^\[.*?\]\s*", "", title)
+        return cleaned.strip()
+
+    async def create_zotero_item(
+        self,
+        data_service,
+        metadata_service,
+        rss_item: RSSItem,
+        collection_key: str,
+    ) -> str | None:
+        """Create a Zotero item from an RSS feed item."""
+        log_title = rss_item.title
+        try:
+            cleaned_title = self.clean_title(rss_item.title)
+            log_title = cleaned_title
+
+            # 1. Check if item already exists by URL
+            existing_by_url = await data_service.search_items(
+                query=rss_item.link, limit=1, qmode="everything"
+            )
+            if existing_by_url and len(existing_by_url) > 0:
+                logger.info(f"  ⊘ Duplicate (URL): {cleaned_title[:50]}")
+                return None
+
+            # 2. Check if item already exists by Title (fallback)
+            existing_by_title = await data_service.search_items(
+                query=cleaned_title, qmode="titleCreatorYear", limit=1
+            )
+            if existing_by_title and len(existing_by_title) > 0:
+                found_title = existing_by_title[0].title
+                if found_title.lower() == cleaned_title.lower():
+                    logger.info(f"  ⊘ Duplicate (Title): {cleaned_title[:50]}")
+                    return None
+
+            # Try to lookup DOI if not available in RSS
+            doi = rss_item.doi
+            if not doi:
+                logger.info(f"  ? Looking up DOI for: {cleaned_title[:50]}")
+                doi = await asyncio.to_thread(
+                    metadata_service.lookup_doi, cleaned_title, rss_item.author
+                )
+                if doi:
+                    logger.info(f"  + Found DOI: {doi}")
+
+            # Create item data structure for Zotero
+            item_data = {
+                "itemType": "journalArticle",
+                "title": cleaned_title,
+                "url": rss_item.link,
+                "publicationTitle": rss_item.source_title,
+                "date": rss_item.pub_date.strftime("%Y-%m-%d") if rss_item.pub_date else "",
+                "accessDate": datetime.now().strftime("%Y-%m-%d"),
+                "collections": [collection_key],
+                "DOI": doi or "",
+                "tags": [],
+            }
+
+            if rss_item.author:
+                item_data["creators"] = [
+                    {
+                        "creatorType": "author",
+                        "name": rss_item.author,
+                    }
+                ]
+
+            result = await data_service.create_items([item_data])
+
+            if result and len(result.get("successful", {})) > 0:
+                item_key = list(result["successful"].keys())[0]
+                logger.info(f"  ✓ Created: {cleaned_title[:50]} (key: {item_key})")
+                return item_key
+            elif result and len(result.get("success", {})) > 0:
+                item_key = list(result["success"].keys())[0]
+                logger.info(f"  ✓ Created: {cleaned_title[:50]} (key: {item_key})")
+                return item_key
+            else:
+                logger.warning(
+                    f"  ✗ Failed to create: {cleaned_title[:50]} - Result: {result}"
+                )
+                return None
+
+        except Exception as e:
+            logger.error(f"  ✗ Error creating item '{log_title[:50]}': {e}")
+            return None
+
+    async def process_rss_workflow(
+        self,
+        opml_path: str,
+        prompt_path: str | None = None,
+        collection_name: str = "00_INBOXS",
+        days_back: int = 15,
+        max_items: int | None = None,
+        dry_run: bool = False,
+    ):
+        """Full RSS fetching and importing workflow."""
+        from zotero_mcp.services.data_access import get_data_service
+        from zotero_mcp.services.rss.rss_filter import RSSFilter
+        from zotero_mcp.services.metadata import MetadataService
+
+        data_service = get_data_service()
+        rss_filter = RSSFilter(prompt_file=prompt_path)
+        metadata_service = MetadataService()
+
+        # Find collection
+        matches = await data_service.find_collection_by_name(collection_name)
+        if not matches:
+            raise ValueError(f"Collection '{collection_name}' not found")
+        collection_key = matches[0].get("data", {}).get("key")
+
+        # Fetch feeds
+        feeds = await self.fetch_feeds_from_opml(opml_path)
+
+        # Collect and filter by date
+        cutoff = datetime.now() - timedelta(days=days_back) if days_back else None
+        # Note: timedelta is not imported, need to fix
+        from datetime import timedelta
+        cutoff = datetime.now() - timedelta(days=days_back)
+
+        all_items = []
+        for feed in feeds:
+            all_items.extend([i for i in feed.items if not i.pub_date or i.pub_date >= cutoff])
+
+        if not all_items:
+            logger.info("No recent items found")
+            return
+
+        # AI filter
+        relevant, _, _ = await rss_filter.filter_with_keywords(all_items, prompt_path)
+
+        # Sort and limit
+        relevant.sort(key=lambda x: x.pub_date or datetime.min, reverse=True)
+        if max_items:
+            relevant = relevant[:max_items]
+
+        # Import
+        for item in relevant:
+            if dry_run:
+                logger.info(f"[DRY RUN] Would import: {item.title}")
+                continue
+            await self.create_zotero_item(data_service, metadata_service, item, collection_key)
+            await asyncio.sleep(0.5)
