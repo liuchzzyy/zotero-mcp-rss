@@ -1,0 +1,128 @@
+name: Gmail Auto-Import
+
+# Schedule: Run daily at 8:00 AM Beijing Time (UTC+8) = 0:00 UTC
+on:
+  schedule:
+    - cron: '0 0 * * *'
+
+  # Manual triggering with options
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Preview only, no actual changes to Zotero'
+        required: false
+        type: boolean
+        default: false
+      sender:
+        description: 'Filter by sender email (empty = all)'
+        required: false
+        type: string
+        default: ''
+      subject:
+        description: 'Filter by subject keywords (empty = all)'
+        required: false
+        type: string
+        default: ''
+      max_emails:
+        description: 'Maximum emails to process (empty = 50)'
+        required: false
+        type: string
+        default: ''
+      debug:
+        description: 'Enable verbose logging'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  import-from-gmail:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install Dependencies
+        run: uv sync --locked
+
+      - name: Import from Gmail
+        env:
+          # Zotero Configuration
+          ZOTERO_LIBRARY_ID: ${{ secrets.ZOTERO_LIBRARY_ID }}
+          ZOTERO_API_KEY: ${{ secrets.ZOTERO_API_KEY }}
+          ZOTERO_LOCAL: "false"
+          ZOTERO_LIBRARY_TYPE: "user"
+
+          # Gmail Configuration
+          GMAIL_TOKEN_JSON: ${{ secrets.GMAIL_TOKEN_JSON }}
+
+          # Optional Filters
+          GMAIL_SENDER_FILTER: ${{ inputs.sender }}
+          GMAIL_SUBJECT_FILTER: ${{ inputs.subject }}
+
+          # Import Settings
+          GMAIL_COLLECTION: ${{ secrets.GMAIL_COLLECTION || '00_INBOXS' }}
+          GMAIL_TRASH_ONLY: ${{ secrets.GMAIL_TRASH_ONLY || 'true' }}
+
+          # Workflow Settings
+          MAX_EMAILS: ${{ inputs.max_emails }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          DEBUG: ${{ inputs.debug }}
+        run: |
+          echo "=== Gmail Auto-Import Workflow ==="
+          echo "Timestamp: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "Beijing Time: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S CST')"
+          echo ""
+
+          echo "Configuration:"
+          echo "  Dry Run: ${DRY_RUN:-false}"
+          echo "  Debug: ${DEBUG:-false}"
+          echo "  Max Emails: ${MAX_EMAILS:-50}"
+          echo "  Sender Filter: ${GMAIL_SENDER_FILTER:-none}"
+          echo "  Subject Filter: ${GMAIL_SUBJECT_FILTER:-none}"
+          echo "  Collection: ${GMAIL_COLLECTION:-00_INBOXS}"
+          echo "  Trash Only: ${GMAIL_TRASH_ONLY:-true}"
+          echo ""
+
+          # Run import script (you'll need to create this)
+          # uv run python src/scripts/gmail_auto_import.py
+
+          echo "⚠️  Note: gmail_auto_import.py script not implemented yet."
+          echo "   See docs/GMAIL-SETUP.md for usage examples."
+          echo ""
+
+      - name: Upload Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gmail-import-logs-${{ github.run_number }}
+          path: |
+            *.log
+          retention-days: 30
+
+      - name: Notify on Failure
+        if: failure()
+        continue-on-error: true  # Don't fail workflow if Issues are disabled
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 Gmail Auto-Import Failed',
+              body: `**Workflow Run:** ${runUrl}\n\n**Time:** ${new Date().toISOString()}\n\n**Trigger:** ${context.eventName}\n\n**Inputs:**\n- Dry Run: ${{ inputs.dry_run }}\n- Sender: ${{ inputs.sender }}\n- Subject: ${{ inputs.subject }}\n\nPlease check the logs for details.`,
+              labels: ['automated', 'failure', 'gmail-import']
+            });
