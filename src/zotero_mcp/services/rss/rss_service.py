@@ -1,6 +1,7 @@
 import asyncio
 from datetime import datetime
 import logging
+import re
 import time
 from typing import Any
 from xml.etree import ElementTree as ET
@@ -14,6 +15,9 @@ logger = logging.getLogger(__name__)
 
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
 MAX_RETRIES = 5
+
+# DOI Regex pattern
+DOI_PATTERN = re.compile(r"10\.\d{4,9}/[-._;()/:A-Z0-9]+", re.IGNORECASE)
 
 
 class RSSService:
@@ -44,6 +48,28 @@ class RSSService:
         if isinstance(entry, dict):
             return entry.get(key, default)
         return getattr(entry, key, default)
+
+    def _extract_doi(self, entry: Any) -> str | None:
+        """Extract DOI from entry metadata or link."""
+        # 1. Try common feedparser fields for DOI
+        for key in ["prism_doi", "dc_identifier"]:
+            val = self._get_entry_value(entry, key)
+            if val and isinstance(val, str):
+                # Clean up if it contains doi: prefix
+                if val.lower().startswith("doi:"):
+                    val = val[4:].strip()
+                if DOI_PATTERN.match(val):
+                    return val
+
+        # 2. Try to find DOI in link or guid
+        for key in ["link", "id"]:
+            val = self._get_entry_value(entry, key)
+            if val and isinstance(val, str):
+                match = DOI_PATTERN.search(val)
+                if match:
+                    return match.group(0)
+
+        return None
 
     def _fetch_sync(self, url: str) -> RSSFeed | None:
         try:
@@ -84,6 +110,7 @@ class RSSService:
                 link_val = self._get_entry_value(entry, "link", "")
                 author_val = self._get_entry_value(entry, "author")
                 guid_val = self._get_entry_value(entry, "id", link_val)
+                doi_val = self._extract_doi(entry)
 
                 # Get feed title safely
                 feed_title = "Unknown Feed"
@@ -101,6 +128,7 @@ class RSSService:
                         guid=str(guid_val),
                         source_url=url,
                         source_title=str(feed_title),
+                        doi=doi_val,
                     )
                 )
 

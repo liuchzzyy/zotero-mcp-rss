@@ -16,6 +16,7 @@ class RSSItem(BaseModel):
     guid: str | None = None
     source_title: str | None = None
     source_url: str | None = None
+    doi: str | None = None
 
 
 class RSSFeed(BaseModel):
