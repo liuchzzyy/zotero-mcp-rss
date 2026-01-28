@@ -73,10 +73,18 @@ class ZoteroAPIClient:
             )
         return self._client
 
-    async def _run_sync(self, executor, func):
-        """Internal helper to run sync pyzotero calls in an executor."""
+    async def _run_sync(self, func, *args, **kwargs):
+        """
+        Internal helper to run sync pyzotero calls in an executor.
+
+        Note: This is provided for backward compatibility and internal use.
+        New code should prefer using `loop.run_in_executor` explicitly.
+        """
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(executor, func)
+        # If func is callable, call it. If it's the method itself, partial it.
+        # But loop.run_in_executor expects a callable.
+        # Simple case: func is a lambda or function
+        return await loop.run_in_executor(None, func)
 
     # -------------------- Search Methods --------------------
 

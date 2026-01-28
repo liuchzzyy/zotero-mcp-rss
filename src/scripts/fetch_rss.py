@@ -110,14 +110,22 @@ async def create_zotero_item_from_rss(data_service, rss_item, collection_key: st
             ]
 
         # Create item in Zotero using data_service
+        # Note: create_items returns a dict with 'successful' (dict) and 'failed' (dict) keys
         result = await data_service.create_items([item_data])
 
-        if result and len(result.get("success", {})) > 0:
+        if result and len(result.get("successful", {})) > 0:
+            item_key = list(result["successful"].keys())[0]
+            logger.info(f"  ✓ Created: {rss_item.title[:50]} (key: {item_key})")
+            return item_key
+        # Check for success in "success" key as well (pyzotero variations)
+        elif result and len(result.get("success", {})) > 0:
             item_key = list(result["success"].keys())[0]
             logger.info(f"  ✓ Created: {rss_item.title[:50]} (key: {item_key})")
             return item_key
         else:
-            logger.warning(f"  ✗ Failed to create: {rss_item.title[:50]}")
+            logger.warning(
+                f"  ✗ Failed to create: {rss_item.title[:50]} - Result: {result}"
+            )
             return None
 
     except Exception as e:
