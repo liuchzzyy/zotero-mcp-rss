@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 from typing import Any
+from dotenv import load_dotenv
 
 
 def get_config_path() -> Path:
@@ -114,6 +115,9 @@ def load_config() -> dict[str, Any]:
     Returns:
         Merged configuration dictionary with 'env' and 'semantic_search' keys.
     """
+    # Load from .env file
+    load_dotenv()
+
     # Start with lowest priority and override with higher
     env_config: dict[str, str] = {}
 
@@ -128,7 +132,7 @@ def load_config() -> dict[str, Any]:
 
     # Apply environment variables (highest priority)
     # We scan for relevant keys to include in the returned config
-    relevant_prefixes = ["ZOTERO_", "OPENAI_", "GEMINI_", "DEEPSEEK_"]
+    relevant_prefixes = ["RSS_", "ZOTERO_", "OPENAI_", "GEMINI_", "DEEPSEEK_"]
     for key, value in os.environ.items():
         if any(key.startswith(prefix) for prefix in relevant_prefixes):
             env_config[key] = value
