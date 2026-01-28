@@ -39,7 +39,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from zotero_mcp.services.data_access import get_data_service
 from zotero_mcp.services.rss import RSSFilter, RSSService
 from zotero_mcp.services.metadata import MetadataService
-from zotero_mcp.services.metadata import MetadataService
 
 # Configure logging
 logging.basicConfig(
@@ -92,7 +91,9 @@ def clean_title(title: str) -> str:
     return cleaned.strip()
 
 
-async def create_zotero_item_from_rss(data_service, metadata_service, rss_item, collection_key: str):
+async def create_zotero_item_from_rss(
+    data_service, metadata_service, rss_item, collection_key: str
+):
     """
     Create a Zotero item from an RSS feed item.
 
@@ -114,14 +115,13 @@ async def create_zotero_item_from_rss(data_service, metadata_service, rss_item, 
         log_title = cleaned_title
 
         # 1. Check if item already exists by URL
-
         existing_by_url = await data_service.search_items(query=rss_item.link, limit=1)
         if existing_by_url and len(existing_by_url) > 0:
             logger.info(f"  ⊘ Duplicate (URL): {cleaned_title[:50]}")
             return None
 
         # 2. Check if item already exists by Title (fallback)
-        # Use qmode=\"titleCreatorYear\" for more precise matching
+        # Use qmode="titleCreatorYear" for more precise matching
         existing_by_title = await data_service.search_items(
             query=cleaned_title, qmode="titleCreatorYear", limit=1
         )
@@ -137,7 +137,9 @@ async def create_zotero_item_from_rss(data_service, metadata_service, rss_item, 
         if not doi:
             logger.info(f"  ? Looking up DOI for: {cleaned_title[:50]}")
             # Use asyncio.to_thread for synchronous metadata lookup
-            doi = await asyncio.to_thread(metadata_service.lookup_doi, cleaned_title, rss_item.author)
+            doi = await asyncio.to_thread(
+                metadata_service.lookup_doi, cleaned_title, rss_item.author
+            )
             if doi:
                 logger.info(f"  + Found DOI: {doi}")
 
@@ -152,10 +154,7 @@ async def create_zotero_item_from_rss(data_service, metadata_service, rss_item, 
             "accessDate": datetime.now().strftime("%Y-%m-%d"),
             "collections": [collection_key],
             "DOI": doi or "",
-            "tags": [
-                {"tag": "from-rss"},
-                {"tag": "ai-filtered"},
-            ],
+            "tags": [],  # Empty tags as requested
         }
 
         # Add author if available
@@ -241,4 +240,155 @@ async def main():
         logger.info("Initializing services...")
         data_service = get_data_service()
         rss_service = RSSService()
-        rss_filter = RSSFilter(prompt_file=str(prompt_pa
+        rss_filter = RSSFilter(prompt_file=str(prompt_path))
+        metadata_service = MetadataService()
+        logger.info("Services initialized successfully")
+
+        # Find staging collection
+        logger.info(f"Searching for staging collection: '{STAGING_COLLECTION_NAME}'...")
+        staging_matches = await data_service.find_collection_by_name(
+            STAGING_COLLECTION_NAME
+        )
+
+        if not staging_matches:
+            logger.error(f"Staging collection not found: '{STAGING_COLLECTION_NAME}'")
+            sys.exit(1)
+
+        staging_collection = staging_matches[0]
+        staging_collection_data = staging_collection.get("data", {})
+        staging_collection_name = staging_collection_data.get("name", "Unknown")
+        staging_collection_key = staging_collection_data.get("key", "")
+
+        logger.info(
+            f"Found staging collection: '{staging_collection_name}' (key: {staging_collection_key})"
+        )
+
+        # Fetch RSS feeds from OPML
+        logger.info("")
+        logger.info("=" * 70)
+        logger.info("Fetching RSS Feeds")
+        logger.info("=" * 70)
+        logger.info(f"Reading OPML file: {OPML_FILE_PATH}")
+
+        feeds = await rss_service.fetch_feeds_from_opml(str(opml_path.absolute()))
+        logger.info(f"Successfully fetched {len(feeds)} feeds")
+
+        # Collect all recent items
+        cutoff_date = datetime.now() - timedelta(days=DAYS_BACK)
+        all_recent_items = []
+
+        for feed in feeds:
+            recent_items = [
+                item
+                for item in feed.items
+                if item.pub_date and item.pub_date >= cutoff_date
+            ]
+            all_recent_items.extend(recent_items)
+            logger.info(
+                f"  {feed.title}: {len(recent_items)} recent items (total: {len(feed.items)})"
+            )
+
+        logger.info(
+            f"Total recent items (last {DAYS_BACK} days): {len(all_recent_items)}"
+        )
+
+        if not all_recent_items:
+            logger.info("No recent items to process. Exiting.")
+            return
+
+        # Sort by publication date (newest first)
+        all_recent_items.sort(key=lambda x: x.pub_date or datetime.min, reverse=True)
+
+        # AI-powered filtering
+        logger.info("")
+        logger.info("=" * 70)
+        logger.info("AI-Powered Keyword Filtering")
+        logger.info("=" * 70)
+
+        (
+            relevant_items,
+            irrelevant_items,
+            keywords,
+        ) = await rss_filter.filter_with_keywords(all_recent_items, str(prompt_path))
+
+        logger.info(f"Keywords used: {keywords}")
+        logger.info(f"Relevant items: {len(relevant_items)}")
+        logger.info(f"Irrelevant items (filtered out): {len(irrelevant_items)}")
+
+        if not relevant_items:
+            logger.info("No relevant items found after filtering. Exiting.")
+            return
+
+        # Log some relevant titles for verification
+        logger.info("")
+        logger.info("Sample relevant articles:")
+        for item in relevant_items[:5]:
+            logger.info(f"  • {item.title[:70]}...")
+
+        # Import items to Zotero
+        logger.info("")
+        logger.info("=" * 70)
+        logger.info("Importing to Zotero" + (" (DRY RUN)" if DRY_RUN else ""))
+        logger.info("=" * 70)
+
+        # Apply MAX_ITEMS limit
+        items_to_import = relevant_items
+        if MAX_ITEMS and len(relevant_items) > MAX_ITEMS:
+            items_to_import = relevant_items[:MAX_ITEMS]
+            logger.info(
+                f"Limiting to {MAX_ITEMS} items (out of {len(relevant_items)} relevant)"
+            )
+
+        logger.info(
+            f"{'Would import' if DRY_RUN else 'Importing'} {len(items_to_import)} items to '{staging_collection_name}'"
+        )
+
+        created_count = 0
+        skipped_count = 0
+        failed_count = 0
+
+        for idx, item in enumerate(items_to_import, 1):
+            logger.info(f"[{idx}/{len(items_to_import)}] Processing: {item.title[:50]}")
+
+            if DRY_RUN:
+                logger.info(f"  [DRY RUN] Would create: {item.title[:60]}")
+                created_count += 1
+                continue
+
+            result = await create_zotero_item_from_rss(
+                data_service, metadata_service, item, staging_collection_key
+            )
+
+            if result:
+                created_count += 1
+            elif result is None:
+                skipped_count += 1
+            else:
+                failed_count += 1
+
+            # Small delay to avoid rate limiting
+            await asyncio.sleep(0.5)
+
+        # Summary
+        logger.info("")
+        logger.info("=" * 70)
+        logger.info("Import Complete" + (" (DRY RUN)" if DRY_RUN else ""))
+        logger.info("=" * 70)
+        logger.info(f"Total items fetched: {len(all_recent_items)}")
+        logger.info(f"Items passed AI filter: {len(relevant_items)}")
+        logger.info(f"Items filtered out: {len(irrelevant_items)}")
+        logger.info(
+            f"{'Would create' if DRY_RUN else 'Successfully created'}: {created_count}"
+        )
+        logger.info(f"Skipped (duplicates): {skipped_count}")
+        logger.info(f"Failed: {failed_count}")
+        logger.info("")
+        logger.info("✓ RSS feed import with AI filtering completed successfully")
+
+    except Exception as e:
+        logger.exception(f"Fatal error during execution: {e}")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
