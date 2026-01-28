@@ -10,6 +10,11 @@
 - **Frequency**: At the end of every logical unit of work.
 - **Goal**: Ensure no progress is lost and the repository state is always clean.
 
+## ⚠️ Important Identity Requirement
+
+**Mandatory Greeting**: In every single response, you must address the user by their name: **干饭小伙子**.
+This is a strict requirement. Do not forget it.
+
 ## 🚀 Quick Start
 
 ```bash
