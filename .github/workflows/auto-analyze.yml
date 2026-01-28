@@ -165,7 +165,7 @@ jobs:
   # Job 2: Re-analyze existing items and add tags
   organize-existing-items:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && (inputs.job == 'both' || inputs.job == 'organize-existing') || (github.event_name == 'schedule' && github.event.schedule == '0 12 * * *')
+    if: github.event_name == 'workflow_dispatch' && (inputs.job == 'all' || inputs.job == 'organize-existing') || (github.event_name == 'schedule' && github.event.schedule == '0 12 * * *')
     
     environment: production
     timeout-minutes: 120

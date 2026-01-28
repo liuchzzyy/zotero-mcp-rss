@@ -69,19 +69,25 @@ async def check_has_pdf(data_service, item_key: str) -> bool:
         return False
 
 
-async def check_has_tags(item: dict) -> bool:
+def check_has_tags(item) -> bool:
     """
     Check if an item has any tags.
 
     Args:
-        item: Item object
+        item: Item object (can be SearchResultItem Pydantic model or dict)
 
     Returns:
         True if item has tags, False otherwise
     """
-    item_data = item.get("data", {})
-    tags = item_data.get("tags", [])
-    return len(tags) > 0
+    # Handle Pydantic model (SearchResultItem)
+    if hasattr(item, "tags"):
+        return len(item.tags) > 0
+    # Handle raw dict
+    if isinstance(item, dict):
+        item_data = item.get("data", {})
+        tags = item_data.get("tags", [])
+        return len(tags) > 0
+    return False
 
 
 async def filter_items_for_analysis(data_service, items):
@@ -108,8 +114,8 @@ async def filter_items_for_analysis(data_service, items):
             else raw_item.get("data", {}).get("title", "Untitled")
         )
 
-        # Check for tags
-        has_tags = await check_has_tags(raw_item)
+        # Check for tags - use item directly as SearchResultItem has .tags attribute
+        has_tags = check_has_tags(item)
         if has_tags:
             logger.info(f"  ⊘ {item_title[:50]} - Already has tags, skipping")
             continue
