@@ -1,18 +1,15 @@
-# Zotero MCP: Chat with your Research Library—Local or Web—in Claude and more.
+# Zotero MCP: Connect your Research Library with AI Agents
 
 <p align="center">
   <a href="https://www.zotero.org/">
     <img src="https://img.shields.io/badge/Zotero-CC2936?style=for-the-badge&logo=zotero&logoColor=white" alt="Zotero">
-  </a>
-  <a href="https://www.anthropic.com/claude">
-    <img src="https://img.shields.io/badge/Claude-6849C3?style=for-the-badge&logo=anthropic&logoColor=white" alt="Claude">
   </a>
   <a href="https://modelcontextprotocol.io/introduction">
     <img src="https://img.shields.io/badge/MCP-0175C2?style=for-the-badge&logoColor=white" alt="MCP">
   </a>
 </p>
 
-**Zotero MCP** seamlessly connects your [Zotero](https://www.zotero.org/) research library with [Claude](https://www.anthropic.com/claude) and other AI assistants (e.g., [Cherry Studio](https://cherry-ai.com/), [Chorus](https://chorus.sh), [Cursor](https://www.cursor.com/)) via the [Model Context Protocol](https://modelcontextprotocol.io/introduction). Review papers, get summaries, analyze citations, extract PDF annotations, and more!
+**Zotero MCP** seamlessly connects your [Zotero](https://www.zotero.org/) research library with AI assistants via the [Model Context Protocol](https://modelcontextprotocol.io/introduction). Review papers, get summaries, analyze citations, extract PDF annotations, and more!
 
 ## ✨ Features
 
@@ -151,9 +148,9 @@ Full documentation is available at [Zotero MCP docs](https://stevenyuyy.us/zoter
 **Requirements**
 - Python 3.10+
 - Zotero 7+ (for local API with full-text access)
-- An MCP-compatible client (e.g., Opencode CLI, Cherry Studio, Chorus)
+- An MCP-compatible client
 
-### For Opencode CLI
+### For MCP CLI Tools
 
 #### Configuration
 After installation, run:
@@ -163,8 +160,6 @@ zotero-mcp setup
 ```
 
 This will create a configuration file at `~/.config/zotero-mcp/config.json` with your settings.
-
-For Opencode CLI, you can add the environment variables to your Opencode configuration or use them directly.
 
 #### Usage
 
@@ -183,10 +178,10 @@ Example prompts:
 - **"Find papers conceptually similar to deep learning in computer vision"** *(semantic search)*
 - **\"分析最近 5 篇论文\"** *(batch PDF analysis with AI)*
 
-### For Other MCP Clients
+### For JSON Configuration (Generic)
 
 #### Configuration
-For Cherry Studio and other MCP clients, add the following MCP server configuration:
+Add the following MCP server configuration to your client's settings:
 
 ```json
 {
@@ -221,8 +216,8 @@ zotero-mcp setup --no-local --api-key YOUR_API_KEY --library-id YOUR_LIBRARY_ID
 
 **Zotero Connection:**
 - `ZOTERO_LOCAL=true`: Use the local Zotero API (default: false)
-- `ZOTERO_API_KEY`: Your Zotero API key (for web API)
-- `ZOTERO_LIBRARY_ID`: Your Zotero library ID (for web API)
+- `ZOTERO_API_KEY`: Your Zotero API key (Required if ZOTERO_LOCAL=false)
+- `ZOTERO_LIBRARY_ID`: Your Zotero library ID (Required if ZOTERO_LOCAL=false)
 - `ZOTERO_LIBRARY_TYPE`: The type of library (user or group, default: user)
 
 **Semantic Search:**

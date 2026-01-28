@@ -89,6 +89,7 @@ The codebase follows a layered architecture to separate concerns:
 ### Data Access
 - **Preferred Access**: Use `DataAccessService` instead of calling `ZoteroAPIClient` directly in tools.
 - **Caching**: `DataAccessService` has internal caching for collections/tags. Be aware of TTL (5 mins).
+- **Configuration Validation**: `DataAccessService` validates critical environment variables (`ZOTERO_API_KEY`, `ZOTERO_LIBRARY_ID`) on initialization when running in Web API mode (`ZOTERO_LOCAL=false`). It logs warnings if they are missing.
 
 ### Local vs Web API
 - Code should handle both `ZOTERO_LOCAL=true` and `false`.
