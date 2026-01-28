@@ -1,6 +1,6 @@
 # AGENTS.md - Zotero MCP Developer Guide
 
-**Core Directive**: Consult this file BEFORE making changes. Commit changes to local git after each modification.
+**CORE DIRECTIVE (EXTREMELY IMPORTANT)**: You MUST consult this file BEFORE making ANY changes. You MUST commit changes to local git IMMEDIATELY after each modification. This is NOT optional.
 
 ## 🔒 Workflow Mandatory Requirement
 
