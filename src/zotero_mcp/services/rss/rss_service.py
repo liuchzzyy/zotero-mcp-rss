@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+MAX_RETRIES = 5
 
 
 class RSSService:
@@ -20,7 +21,23 @@ class RSSService:
 
     async def fetch_feed(self, url: str) -> RSSFeed | None:
         """Fetch and parse a single RSS feed asynchronously."""
-        return await asyncio.to_thread(self._fetch_sync, url)
+        for attempt in range(1, MAX_RETRIES + 1):
+            feed = await asyncio.to_thread(self._fetch_sync, url)
+
+            if feed:
+                return feed
+
+            # If feed is None, it means an exception occurred.
+            if attempt < MAX_RETRIES:
+                wait_time = attempt * 1  # Linear backoff: 1s, 2s, 3s, 4s
+                logger.warning(
+                    f"Attempt {attempt}/{MAX_RETRIES} failed for {url}. Retrying in {wait_time}s..."
+                )
+                await asyncio.sleep(wait_time)
+            else:
+                logger.error(f"Failed to fetch {url} after {MAX_RETRIES} attempts")
+
+        return None
 
     def _get_entry_value(self, entry: Any, key: str, default: Any = None) -> Any:
         """Helper to safely get value from entry which might be dict or object"""
