@@ -68,16 +68,32 @@ class RSSFilter:
         return self._client
 
     def load_prompt(self, prompt_file: str | None = None) -> str:
-        """Load research interests from prompt file."""
+        """
+        Load research interests from environment variable or prompt file.
+        
+        Priority:
+        1. RSS_PROMPT environment variable
+        2. Explicitly provided prompt_file
+        3. Default "RSS/prompt.txt"
+        """
+        # 1. Check environment variable
+        env_prompt = os.getenv("RSS_PROMPT")
+        if env_prompt and env_prompt.strip():
+            logger.info("Loaded research interests from RSS_PROMPT environment variable")
+            return env_prompt.strip()
+
+        # 2. Check file
         path = Path(prompt_file or self.prompt_file or "RSS/prompt.txt")
         if not path.exists():
-            raise FileNotFoundError(f"Prompt file not found: {path}")
+            raise FileNotFoundError(
+                f"Research interest prompt not found. Set RSS_PROMPT env var or ensure file exists: {path}"
+            )
 
         content = path.read_text(encoding="utf-8").strip()
         if not content:
             raise ValueError(f"Prompt file is empty: {path}")
 
-        logger.info(f"Loaded research interests from: {path}")
+        logger.info(f"Loaded research interests from file: {path}")
         return content
 
     def _generate_candidates(self, research_prompt: str) -> list[str]:
@@ -272,7 +288,7 @@ Select exactly 10 keywords. Do not include any other text."""
             cache_data = {
                 "hash": prompt_hash,
                 "keywords": best_keywords,
-                "prompt_file": str(prompt_file or self.prompt_file or "RSS/prompt.txt"),
+                "source": "env" if os.getenv("RSS_PROMPT") else str(prompt_file or self.prompt_file or "RSS/prompt.txt"),
             }
             KEYWORDS_CACHE_FILE.write_text(
                 json.dumps(cache_data, indent=2), encoding="utf-8"
