@@ -2,6 +2,8 @@
 
 **CORE DIRECTIVE (EXTREMELY IMPORTANT)**: You MUST consult this file BEFORE making ANY changes. You MUST commit changes to local git IMMEDIATELY after each modification. This is NOT optional.
 
+**IMPORTANT**: Do NOT push to the remote repository (GitHub) unless explicitly instructed by the user. "Commit to git" means **LOCAL** commit only.
+
 ## 🔒 Workflow Mandatory Requirement
 
 **CRITICAL**: After completing any significant task, session, or modification, **YOU MUST SAVE ALL CHANGES TO THE LOCAL GIT REPOSITORY**.
