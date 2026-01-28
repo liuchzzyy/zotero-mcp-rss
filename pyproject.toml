@@ -48,7 +48,6 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "pyzotero>=1.5.0",
     "requests>=2.28.0",
-    "sentence-transformers>=2.2.0",
     "tenacity>=9.1.2",
 ]
 

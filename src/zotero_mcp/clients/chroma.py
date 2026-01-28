@@ -119,32 +119,6 @@ class GeminiEmbeddingFunction(EmbeddingFunction):
         return embeddings  # type: ignore[return-value]
 
 
-class HuggingFaceEmbeddingFunction(EmbeddingFunction):
-    """Custom HuggingFace embedding function for ChromaDB using sentence-transformers."""
-
-    def __init__(self, model_name: str = "Qwen/Qwen3-Embedding-0.6B"):
-        self.model_name = model_name
-
-        try:
-            from sentence_transformers import SentenceTransformer
-
-            logger.info(f"Loading embedding model: {model_name}")
-            self.model = SentenceTransformer(model_name, trust_remote_code=True)
-        except ImportError as e:
-            raise ImportError(
-                "sentence-transformers package is required for HuggingFace embeddings. Install with: pip install sentence-transformers"
-            ) from e
-
-    def name(self) -> str:  # type: ignore[override]
-        """Return the name of this embedding function."""
-        return f"huggingface-{self.model_name}"
-
-    def __call__(self, input: Documents) -> Embeddings:  # type: ignore[override]
-        """Generate embeddings using HuggingFace model."""
-        embeddings = self.model.encode(input, convert_to_numpy=True)
-        return embeddings.tolist()  # type: ignore[return-value]
-
-
 class ChromaClient:
     """ChromaDB client for Zotero semantic search."""
 
@@ -237,24 +211,18 @@ class ChromaClient:
                 model_name=model_name, api_key=api_key, base_url=base_url
             )
 
-        elif self.embedding_model == "qwen":
-            model_name = self.embedding_config.get(
-                "model_name", "Qwen/Qwen3-Embedding-0.6B"
-            )
-            return HuggingFaceEmbeddingFunction(model_name=model_name)
-
-        elif self.embedding_model == "embeddinggemma":
-            model_name = self.embedding_config.get(
-                "model_name", "google/embeddinggemma-300m"
-            )
-            return HuggingFaceEmbeddingFunction(model_name=model_name)
-
-        elif self.embedding_model not in ["default", "openai", "gemini"]:
-            # Treat any other value as a HuggingFace model name
-            return HuggingFaceEmbeddingFunction(model_name=self.embedding_model)
-
         else:
-            # Use ChromaDB's default embedding function (all-MiniLM-L6-v2)
+            # Fallback for unknown models or default
+            # Since we removed local embeddings, we must require API configuration or use Chroma's default if available
+            # But users wanted to remove local LLM bloat, so we warn them.
+            if self.embedding_model != "default":
+                logger.warning(
+                    f"Embedding model '{self.embedding_model}' not supported without local LLM dependencies. "
+                    "Using ChromaDB default (if available) or falling back to error."
+                )
+
+            # Use ChromaDB's default embedding function (ONNX-based, lightweight) if available
+            # Note: This might still fail if onnxruntime is stripped, but it's part of chromadb standard
             return chromadb.utils.embedding_functions.DefaultEmbeddingFunction()
 
     def add_documents(
