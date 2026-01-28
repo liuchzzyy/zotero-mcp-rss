@@ -13,23 +13,34 @@ on:
     # 8:00 PM Beijing Time (12:00 UTC) - Process existing items  
     - cron: '0 12 * * *'
   
-  # Allow manual triggering for testing
+  # Manual triggering with configurable options
   workflow_dispatch:
     inputs:
-      max_items:
-        description: 'Maximum items to process (leave empty for all)'
-        required: false
-        type: string
       job:
         description: 'Job to run'
-        required: false
+        required: true
         type: choice
         options:
-          - all
           - fetch-rss
           - analyze-new
           - organize-existing
-        default: all
+          - all
+        default: fetch-rss
+      max_items:
+        description: 'Max items to process (empty = all)'
+        required: false
+        type: string
+        default: ''
+      dry_run:
+        description: 'Preview only, no actual changes'
+        required: false
+        type: boolean
+        default: true
+      debug:
+        description: 'Enable verbose logging'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   # Job 1: Fetch RSS feeds and import to staging collection
@@ -63,10 +74,16 @@ jobs:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           ZOTERO_LOCAL: "false"
           ZOTERO_LIBRARY_TYPE: "user"
+          MAX_ITEMS: ${{ inputs.max_items }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          DEBUG: ${{ inputs.debug }}
         run: |
-          echo "Starting RSS feed fetch and import..."
+          echo "=== RSS Feed Fetch ==="
           echo "Timestamp: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
           echo "Beijing Time: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S CST')"
+          echo "Max Items: ${MAX_ITEMS:-all}"
+          echo "Dry Run: ${DRY_RUN:-false}"
+          echo "Debug: ${DEBUG:-false}"
           echo ""
           
           uv run python src/scripts/fetch_rss.py
@@ -128,10 +145,16 @@ jobs:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           ZOTERO_LOCAL: "false"
           ZOTERO_LIBRARY_TYPE: "user"
+          MAX_ITEMS: ${{ inputs.max_items }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          DEBUG: ${{ inputs.debug }}
         run: |
-          echo "Starting new item analysis and organization..."
+          echo "=== New Item Analysis ==="
           echo "Timestamp: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
           echo "Beijing Time: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S CST')"
+          echo "Max Items: ${MAX_ITEMS:-all}"
+          echo "Dry Run: ${DRY_RUN:-false}"
+          echo "Debug: ${DEBUG:-false}"
           echo ""
           
           uv run python src/scripts/analyze_new_items.py
@@ -193,10 +216,16 @@ jobs:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           ZOTERO_LOCAL: "false"
           ZOTERO_LIBRARY_TYPE: "user"
+          MAX_ITEMS: ${{ inputs.max_items }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          DEBUG: ${{ inputs.debug }}
         run: |
-          echo "Starting existing item re-analysis and organization..."
+          echo "=== Organize Existing Items ==="
           echo "Timestamp: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
           echo "Beijing Time: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S CST')"
+          echo "Max Items: ${MAX_ITEMS:-all}"
+          echo "Dry Run: ${DRY_RUN:-false}"
+          echo "Debug: ${DEBUG:-false}"
           echo ""
           
           uv run python src/scripts/organize_existing_items.py
@@ -225,69 +254,4 @@ jobs:
               title: '🚨 Existing Items Organization Failed',
               body: `**Workflow Run:** ${runUrl}\n\n**Time:** ${new Date().toISOString()}\n\n**Trigger:** ${context.eventName}\n\nPlease check the logs for details.`,
               labels: ['automated', 'failure', 'organize-existing']
-            });
-
-  # Legacy job for backward compatibility (can be removed later)
-  analyze-zotero:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && inputs.job == ''
-    
-    environment: production
-    timeout-minutes: 120
-    
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-      
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          version: "latest"
-          enable-cache: true
-      
-      - name: Set up Python
-        run: uv python install 3.12
-      
-      - name: Install Dependencies
-        run: uv sync --locked
-      
-      - name: Run Automated Analysis
-        env:
-          ZOTERO_LIBRARY_ID: ${{ secrets.ZOTERO_LIBRARY_ID }}
-          ZOTERO_API_KEY: ${{ secrets.ZOTERO_API_KEY }}
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-          ZOTERO_LOCAL: "false"
-          ZOTERO_LIBRARY_TYPE: "user"
-        run: |
-          echo "Starting automated Zotero analysis..."
-          echo "Timestamp: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-          echo "Beijing Time: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S CST')"
-          echo ""
-          
-          uv run python src/scripts/auto_analyze.py
-      
-      - name: Upload Analysis Logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: analysis-logs-${{ github.run_number }}
-          path: |
-            *.log
-            checkpoints/
-          retention-days: 30
-      
-      - name: Notify on Failure
-        if: failure()
-        continue-on-error: true  # Don't fail workflow if Issues are disabled
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
-            
-            github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: '🚨 Automated Zotero Analysis Failed',
-              body: `**Workflow Run:** ${runUrl}\n\n**Time:** ${new Date().toISOString()}\n\n**Trigger:** ${context.eventName}\n\nPlease check the logs for details.`,
-              labels: ['automated', 'failure']
             });

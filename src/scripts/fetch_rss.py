@@ -52,6 +52,17 @@ PROMPT_FILE_PATH = "RSS/prompt.txt"
 STAGING_COLLECTION_NAME = "00_INBOXS"
 DAYS_BACK = 7  # Only import articles from the last 7 days
 
+# Runtime options from environment variables
+_max_items_env = os.getenv("MAX_ITEMS", "").strip()
+MAX_ITEMS: int | None = int(_max_items_env) if _max_items_env else None
+DRY_RUN = os.getenv("DRY_RUN", "false").lower() == "true"
+DEBUG = os.getenv("DEBUG", "false").lower() == "true"
+
+# Adjust logging level for debug mode
+if DEBUG:
+    logging.getLogger().setLevel(logging.DEBUG)
+    logger.setLevel(logging.DEBUG)
+
 
 async def create_zotero_item_from_rss(data_service, rss_item, collection_key: str):
     """
@@ -125,6 +136,13 @@ async def main():
     logger.info("=" * 70)
     logger.info("RSS Feed Fetcher with AI Filtering and Zotero Import")
     logger.info("=" * 70)
+
+    # Show runtime options
+    logger.info(
+        f"Mode: {'DRY RUN (preview only)' if DRY_RUN else 'LIVE (will import)'}"
+    )
+    logger.info(f"Max items: {MAX_ITEMS if MAX_ITEMS else 'unlimited'}")
+    logger.info(f"Debug: {DEBUG}")
 
     # Verify environment variables
     required_vars = {
@@ -249,18 +267,32 @@ async def main():
         # Import items to Zotero
         logger.info("")
         logger.info("=" * 70)
-        logger.info("Importing to Zotero")
+        logger.info("Importing to Zotero" + (" (DRY RUN)" if DRY_RUN else ""))
         logger.info("=" * 70)
+
+        # Apply MAX_ITEMS limit
+        items_to_import = relevant_items
+        if MAX_ITEMS and len(relevant_items) > MAX_ITEMS:
+            items_to_import = relevant_items[:MAX_ITEMS]
+            logger.info(
+                f"Limiting to {MAX_ITEMS} items (out of {len(relevant_items)} relevant)"
+            )
+
         logger.info(
-            f"Importing {len(relevant_items)} relevant items to '{staging_collection_name}'"
+            f"{'Would import' if DRY_RUN else 'Importing'} {len(items_to_import)} items to '{staging_collection_name}'"
         )
 
         created_count = 0
         skipped_count = 0
         failed_count = 0
 
-        for idx, item in enumerate(relevant_items, 1):
-            logger.info(f"[{idx}/{len(relevant_items)}] Processing: {item.title[:50]}")
+        for idx, item in enumerate(items_to_import, 1):
+            logger.info(f"[{idx}/{len(items_to_import)}] Processing: {item.title[:50]}")
+
+            if DRY_RUN:
+                logger.info(f"  [DRY RUN] Would create: {item.title[:60]}")
+                created_count += 1
+                continue
 
             result = await create_zotero_item_from_rss(
                 data_service, item, staging_collection_key
@@ -279,12 +311,14 @@ async def main():
         # Summary
         logger.info("")
         logger.info("=" * 70)
-        logger.info("Import Complete")
+        logger.info("Import Complete" + (" (DRY RUN)" if DRY_RUN else ""))
         logger.info("=" * 70)
         logger.info(f"Total items fetched: {len(all_recent_items)}")
         logger.info(f"Items passed AI filter: {len(relevant_items)}")
         logger.info(f"Items filtered out: {len(irrelevant_items)}")
-        logger.info(f"Successfully created: {created_count}")
+        logger.info(
+            f"{'Would create' if DRY_RUN else 'Successfully created'}: {created_count}"
+        )
         logger.info(f"Skipped (duplicates): {skipped_count}")
         logger.info(f"Failed: {failed_count}")
         logger.info("")

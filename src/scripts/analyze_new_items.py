@@ -41,7 +41,17 @@ logger = logging.getLogger(__name__)
 # Configuration
 SOURCE_COLLECTION_NAME = "00_INBOXS"
 DEST_COLLECTION_NAME = "01_SHORTTERMS"
-MAX_ITEMS = None  # None = process all items
+
+# Runtime options from environment variables
+_max_items_env = os.getenv("MAX_ITEMS", "").strip()
+MAX_ITEMS: int | None = int(_max_items_env) if _max_items_env else None
+DRY_RUN = os.getenv("DRY_RUN", "false").lower() == "true"
+DEBUG = os.getenv("DEBUG", "false").lower() == "true"
+
+# Adjust logging level for debug mode
+if DEBUG:
+    logging.getLogger().setLevel(logging.DEBUG)
+    logger.setLevel(logging.DEBUG)
 
 
 async def check_has_pdf(data_service, item_key: str) -> bool:
@@ -169,6 +179,13 @@ async def main():
     logger.info("Automated New Item Analysis and Organization")
     logger.info("=" * 70)
 
+    # Show runtime options
+    logger.info(
+        f"Mode: {'DRY RUN (preview only)' if DRY_RUN else 'LIVE (will analyze)'}"
+    )
+    logger.info(f"Max items: {MAX_ITEMS if MAX_ITEMS else 'unlimited'}")
+    logger.info(f"Debug: {DEBUG}")
+
     # Verify environment variables
     required_vars = {
         "ZOTERO_LIBRARY_ID": os.getenv("ZOTERO_LIBRARY_ID"),
@@ -265,7 +282,10 @@ async def main():
         # Run batch analysis
         logger.info("")
         logger.info("=" * 70)
-        logger.info("Starting batch analysis with DeepSeek AI")
+        logger.info(
+            "Starting batch analysis with DeepSeek AI"
+            + (" (DRY RUN)" if DRY_RUN else "")
+        )
         logger.info("=" * 70)
         logger.info(f"Items to analyze: {len(items_to_process)}")
         logger.info("LLM Provider: DeepSeek")
@@ -281,27 +301,29 @@ async def main():
             llm_provider="deepseek",
             llm_model=None,  # Use default model
             template=None,  # Use default Chinese academic template
-            dry_run=False,  # Actually execute
+            dry_run=DRY_RUN,  # Use environment variable
             progress_callback=progress_callback,
         )
 
         # Display analysis results
         logger.info("")
         logger.info("=" * 70)
-        logger.info("Analysis Complete")
+        logger.info("Analysis Complete" + (" (DRY RUN)" if DRY_RUN else ""))
         logger.info("=" * 70)
         logger.info(f"Workflow ID: {result.workflow_id}")
         logger.info(f"Status: {result.status}")
         logger.info(f"Total items: {result.total_items}")
-        logger.info(f"Successfully processed: {result.processed}")
+        logger.info(
+            f"{'Would process' if DRY_RUN else 'Successfully processed'}: {result.processed}"
+        )
         logger.info(f"Skipped: {result.skipped}")
         logger.info(f"Failed: {result.failed}")
 
         if result.error:
             logger.error(f"Error: {result.error}")
 
-        # Move successfully processed items to destination collection
-        if result.processed > 0:
+        # Move successfully processed items to destination collection (skip in DRY_RUN)
+        if result.processed > 0 and not DRY_RUN:
             logger.info("")
             logger.info("=" * 70)
             logger.info("Moving processed items to destination collection")
@@ -316,6 +338,11 @@ async def main():
 
             await move_items_to_collection(
                 data_service, processed_item_keys, dest_collection_key
+            )
+        elif result.processed > 0 and DRY_RUN:
+            logger.info("")
+            logger.info(
+                f"[DRY RUN] Would move {result.processed} items to '{dest_collection_name}'"
             )
 
         logger.info("")
