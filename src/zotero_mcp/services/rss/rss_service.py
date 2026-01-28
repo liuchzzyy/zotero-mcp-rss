@@ -12,6 +12,9 @@ from zotero_mcp.models.rss import RSSFeed, RSSItem
 logger = logging.getLogger(__name__)
 
 
+USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+
+
 class RSSService:
     """Service for fetching and parsing RSS feeds."""
 
@@ -28,7 +31,8 @@ class RSSService:
     def _fetch_sync(self, url: str) -> RSSFeed | None:
         try:
             # Type ignore because feedparser returns a complex object
-            feed: Any = feedparser.parse(url)
+            # Use browser User-Agent to avoid IncompleteRead and SSL errors with some publishers
+            feed: Any = feedparser.parse(url, agent=USER_AGENT)
 
             # Check for bozo bit (malformed XML), but feedparser often recovers
             if hasattr(feed, "bozo") and feed.bozo:
@@ -42,13 +46,14 @@ class RSSService:
             for entry in entries:
                 pub_date = None
                 published_parsed = self._get_entry_value(entry, "published_parsed")
-                updated_parsed = self._get_entry_value(entry, "updated_parsed")
 
                 # feedparser.parsed returns a time.struct_time, but type checker might not know
                 if published_parsed and isinstance(published_parsed, time.struct_time):
                     pub_date = datetime.fromtimestamp(time.mktime(published_parsed))
-                elif updated_parsed and isinstance(updated_parsed, time.struct_time):
-                    pub_date = datetime.fromtimestamp(time.mktime(updated_parsed))
+                else:
+                    updated_parsed = self._get_entry_value(entry, "updated_parsed")
+                    if updated_parsed and isinstance(updated_parsed, time.struct_time):
+                        pub_date = datetime.fromtimestamp(time.mktime(updated_parsed))
 
                 # Extract simple content
                 summary = self._get_entry_value(entry, "summary")

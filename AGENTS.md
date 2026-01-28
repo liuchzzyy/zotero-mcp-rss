@@ -2,6 +2,14 @@
 
 **Core Directive**: Consult this file BEFORE making changes. Commit changes to local git after each modification.
 
+## 🔒 Workflow Mandatory Requirement
+
+**CRITICAL**: After completing any significant task, session, or modification, **YOU MUST SAVE ALL CHANGES TO THE LOCAL GIT REPOSITORY**.
+
+- **Command**: `git add . && git commit -m "feat/fix: <description>"`
+- **Frequency**: At the end of every logical unit of work.
+- **Goal**: Ensure no progress is lost and the repository state is always clean.
+
 ## 🚀 Quick Start
 
 ```bash
