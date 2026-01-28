@@ -50,7 +50,7 @@ logger = logging.getLogger(__name__)
 OPML_FILE_PATH = "RSS/RSS_official.opml"
 PROMPT_FILE_PATH = "RSS/prompt.txt"
 STAGING_COLLECTION_NAME = "00_INBOXS"
-DAYS_BACK = 1  # Only import articles from the last 1 days
+DAYS_BACK = 15  # Only import articles from the last 15 days
 
 # Runtime options from environment variables
 _max_items_env = os.getenv("MAX_ITEMS", "").strip()
