@@ -35,7 +35,7 @@ on:
         description: 'Preview only, no actual changes'
         required: false
         type: boolean
-        default: true
+        default: false
       debug:
         description: 'Enable verbose logging'
         required: false
@@ -66,6 +66,14 @@ jobs:
       
       - name: Install Dependencies
         run: uv sync --locked
+      
+      - name: Cache RSS Keywords
+        uses: actions/cache@v4
+        with:
+          path: RSS/keywords_cache.json
+          key: rss-keywords-${{ hashFiles('RSS/prompt.txt') }}
+          restore-keys: |
+            rss-keywords-
       
       - name: Fetch RSS Feeds
         env:
