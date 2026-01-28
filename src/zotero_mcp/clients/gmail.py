@@ -7,6 +7,7 @@ Supports searching, reading, and deleting emails.
 
 import asyncio
 import base64
+import json
 import logging
 import os
 from pathlib import Path
@@ -35,6 +36,10 @@ class GmailClient:
     Gmail API client with OAuth2 authentication.
 
     Handles authentication, email search, content reading, and deletion.
+
+    For GitHub Actions / headless environments:
+    - Set GMAIL_TOKEN_JSON env var with the token.json content
+    - The client will use this instead of requiring interactive auth
     """
 
     def __init__(
@@ -61,46 +66,76 @@ class GmailClient:
         self._credentials: Credentials | None = None
 
     def _get_credentials(self) -> Credentials:
-        """Get or refresh OAuth2 credentials."""
+        """
+        Get or refresh OAuth2 credentials.
+
+        Priority:
+        1. GMAIL_TOKEN_JSON env var (for CI/CD, contains full token JSON)
+        2. Token file at token_path
+        3. Interactive OAuth flow (requires browser)
+        """
         creds = None
 
-        # Load existing token
-        if self.token_path.exists():
+        # Priority 1: Load from environment variable (for GitHub Actions)
+        token_json_env = os.getenv("GMAIL_TOKEN_JSON")
+        if token_json_env:
+            try:
+                token_data = json.loads(token_json_env)
+                creds = Credentials.from_authorized_user_info(token_data, SCOPES)
+                logger.info("Loaded Gmail credentials from GMAIL_TOKEN_JSON env var")
+            except Exception as e:
+                logger.warning(f"Failed to load token from env var: {e}")
+
+        # Priority 2: Load from token file
+        if not creds and self.token_path.exists():
             try:
                 creds = Credentials.from_authorized_user_file(
                     str(self.token_path), SCOPES
                 )
+                logger.info(f"Loaded Gmail credentials from {self.token_path}")
             except Exception as e:
-                logger.warning(f"Failed to load token: {e}")
+                logger.warning(f"Failed to load token from file: {e}")
 
-        # Refresh or create new credentials
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
+        # Refresh if expired
+        if creds and not creds.valid:
+            if creds.expired and creds.refresh_token:
                 try:
                     creds.refresh(Request())
+                    logger.info("Refreshed Gmail credentials")
+
+                    # Save refreshed token back to file (if not using env var)
+                    if not token_json_env:
+                        self._save_token(creds)
                 except Exception as e:
                     logger.warning(f"Failed to refresh token: {e}")
                     creds = None
 
-            if not creds:
-                if not self.credentials_path.exists():
-                    raise FileNotFoundError(
-                        f"Gmail credentials not found at {self.credentials_path}. "
-                        "Download OAuth2 credentials from Google Cloud Console."
-                    )
-
-                flow = InstalledAppFlow.from_client_secrets_file(
-                    str(self.credentials_path), SCOPES
+        # Priority 3: Interactive OAuth flow
+        if not creds or not creds.valid:
+            if not self.credentials_path.exists():
+                raise FileNotFoundError(
+                    f"Gmail credentials not found at {self.credentials_path}. "
+                    "Download OAuth2 credentials from Google Cloud Console. "
+                    "Or set GMAIL_TOKEN_JSON env var with pre-authorized token."
                 )
-                creds = flow.run_local_server(port=0)
 
-            # Save token for future use
+            flow = InstalledAppFlow.from_client_secrets_file(
+                str(self.credentials_path), SCOPES
+            )
+            creds = flow.run_local_server(port=0)
+            self._save_token(creds)
+
+        return creds
+
+    def _save_token(self, creds: Credentials) -> None:
+        """Save token to file for future use."""
+        try:
             self.token_path.parent.mkdir(parents=True, exist_ok=True)
             with open(self.token_path, "w") as token_file:
                 token_file.write(creds.to_json())
             logger.info(f"Saved Gmail token to {self.token_path}")
-
-        return creds
+        except Exception as e:
+            logger.warning(f"Failed to save token: {e}")
 
     @property
     def service(self) -> Any:
