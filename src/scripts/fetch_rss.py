@@ -109,13 +109,8 @@ async def create_zotero_item_from_rss(data_service, rss_item, collection_key: st
                 }
             ]
 
-        # Create item in Zotero
-        # Note: The current API doesn't have a direct create_item method exposed
-        # We'll need to use the underlying client
-        client = data_service.api_client
-        result = await client._run_sync(
-            None, lambda: client.client.create_items([item_data])
-        )
+        # Create item in Zotero using data_service
+        result = await data_service.create_items([item_data])
 
         if result and len(result.get("success", {})) > 0:
             item_key = list(result["success"].keys())[0]

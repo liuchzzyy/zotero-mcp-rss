@@ -73,6 +73,11 @@ class ZoteroAPIClient:
             )
         return self._client
 
+    async def _run_sync(self, executor, func):
+        """Internal helper to run sync pyzotero calls in an executor."""
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(executor, func)
+
     # -------------------- Search Methods --------------------
 
     async def search_items(
