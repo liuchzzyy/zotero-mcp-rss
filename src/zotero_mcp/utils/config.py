@@ -132,7 +132,7 @@ def load_config() -> dict[str, Any]:
 
     # Apply environment variables (highest priority)
     # We scan for relevant keys to include in the returned config
-    relevant_prefixes = ["RSS_", "ZOTERO_", "OPENAI_", "GEMINI_", "DEEPSEEK_"]
+    relevant_prefixes = ["RSS_", "ZOTERO_", "OPENAI_", "GEMINI_", "DEEPSEEK_", "GMAIL_"]
     for key, value in os.environ.items():
         if any(key.startswith(prefix) for prefix in relevant_prefixes):
             env_config[key] = value

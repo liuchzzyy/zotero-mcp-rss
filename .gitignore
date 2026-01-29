@@ -52,3 +52,5 @@ AI分析结果.md
 .sisyphus/
 chroma_db/
 pyzotero/
+gmail_credentials.json
+token.json
