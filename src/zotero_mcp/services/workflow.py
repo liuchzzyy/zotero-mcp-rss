@@ -462,10 +462,23 @@ class WorkflowService:
                 html_note = markdown_to_html(markdown_note)
                 # Auto-beautify with Typora Orange Heart theme
                 html_note = beautify_ai_note(html_note)
+
+                # Generate tags: AI分析 + LLM provider name
+                # Format provider name properly (DeepSeek, OpenAI, Gemini)
+                provider_map = {
+                    "deepseek": "DeepSeek",
+                    "openai": "OpenAI",
+                    "gemini": "Gemini",
+                }
+                provider_name = provider_map.get(
+                    llm_client.provider, llm_client.provider.capitalize()
+                )
+                note_tags = ["AI分析", provider_name]
+
                 result = await self.data_service.create_note(
                     parent_key=item.key,
                     content=html_note,
-                    tags=["AI分析", "自动生成"],
+                    tags=note_tags,
                 )
 
                 # Extract note key
