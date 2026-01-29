@@ -53,6 +53,9 @@ AI分析结果.md
 chroma_db/
 pyzotero/
 
+# Runtime caches
+RSS/keywords_cache.json
+
 # Gmail OAuth credentials (sensitive)
 *credentials.json
 *token.json

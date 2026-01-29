@@ -2,11 +2,13 @@
 Tests for ItemService.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
-from zotero_mcp.services.item import ItemService
-from zotero_mcp.clients.zotero_client import ZoteroAPIClient
+
+import pytest
+
 from zotero_mcp.clients.better_bibtex import BetterBibTeXClient
+from zotero_mcp.clients.zotero_client import ZoteroAPIClient
+from zotero_mcp.services.item import ItemService
 
 
 @pytest.fixture

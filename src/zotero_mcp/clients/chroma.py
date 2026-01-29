@@ -58,11 +58,11 @@ class OpenAIEmbeddingFunction(EmbeddingFunction):
         except ImportError as e:
             raise ImportError("openai package is required for OpenAI embeddings") from e
 
-    def name(self) -> str:  # type: ignore[override]
+    def name(self) -> str:
         """Return the name of this embedding function."""
         return "openai"
 
-    def __call__(self, input: Documents) -> Embeddings:  # type: ignore[override]
+    def __call__(self, input: Documents) -> Embeddings:
         """Generate embeddings using OpenAI API."""
         response = self.client.embeddings.create(model=self.model_name, input=input)
         return [data.embedding for data in response.data]  # type: ignore[return-value]
@@ -100,11 +100,11 @@ class GeminiEmbeddingFunction(EmbeddingFunction):
                 "google-genai package is required for Gemini embeddings"
             ) from e
 
-    def name(self) -> str:  # type: ignore[override]
+    def name(self) -> str:
         """Return the name of this embedding function."""
         return "gemini"
 
-    def __call__(self, input: Documents) -> Embeddings:  # type: ignore[override]
+    def __call__(self, input: Documents) -> Embeddings:
         """Generate embeddings using Gemini API."""
         embeddings = []
         for text in input:
@@ -116,7 +116,7 @@ class GeminiEmbeddingFunction(EmbeddingFunction):
                 ),
             )
             embeddings.append(response.embeddings[0].values)
-        return embeddings  # type: ignore[return-value]
+        return embeddings
 
 
 class ChromaClient:

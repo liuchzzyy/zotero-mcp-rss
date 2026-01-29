@@ -2,11 +2,12 @@
 Tests for BatchLoader.
 """
 
+from unittest.mock import AsyncMock
+
 import pytest
-import asyncio
-from unittest.mock import AsyncMock, MagicMock
-from zotero_mcp.utils.batch_loader import BatchLoader
+
 from zotero_mcp.services.item import ItemService
+from zotero_mcp.utils.batch_loader import BatchLoader
 
 
 @pytest.fixture
