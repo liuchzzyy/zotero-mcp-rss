@@ -263,3 +263,34 @@ def get_zotero_mode() -> str:
     if local_value.lower() in {"true", "yes", "1"}:
         return "local"
     return "web"
+
+
+def get_gmail_config() -> dict[str, Any]:
+    """
+    Get Gmail configuration for email processing.
+
+    Returns:
+        Dictionary with Gmail settings including sender filter and subject filter.
+    """
+    config = load_config()
+    env = config.get("env", {})
+
+    return {
+        "sender_filter": env.get(
+            "GMAIL_SENDER_FILTER", os.getenv("GMAIL_SENDER_FILTER", "")
+        ),
+        "subject_filter": env.get(
+            "GMAIL_SUBJECT_FILTER", os.getenv("GMAIL_SUBJECT_FILTER", "")
+        ),
+        "credentials_path": env.get(
+            "GMAIL_CREDENTIALS_PATH", os.getenv("GMAIL_CREDENTIALS_PATH", "")
+        ),
+        "token_path": env.get("GMAIL_TOKEN_PATH", os.getenv("GMAIL_TOKEN_PATH", "")),
+        "collection": env.get(
+            "GMAIL_COLLECTION", os.getenv("GMAIL_COLLECTION", "00_INBOXS")
+        ),
+        "trash_only": env.get(
+            "GMAIL_TRASH_ONLY", os.getenv("GMAIL_TRASH_ONLY", "true")
+        ).lower()
+        in {"true", "yes", "1"},
+    }

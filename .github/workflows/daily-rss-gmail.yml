@@ -1,4 +1,4 @@
-name: Daily RSS + Gmail
+name: Daily Workflow (RSS + Gmail)
 
 # Schedule: Run daily at 3:00 AM Beijing Time (UTC 19:00 previous day)
 on:
@@ -18,7 +18,12 @@ on:
           - gmail-only
         default: all
       dry_run:
-        description: 'Preview only'
+        description: 'Preview only (no changes)'
+        required: false
+        type: boolean
+        default: false
+      debug:
+        description: 'Enable debug logging'
         required: false
         type: boolean
         default: false
@@ -47,6 +52,14 @@ jobs:
       - name: Install Dependencies
         run: uv sync --locked
 
+      - name: Cache RSS Keywords
+        uses: actions/cache@v4
+        with:
+          path: RSS/keywords_cache.json
+          key: rss-keywords-${{ hashFiles('RSS/prompt.txt') }}
+          restore-keys: |
+            rss-keywords-
+
       - name: Process RSS Feeds
         env:
           ZOTERO_LIBRARY_ID: ${{ secrets.ZOTERO_LIBRARY_ID }}
@@ -56,8 +69,10 @@ jobs:
           ZOTERO_LOCAL: "false"
           ZOTERO_LIBRARY_TYPE: "user"
           DRY_RUN: ${{ inputs.dry_run }}
+          DEBUG: ${{ inputs.debug }}
         run: |
           echo "=== RSS Processing ==="
+          echo "Time: $(date)"
           ARGS="rss fetch --opml RSS/RSS_official.opml --max-items 10"
           if [[ "${DRY_RUN}" == "true" ]]; then ARGS="$ARGS --dry-run"; fi
           echo "Running: zotero-mcp $ARGS"
@@ -103,8 +118,10 @@ jobs:
           ZOTERO_LOCAL: "false"
           ZOTERO_LIBRARY_TYPE: "user"
           DRY_RUN: ${{ inputs.dry_run }}
+          DEBUG: ${{ inputs.debug }}
         run: |
           echo "=== Gmail Processing ==="
+          echo "Time: $(date)"
           ARGS="gmail process"
           if [[ "${DRY_RUN}" == "true" ]]; then ARGS="$ARGS --dry-run"; fi
           echo "Running: zotero-mcp $ARGS"
@@ -117,3 +134,22 @@ jobs:
           name: gmail-logs-${{ github.run_number }}
           path: "*.log"
           retention-days: 7
+
+  # Job 3: Notification
+  notify-failure:
+    needs: [rss-process, gmail-process]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        continue-on-error: true
+        with:
+          script: |
+            const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 Daily Workflow Failed',
+              body: `**Workflow Run:** ${runUrl}\n\n**Time:** ${new Date().toISOString()}\nPlease check logs.`,
+              labels: ['automated', 'failure']
+            });

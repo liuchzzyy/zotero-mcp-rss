@@ -66,10 +66,10 @@ def _save_zotero_db_path_to_config(config_path: Path, db_path: str) -> None:
         with open(config_path, "w") as f:
             json.dump(full_config, f, indent=2)
 
-        print(f'Saved Zotero database path to config: {config_path}')
+        print(f"Saved Zotero database path to config: {config_path}")
 
     except Exception as e:
-        print(f'Warning: Could not save db_path to config: {e}')
+        print(f"Warning: Could not save db_path to config: {e}")
 
 
 def main():
@@ -178,15 +178,71 @@ def main():
 
     # RSS command
     rss_parser = subparsers.add_parser("rss", help="RSS feed management")
-    rss_subparsers = rss_parser.add_subparsers(dest="rss_command", help="RSS subcommand")
+    rss_subparsers = rss_parser.add_subparsers(
+        dest="rss_command", help="RSS subcommand"
+    )
 
-    rss_fetch_parser = rss_subparsers.add_parser("fetch", help="Fetch and import RSS feeds")
-    rss_fetch_parser.add_argument("--opml", default="RSS/RSS_official.opml", help="Path to OPML file")
-    rss_fetch_parser.add_argument("--prompt", help="Path to research interest prompt file (falls back to RSS_PROMPT env var)")
-    rss_fetch_parser.add_argument("--collection", default="00_INBOXS", help="Target Zotero collection name")
-    rss_fetch_parser.add_argument("--days", type=int, default=15, help="Import articles from the last N days")
+    rss_fetch_parser = rss_subparsers.add_parser(
+        "fetch", help="Fetch and import RSS feeds"
+    )
+    rss_fetch_parser.add_argument(
+        "--opml", default="RSS/RSS_official.opml", help="Path to OPML file"
+    )
+    rss_fetch_parser.add_argument(
+        "--prompt",
+        help="Path to research interest prompt file (falls back to RSS_PROMPT env var)",
+    )
+    rss_fetch_parser.add_argument(
+        "--collection", default="00_INBOXS", help="Target Zotero collection name"
+    )
+    rss_fetch_parser.add_argument(
+        "--days", type=int, default=15, help="Import articles from the last N days"
+    )
     rss_fetch_parser.add_argument("--max-items", type=int, help="Limit items to import")
-    rss_fetch_parser.add_argument("--dry-run", action="store_true", help="Preview items without importing")
+    rss_fetch_parser.add_argument(
+        "--dry-run", action="store_true", help="Preview items without importing"
+    )
+
+    # Gmail command
+    gmail_parser = subparsers.add_parser("gmail", help="Gmail email processing")
+    gmail_subparsers = gmail_parser.add_subparsers(
+        dest="gmail_command", help="Gmail subcommand"
+    )
+
+    gmail_process_parser = gmail_subparsers.add_parser(
+        "process", help="Process emails and import to Zotero"
+    )
+    gmail_process_parser.add_argument("--sender", help="Filter by sender email address")
+    gmail_process_parser.add_argument(
+        "--subject", help="Filter by subject (partial match)"
+    )
+    gmail_process_parser.add_argument(
+        "--query", help="Raw Gmail search query (overrides sender/subject)"
+    )
+    gmail_process_parser.add_argument(
+        "--collection", default="00_INBOXS", help="Target Zotero collection name"
+    )
+    gmail_process_parser.add_argument(
+        "--max-emails", type=int, default=50, help="Maximum emails to process"
+    )
+    gmail_process_parser.add_argument(
+        "--no-delete", action="store_true", help="Don't delete emails after processing"
+    )
+    gmail_process_parser.add_argument(
+        "--permanent-delete",
+        action="store_true",
+        help="Permanently delete (default: trash)",
+    )
+    gmail_process_parser.add_argument(
+        "--dry-run", action="store_true", help="Preview without importing or deleting"
+    )
+
+    gmail_auth_parser = gmail_subparsers.add_parser(
+        "auth", help="Authenticate with Gmail"
+    )
+    gmail_auth_parser.add_argument(
+        "--credentials", help="Path to OAuth2 credentials.json from Google Cloud"
+    )
 
     # Version command
     subparsers.add_parser("version", help="Print version information")
@@ -203,7 +259,7 @@ def main():
     if args.command == "version":
         from zotero_mcp import __version__
 
-        print(f'Zotero MCP v{__version__}')
+        print(f"Zotero MCP v{__version__}")
         sys.exit(0)
 
     elif args.command == "setup-info":
@@ -218,13 +274,13 @@ def main():
         print("=== Zotero MCP Setup Information ===")
         print()
         print("🔧 Installation Details:")
-        print(f'  Command path: {executable_path}')
-        print(f'  Python path: {sys.executable}')
+        print(f"  Command path: {executable_path}")
+        print(f"  Python path: {sys.executable}")
 
         print()
         print("⚙️  Configuration:")
         obfuscated = obfuscate_config_for_display(env_vars)
-        print(f'  Environment: {json.dumps(obfuscated, indent=2)}')
+        print(f"  Environment: {json.dumps(obfuscated, indent=2)}")
 
         # Check semantic search
         try:
@@ -241,7 +297,7 @@ def main():
             print(f"  Items: {status.get('item_count')}")
             print(f"  Model: {status.get('embedding_model')}")
         except Exception as e:
-            print(f'\n❌ Semantic Search Error: {e}')
+            print(f"\n❌ Semantic Search Error: {e}")
 
         sys.exit(0)
 
@@ -279,10 +335,10 @@ def main():
 
             print("\nUpdate Complete:")
             for k, v in stats.items():
-                print(f'- {k}: {v}')
+                print(f"- {k}: {v}")
 
         except Exception as e:
-            print(f'Error: {e}')
+            print(f"Error: {e}")
             sys.exit(1)
 
     elif args.command == "db-status":
@@ -294,7 +350,7 @@ def main():
             status = search.get_database_status()
             print(json.dumps(status, indent=2, default=str))
         except Exception as e:
-            print(f'Error: {e}')
+            print(f"Error: {e}")
             sys.exit(1)
 
     elif args.command == "db-inspect":
@@ -307,7 +363,7 @@ def main():
             col = search.chroma_client.collection
 
             if args.stats:
-                print(f'Count: {col.count()}')
+                print(f"Count: {col.count()}")
                 return
 
             results = col.get(
@@ -324,7 +380,7 @@ def main():
                     print(f"  {results['documents'][i][:100]}...")
 
         except Exception as e:
-            print(f'Error: {e}')
+            print(f"Error: {e}")
             sys.exit(1)
 
     elif args.command == "update":
@@ -337,8 +393,9 @@ def main():
     elif args.command == "rss":
         if args.rss_command == "fetch":
             load_config()
-            from zotero_mcp.services.rss.rss_service import RSSService
             import asyncio
+
+            from zotero_mcp.services.rss.rss_service import RSSService
 
             service = RSSService()
             try:
@@ -353,7 +410,79 @@ def main():
                     )
                 )
             except Exception as e:
-                print(f'Error: {e}')
+                print(f"Error: {e}")
+                sys.exit(1)
+
+    elif args.command == "gmail":
+        if args.gmail_command == "auth":
+            from zotero_mcp.clients.gmail import DEFAULT_CREDENTIALS_PATH, GmailClient
+
+            credentials_path = args.credentials or DEFAULT_CREDENTIALS_PATH
+            print(f"Authenticating with Gmail using credentials: {credentials_path}")
+
+            try:
+                client = GmailClient(credentials_path=credentials_path)
+                # Force authentication by accessing service
+                _ = client.service
+                print("✓ Gmail authentication successful!")
+                print(f"  Token saved to: {client.token_path}")
+            except FileNotFoundError as e:
+                print(f"✗ {e}")
+                print("\nTo set up Gmail API:")
+                print("1. Go to Google Cloud Console")
+                print("2. Create OAuth2 credentials (Desktop app)")
+                print("3. Download credentials.json")
+                print(f"4. Place it at: {DEFAULT_CREDENTIALS_PATH}")
+                print("   Or specify with: --credentials /path/to/credentials.json")
+                sys.exit(1)
+            except Exception as e:
+                print(f"✗ Authentication failed: {e}")
+                sys.exit(1)
+
+        elif args.gmail_command == "process":
+            load_config()
+            import asyncio
+
+            from zotero_mcp.services.gmail.gmail_service import GmailService
+
+            if not args.sender and not args.subject and not args.query:
+                print("Error: Must specify --sender, --subject, or --query")
+                sys.exit(1)
+
+            service = GmailService()
+            try:
+                result = asyncio.run(
+                    service.process_gmail_workflow(
+                        sender=args.sender,
+                        subject=args.subject,
+                        query=args.query,
+                        collection_name=args.collection,
+                        max_emails=args.max_emails,
+                        delete_after=not args.no_delete,
+                        trash_only=not args.permanent_delete,
+                        dry_run=args.dry_run,
+                    )
+                )
+
+                print("\n=== Gmail Processing Results ===")
+                print(f"  Emails found: {result.emails_found}")
+                print(f"  Emails processed: {result.emails_processed}")
+                print(f"  Items extracted: {result.items_extracted}")
+                print(f"  Items filtered (relevant): {result.items_filtered}")
+                print(f"  Items imported: {result.items_imported}")
+                print(f"  Items duplicate: {result.items_duplicate}")
+                print(f"  Emails deleted: {result.emails_deleted}")
+
+                if result.keywords_used:
+                    print(f"\nKeywords used: {', '.join(result.keywords_used)}")
+
+                if result.errors:
+                    print(f"\nErrors ({len(result.errors)}):")
+                    for err in result.errors[:5]:
+                        print(f"  - {err}")
+
+            except Exception as e:
+                print(f"Error: {e}")
                 sys.exit(1)
 
     elif args.command == "serve":

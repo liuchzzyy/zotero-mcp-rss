@@ -91,14 +91,12 @@ class WorkflowService:
 
         # Optimization: Fetch bundles in batches
         chunk_size = 5
-        item_keys = [item.key for item in items]
 
         # We need to map keys to Item objects for metadata not in bundle (like item.title vs bundle.title)
         # Actually bundle['metadata'] has everything.
 
         for i in range(0, len(items), chunk_size):
             chunk_items = items[i : i + chunk_size]
-            chunk_keys = [item.key for item in chunk_items]
 
             # 1. Filter existing notes first (fast check)
             # We can't batch check notes easily without fetching children, which BatchLoader does.

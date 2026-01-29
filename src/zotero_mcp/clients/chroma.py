@@ -58,11 +58,11 @@ class OpenAIEmbeddingFunction(EmbeddingFunction):
         except ImportError as e:
             raise ImportError("openai package is required for OpenAI embeddings") from e
 
-    def name(self) -> str:
+    def name(self) -> str:  # type: ignore[override]
         """Return the name of this embedding function."""
         return "openai"
 
-    def __call__(self, input: Documents) -> Embeddings:
+    def __call__(self, input: Documents) -> Embeddings:  # type: ignore[override]
         """Generate embeddings using OpenAI API."""
         response = self.client.embeddings.create(model=self.model_name, input=input)
         return [data.embedding for data in response.data]  # type: ignore[return-value]
@@ -368,7 +368,7 @@ class ChromaClient:
         try:
             result = self.collection.get(ids=[doc_id], include=["metadatas"])
             if result["ids"] and result["metadatas"]:
-                return dict(result["metadatas"][0])  # type: ignore[arg-type]
+                return dict(result["metadatas"][0])
             return None
         except Exception:
             return None

@@ -52,5 +52,9 @@ AI分析结果.md
 .sisyphus/
 chroma_db/
 pyzotero/
+
+# Gmail OAuth credentials (sensitive)
+*credentials.json
+*token.json
 gmail_credentials.json
 token.json
