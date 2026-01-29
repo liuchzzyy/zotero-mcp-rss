@@ -20,6 +20,7 @@ from zotero_mcp.models.workflow import (
 from zotero_mcp.services.checkpoint import get_checkpoint_manager
 from zotero_mcp.services.data_access import get_data_service
 from zotero_mcp.utils.batch_loader import BatchLoader
+from zotero_mcp.utils.beautify import beautify_ai_note
 from zotero_mcp.utils.markdown_html import markdown_to_html
 
 logger = logging.getLogger(__name__)
@@ -459,6 +460,8 @@ class WorkflowService:
             note_key = None
             if not dry_run:
                 html_note = markdown_to_html(markdown_note)
+                # Auto-beautify with Typora Orange Heart theme
+                html_note = beautify_ai_note(html_note)
                 result = await self.data_service.create_note(
                     parent_key=item.key,
                     content=html_note,
