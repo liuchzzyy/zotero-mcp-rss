@@ -7,8 +7,8 @@ Run this if the main auth.py script has issues.
 
 import json
 from pathlib import Path
+
 from google_auth_oauthlib.flow import InstalledAppFlow
-from google.oauth2.credentials import Credentials
 
 # Gmail API scope
 SCOPES = ["https://www.googleapis.com/auth/gmail.modify"]
@@ -68,7 +68,7 @@ def main():
         print()
 
         # Show token content for GitHub Actions
-        with open(TOKEN_PATH, "r") as f:
+        with open(TOKEN_PATH) as f:
             token_data = json.load(f)
         print("=" * 60)
         print("📋 Token Content (for GMAIL_TOKEN_JSON):")

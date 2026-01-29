@@ -393,8 +393,9 @@ def main():
     elif args.command == "rss":
         if args.rss_command == "fetch":
             load_config()
-            from zotero_mcp.services.rss.rss_service import RSSService
             import asyncio
+
+            from zotero_mcp.services.rss.rss_service import RSSService
 
             service = RSSService()
             try:
@@ -414,7 +415,7 @@ def main():
 
     elif args.command == "gmail":
         if args.gmail_command == "auth":
-            from zotero_mcp.clients.gmail import GmailClient, DEFAULT_CREDENTIALS_PATH
+            from zotero_mcp.clients.gmail import DEFAULT_CREDENTIALS_PATH, GmailClient
 
             credentials_path = args.credentials or DEFAULT_CREDENTIALS_PATH
             print(f"Authenticating with Gmail using credentials: {credentials_path}")
@@ -440,8 +441,9 @@ def main():
 
         elif args.gmail_command == "process":
             load_config()
-            from zotero_mcp.services.gmail.gmail_service import GmailService
             import asyncio
+
+            from zotero_mcp.services.gmail.gmail_service import GmailService
 
             if not args.sender and not args.subject and not args.query:
                 print("Error: Must specify --sender, --subject, or --query")

@@ -5,7 +5,6 @@ Centralizes logic for determining if a Zotero item has been analyzed by AI.
 """
 
 import logging
-from typing import Any
 
 from zotero_mcp.services.item import ItemService
 

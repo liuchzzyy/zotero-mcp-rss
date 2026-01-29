@@ -20,8 +20,9 @@ Prerequisites:
 
 import json
 import os
-import sys
 from pathlib import Path
+import sys
+from typing import cast
 
 try:
     import click
@@ -88,7 +89,7 @@ def save_token(credentials: Credentials, token_path: Path) -> None:
     print(f"✅ Token saved to: {token_path}")
 
 
-def authorize():
+def authorize() -> Credentials:
     """Run OAuth2 authorization flow."""
     credentials_path = get_credentials_path()
     token_path = get_token_path()
@@ -120,12 +121,15 @@ def authorize():
             flow = InstalledAppFlow.from_client_secrets_file(
                 str(credentials_path), SCOPES
             )
-            credentials = flow.run_local_server(port=0)
+            # Cast to Credentials since flow.run_local_server returns a compatible type
+            credentials = cast(Credentials, flow.run_local_server(port=0))
             save_token(credentials, token_path)
         except Exception as e:
             print(f"❌ Authorization failed: {e}")
             sys.exit(1)
 
+    # credentials is guaranteed to be non-None at this point
+    assert credentials is not None
     return credentials
 
 
@@ -143,7 +147,7 @@ def display_next_steps(token_path: Path):
     print("🌐 GitHub Actions Setup:")
     print("   1. Read your token file:")
     if sys.platform == "win32":
-        print(f"      type %USERPROFILE%\\.config\\zotero-mcp\\token.json")
+        print("      type %USERPROFILE%\\.config\\zotero-mcp\\token.json")
     else:
         print(f"      cat {token_path}")
     print()
@@ -218,7 +222,6 @@ def main(credentials_path, token_path, verify_only):
         os.environ["GMAIL_TOKEN_PATH"] = token_path
 
     # Get actual paths
-    actual_credentials_path = get_credentials_path()
     actual_token_path = get_token_path()
 
     # Verify only mode
@@ -236,6 +239,8 @@ def main(credentials_path, token_path, verify_only):
             print("❌ Failed to load token")
             sys.exit(1)
 
+        # At this point credentials is guaranteed to be non-None
+        assert credentials is not None
         if verify_credentials(credentials):
             print("✅ Token is valid and ready to use")
             display_token_content(credentials)

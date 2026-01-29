@@ -10,11 +10,11 @@ This module provides the main workflow for processing Gmail emails:
 """
 
 import asyncio
+from datetime import datetime
 import logging
 import re
-from datetime import datetime
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from zotero_mcp.clients.gmail import GmailClient
 from zotero_mcp.models.gmail import EmailItem, EmailMessage, GmailProcessResult
@@ -127,7 +127,7 @@ class GmailService:
 
     def _extract_item_from_row(
         self,
-        row: BeautifulSoup,
+        row: Tag,
         email_id: str,
         email_subject: str,
     ) -> EmailItem | None:
@@ -139,7 +139,9 @@ class GmailService:
         # Look for the main link (title link)
         links = row.find_all("a", href=True)
         for a in links:
-            href = a.get("href", "")
+            href_value = a.get("href", "")
+            # Normalize href to string
+            href = href_value if isinstance(href_value, str) else ""
             text = a.get_text(strip=True)
 
             # Skip navigation/utility links
@@ -212,7 +214,9 @@ class GmailService:
                 continue
 
             title = link_elem.get_text(strip=True)
-            link = link_elem.get("href", "")
+            link_value = link_elem.get("href", "")
+            # Normalize to string
+            link = link_value if isinstance(link_value, str) else ""
 
             if len(title) < 15:
                 # Try to find a heading
@@ -253,7 +257,9 @@ class GmailService:
 
         for a in soup.find_all("a", href=True):
             text = a.get_text(strip=True)
-            href = a.get("href", "")
+            href_value = a.get("href", "")
+            # Normalize to string
+            href = href_value if isinstance(href_value, str) else ""
 
             # Filter out non-article links
             if len(text) < 20 or len(text) > 500:

@@ -290,7 +290,7 @@ class ZoteroSemanticSearch:
                     }
 
                     if item.notes:
-                        api_item["data"]["notes"] = item.notes  # type: ignore[index]
+                        api_item["data"]["notes"] = item.notes
 
                     api_items.append(api_item)
 

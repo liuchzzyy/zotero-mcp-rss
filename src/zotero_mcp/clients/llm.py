@@ -424,16 +424,16 @@ class LLMClient:
     async def _call_google_style(self, prompt: str) -> str:
         """Call Google Gemini API."""
         try:
-            import google.generativeai as genai  # type: ignore[import-not-found]
+            import google.generativeai as genai
         except ImportError as e:
             raise ImportError(
                 "google-generativeai package not installed. "
                 "Install with: pip install google-generativeai"
             ) from e
 
-        genai.configure(api_key=self.api_key)  # type: ignore[attr-defined]
+        genai.configure(api_key=self.api_key)
 
-        model = genai.GenerativeModel(self.model)  # type: ignore[attr-defined]
+        model = genai.GenerativeModel(self.model)
 
         try:
             loop = asyncio.get_event_loop()

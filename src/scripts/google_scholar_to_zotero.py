@@ -23,6 +23,7 @@ import os
 from pathlib import Path
 import re
 import sys
+from typing import TypedDict
 
 # Setup path to import zotero_mcp modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -64,6 +65,18 @@ DEBUG = _debug_env.lower() == "true"
 if DEBUG:
     logging.getLogger().setLevel(logging.DEBUG)
     logger.setLevel(logging.DEBUG)
+
+
+class ImportStats(TypedDict):
+    """Type-safe stats dictionary for import operations."""
+
+    emails_processed: int
+    articles_extracted: int
+    articles_imported: int
+    articles_filtered: int
+    metadata_found: int
+    metadata_not_found: int
+    errors: list[str]
 
 
 def clean_title(title: str) -> str:
@@ -168,7 +181,7 @@ async def filter_and_import_articles(
         logger.error(f"❌ Failed to extract keywords: {e}")
         keywords = None
 
-    stats = {
+    stats: ImportStats = {
         "emails_processed": 0,
         "articles_extracted": 0,
         "articles_imported": 0,

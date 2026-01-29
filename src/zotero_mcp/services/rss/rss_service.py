@@ -296,8 +296,8 @@ class RSSService:
     ):
         """Full RSS fetching and importing workflow."""
         from zotero_mcp.services.data_access import get_data_service
-        from zotero_mcp.services.rss.rss_filter import RSSFilter
         from zotero_mcp.services.metadata import MetadataService
+        from zotero_mcp.services.rss.rss_filter import RSSFilter
 
         data_service = get_data_service()
         rss_filter = RSSFilter(prompt_file=prompt_path)

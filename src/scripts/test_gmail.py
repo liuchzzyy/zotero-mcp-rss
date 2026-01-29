@@ -16,9 +16,7 @@ This script will:
 """
 
 import asyncio
-import os
 import sys
-from pathlib import Path
 
 try:
     from zotero_mcp.clients.gmail import GmailClient
@@ -37,9 +35,9 @@ async def test_connection(client: GmailClient) -> bool:
 
     try:
         # Try a simple search to test connection
-        messages = await client.search_messages(query="", max_results=1)
-        print(f"✅ Connected to Gmail API")
-        print(f"   Successfully queried Gmail")
+        await client.search_messages(query="", max_results=1)
+        print("✅ Connected to Gmail API")
+        print("   Successfully queried Gmail")
         print()
         return True
     except Exception as e:

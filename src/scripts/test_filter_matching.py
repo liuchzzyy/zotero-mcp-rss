@@ -3,14 +3,13 @@
 Quick test script for the improved keyword matching logic.
 """
 
-import sys
 from pathlib import Path
+import sys
 
 # Setup path to import zotero_mcp modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from zotero_mcp.services.rss.rss_filter import RSSFilter
-from zotero_mcp.models.rss import RSSItem
 
 
 def test_matching():
