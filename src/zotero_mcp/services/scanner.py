@@ -63,14 +63,11 @@ class GlobalScanner:
 
                 if has_pdf and not is_analyzed:
                     # Trigger analysis
-                    target_collection = collection_override or "01_SHORTTERMS"
                     result = await self.workflow_service.batch_analyze(
                         source="collection",
                         collection_key="",  # Will use inbox collection
                         days=0,
                         limit=1,
-                        delete_old_notes=True,
-                        move_to_collection=target_collection,
                         llm_provider="auto",
                         dry_run=False,
                     )

@@ -50,6 +50,32 @@ class ItemService:
         """Get item by key."""
         return await self.api_client.get_item(item_key)
 
+    async def get_all_items(
+        self,
+        limit: int = 100,
+        start: int = 0,
+        item_type: str | None = None,
+    ) -> list[SearchResultItem]:
+        """Get all items in the library."""
+        if self.local_client:
+            fetch_limit = limit + max(start, 0) if start else limit
+            local_items = self.local_client.get_items(
+                limit=fetch_limit, include_fulltext=False
+            )
+            if item_type:
+                local_items = [
+                    item for item in local_items if item.item_type == item_type
+                ]
+            if start:
+                local_items = local_items[start:]
+            local_items = local_items[:limit]
+            return [self._zotero_item_to_result(item) for item in local_items]
+
+        api_items = await self.api_client.get_all_items(
+            limit=limit, start=start, item_type=item_type
+        )
+        return [self._api_item_to_result(item) for item in api_items]
+
     async def get_item_children(
         self, item_key: str, item_type: str | None = None
     ) -> list[dict[str, Any]]:
