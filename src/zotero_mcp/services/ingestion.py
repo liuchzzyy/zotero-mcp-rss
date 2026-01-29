@@ -61,7 +61,9 @@ class IngestionService:
         # TODO: Implement AI filtering logic
         return False
 
-    async def process_ingestion(self, source: str = "both") -> dict[str, Any]:
+    async def process_ingestion(
+        self, source: str = "both", collection_override: str | None = None
+    ) -> dict[str, Any]:
         """
         Process ingestion from configured sources.
 

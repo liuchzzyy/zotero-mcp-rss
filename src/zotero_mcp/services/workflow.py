@@ -205,17 +205,19 @@ class WorkflowService:
         Args:
             source: "collection" or "recent"
             collection_key: Collection key
-            collection_name: Collection name
+            collection_name: Collection name (alternative to key)
             days: Days to look back
-            limit: Maximum items to process
+            limit: Maximum results
             resume_workflow_id: Workflow ID to resume
             skip_existing: Skip items with existing notes
             include_annotations: Include PDF annotations
             llm_provider: LLM provider to use
             llm_model: Model name (optional)
             template: Custom analysis template
-            dry_run: Preview only, don't create notes
+            dry_run: Preview only, no changes
             progress_callback: Progress update callback
+            delete_old_notes: Delete existing notes before analysis
+            move_to_collection: Move items after analysis
 
         Returns:
             BatchAnalyzeResponse with results

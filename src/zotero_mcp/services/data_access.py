@@ -352,6 +352,24 @@ class DataAccessService:
         return self.item_service._zotero_item_to_result(item)
 
 
+async def get_all_items(
+        self,
+        limit: int = 100,
+        start: int = 0,
+        item_type: str | None = None,
+    ) -> list[Any]:
+        """Get all items from Zotero library."""
+        return await self.item_service.get_all_items(limit, start, item_type)
+
+    async def get_item_children(
+        self,
+        item_key: str,
+        item_type: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Get child items (attachments, notes)."""
+        return await self.item_service.get_children(item_key, item_type)
+
+
 @lru_cache(maxsize=1)
 def get_data_service() -> DataAccessService:
     """
