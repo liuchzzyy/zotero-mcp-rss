@@ -305,6 +305,84 @@ Select exactly 10 keywords. Do not include any other text."""
         logger.info(f"Final keywords: {best_keywords}")
         return best_keywords
 
+    # Chemical element synonyms: name <-> symbol mappings
+    CHEMICAL_SYNONYMS: dict[str, str] = {
+        # Common battery materials
+        "zinc": "zn",
+        "zn": "zinc",
+        "lithium": "li",
+        "li": "lithium",
+        "sodium": "na",
+        "na": "sodium",
+        "potassium": "k",
+        "k": "potassium",
+        "manganese": "mn",
+        "mn": "manganese",
+        "iron": "fe",
+        "fe": "iron",
+        "cobalt": "co",
+        "co": "cobalt",
+        "nickel": "ni",
+        "ni": "nickel",
+        "copper": "cu",
+        "cu": "copper",
+        "aluminum": "al",
+        "al": "aluminum",
+        "aluminium": "al",
+        "titanium": "ti",
+        "ti": "titanium",
+        "vanadium": "v",
+        "v": "vanadium",
+        "oxygen": "o",
+        "o": "oxygen",
+        "sulfur": "s",
+        "s": "sulfur",
+        "sulphur": "s",
+        "carbon": "c",
+        "c": "carbon",
+        "silicon": "si",
+        "si": "silicon",
+        "phosphorus": "p",
+        "p": "phosphorus",
+        "magnesium": "mg",
+        "mg": "magnesium",
+        "calcium": "ca",
+        "ca": "calcium",
+    }
+
+    # Core scientific terms that should match independently
+    # These terms are significant enough that their presence alone indicates relevance
+    # Only include specialized technique/method terms, NOT generic material terms
+    CORE_TERMS: set[str] = {
+        # Characterization techniques (specialized, should match independently)
+        "operando",
+        "in-situ",
+        "insitu",
+        "in situ",
+        "synchrotron",
+        "xas",
+        "xanes",
+        "exafs",
+        "xrd",
+        # Note: Removed generic terms like "battery", "cathode", "anode"
+        # as they cause false positives
+    }
+
+    def _expand_with_synonyms(self, text: str) -> str:
+        """
+        Expand text with chemical synonyms.
+
+        For each word that has a synonym, add the synonym to the text.
+        E.g., "zinc anode" -> "zinc zn anode"
+        """
+        words = text.lower().split()
+        expanded_words = []
+        for word in words:
+            expanded_words.append(word)
+            if word in self.CHEMICAL_SYNONYMS:
+                expanded_words.append(self.CHEMICAL_SYNONYMS[word])
+        return " ".join(expanded_words)
+
     def _normalize_text(self, text: str) -> str:
         """
         Normalize text for flexible matching.
@@ -360,6 +438,8 @@ Select exactly 10 keywords. Do not include any other text."""
         1. Exact substring match (after normalization)
         2. All words in keyword appear in title (word-level match)
         3. Stem-based matching for singular/plural variations
+        4. Chemical synonym matching (zinc <-> Zn, etc.)
+        5. Core term matching (operando, synchrotron, etc. match independently)
         """
         title_norm = self._normalize_text(title)
         kw_norm = self._normalize_text(keyword)
@@ -379,6 +459,31 @@ Select exactly 10 keywords. Do not include any other text."""
         kw_stems = self._get_word_stems(keyword)
         if kw_stems and kw_stems.issubset(title_stems):
             return True
+
+        # Strategy 4: Chemical synonym matching
+        # Expand both title and keyword with synonyms, then check word overlap
+        title_expanded = self._expand_with_synonyms(title_norm)
+        kw_expanded = self._expand_with_synonyms(kw_norm)
+        title_expanded_words = set(title_expanded.split())
+        kw_expanded_words = set(kw_expanded.split())
+        if kw_expanded_words and kw_expanded_words.issubset(title_expanded_words):
+            return True
+
+        # Strategy 5: Core term matching
+        # If keyword contains a core term and that term appears in title, match
+        kw_words_lower = {w.lower() for w in kw_norm.split()}
+        title_words_lower = {w.lower() for w in title_norm.split()}
+        for core_term in self.CORE_TERMS:
+            core_term_normalized = self._normalize_text(core_term)
+            core_words = set(core_term_normalized.split())
+            # Check if the core term (or its words) is in the keyword
+            if core_words.issubset(kw_words_lower) or core_term_normalized in kw_norm:
+                # And if it also appears in the title
+                if (
+                    core_words.issubset(title_words_lower)
+                    or core_term_normalized in title_norm
+                ):
+                    return True
 
         return False
 
