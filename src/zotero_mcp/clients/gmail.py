@@ -11,9 +11,8 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
-from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
@@ -81,36 +80,27 @@ class GmailClient:
         if token_json_env:
             try:
                 token_data = json.loads(token_json_env)
-                creds = Credentials.from_authorized_user_info(token_data, SCOPES)
+                # Credentials.from_authorized_user_info returns Credentials
+                creds = cast(
+                    Credentials,
+                    Credentials.from_authorized_user_info(token_data, SCOPES),
+                )
                 logger.info("Loaded Gmail credentials from GMAIL_TOKEN_JSON env var")
             except Exception as e:
                 logger.warning(f"Failed to load token from env var: {e}")
 
-        # Priority 2: Load from token file
-        if not creds and self.token_path.exists():
-            try:
-                creds = Credentials.from_authorized_user_file(
-                    str(self.token_path), SCOPES
+        # Priority 2: Interactive OAuth flow (requires browser)
+        # Only run if GMAIL_TOKEN_JSON not provided and credentials file exists
+        if not creds and self.credentials_path.exists():
+            if not token_json_env:
+                flow = InstalledAppFlow.from_client_secrets_file(
+                    str(self.credentials_path), SCOPES
                 )
-                logger.info(f"Loaded Gmail credentials from {self.token_path}")
-            except Exception as e:
-                logger.warning(f"Failed to load token from file: {e}")
+                # Cast to Credentials since flow.run_local_server returns a compatible type
+                creds = cast(Credentials, flow.run_local_server(port=0))
+                self._save_token(creds)
 
-        # Refresh if expired
-        if creds and not creds.valid:
-            if creds.expired and creds.refresh_token:
-                try:
-                    creds.refresh(Request())
-                    logger.info("Refreshed Gmail credentials")
-
-                    # Save refreshed token back to file (if not using env var)
-                    if not token_json_env:
-                        self._save_token(creds)
-                except Exception as e:
-                    logger.warning(f"Failed to refresh token: {e}")
-                    creds = None
-
-        # Priority 3: Interactive OAuth flow
+        # Validate final result
         if not creds or not creds.valid:
             if not self.credentials_path.exists():
                 raise FileNotFoundError(
@@ -122,9 +112,11 @@ class GmailClient:
             flow = InstalledAppFlow.from_client_secrets_file(
                 str(self.credentials_path), SCOPES
             )
-            creds = flow.run_local_server(port=0)
+            # Cast to Credentials since flow.run_local_server returns a compatible type
+            creds = cast(Credentials, flow.run_local_server(port=0))
             self._save_token(creds)
 
+        assert creds is not None
         return creds
 
     def _save_token(self, creds: Credentials) -> None:
