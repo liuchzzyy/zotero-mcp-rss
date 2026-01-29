@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 from typing import Any, cast
 
+from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
@@ -88,6 +89,17 @@ class GmailClient:
                 logger.info("Loaded Gmail credentials from GMAIL_TOKEN_JSON env var")
             except Exception as e:
                 logger.warning(f"Failed to load token from env var: {e}")
+
+        # Priority 1.5: Refresh if expired
+        if creds and creds.expired and creds.refresh_token:
+            try:
+                creds.refresh(Request())
+                logger.info("Refreshed Gmail credentials")
+                # Save refreshed token to file so user can update env var
+                self._save_token(creds)
+            except Exception as e:
+                logger.warning(f"Failed to refresh token: {e}")
+                creds = None
 
         # Priority 2: Interactive OAuth flow (requires browser)
         # Only run if GMAIL_TOKEN_JSON not provided and credentials file exists
