@@ -1,12 +1,12 @@
 name: Automated Zotero
 
 # Schedule:
-#   - 6:00 AM Beijing Time (22:00 UTC previous day) - Analyze new items
+#   - 3:00 AM Beijing Time (19:00 UTC previous day) - Analyze new items
 #   - 8:00 PM Beijing Time (12:00 UTC) - Organize existing items
 on:
   schedule:
-    # 6:00 AM Beijing Time (22:00 UTC previous day) - Process new items
-    - cron: '0 22 * * *'
+    # 3:00 AM Beijing Time (19:00 UTC previous day) - Process new items
+    - cron: '0 19 * * *'
     # 8:00 PM Beijing Time (12:00 UTC) - Process existing items
     - cron: '0 12 * * *'
 

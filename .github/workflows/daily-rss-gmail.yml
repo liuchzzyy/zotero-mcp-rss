@@ -1,9 +1,9 @@
 name: Daily Workflow (RSS + Gmail)
 
-# Schedule: Run daily at 3:00 AM Beijing Time (UTC 19:00 previous day)
+# Schedule: Run daily at 0:00 AM Beijing Time (UTC 16:00 previous day)
 on:
   schedule:
-    - cron: '0 19 * * *'
+    - cron: '0 16 * * *'
 
   # Manual triggering
   workflow_dispatch:
