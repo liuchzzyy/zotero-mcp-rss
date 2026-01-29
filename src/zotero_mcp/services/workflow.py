@@ -21,6 +21,7 @@ from zotero_mcp.services.checkpoint import get_checkpoint_manager
 from zotero_mcp.services.data_access import get_data_service
 from zotero_mcp.utils.batch_loader import BatchLoader
 from zotero_mcp.utils.beautify import beautify_ai_note
+from zotero_mcp.utils.helpers import format_creators
 from zotero_mcp.utils.markdown_html import markdown_to_html
 
 logger = logging.getLogger(__name__)
@@ -141,17 +142,7 @@ class WorkflowService:
                     analysis_item = AnalysisItem(
                         item_key=metadata.get("key"),
                         title=data.get("title", "Unknown"),
-                        authors=data.get(
-                            "creators", []
-                        ),  # Note: this might be raw list, SearchResultItem handles formatting
-                        # Wait, AnalysisItem expects formatted strings?
-                        # models/workflow.py says: authors: str | None
-                        # data_access.get_item returns raw Zotero JSON.
-                        # We need to format creators.
-                        # Let's use the helper from item service if possible or helper util.
-                        # DataAccessService had _api_item_to_result which formatted it.
-                        # Here we deal with raw dicts.
-                        # Let's try to be robust.
+                        authors=format_creators(data.get("creators", [])),
                         date=data.get("date"),
                         journal=data.get("publicationTitle"),
                         doi=data.get("DOI"),
@@ -164,12 +155,6 @@ class WorkflowService:
                         },
                         template_questions=TEMPLATE_QUESTIONS,
                     )
-
-                    # Fix authors format
-                    # We need to format the creators list to string
-                    from zotero_mcp.utils.helpers import format_creators
-
-                    analysis_item.authors = format_creators(data.get("creators", []))
 
                     prepared_items.append(analysis_item)
                 except Exception as e:
@@ -266,7 +251,8 @@ class WorkflowService:
             )
 
         # Get remaining items to process
-        all_keys = [item.key for item in items]
+        item_map = {item.key: item for item in items}
+        all_keys = list(item_map.keys())
         remaining_keys = workflow_state.get_remaining_items(all_keys)
 
         if not remaining_keys:
@@ -318,7 +304,7 @@ class WorkflowService:
             # 2. Analyze Sequential (LLM)
             for item_key in chunk_keys:
                 # Find original item object for progress reporting
-                item = next((it for it in items if it.key == item_key), None)
+                item = item_map.get(item_key)
                 if not item:
                     continue
 
