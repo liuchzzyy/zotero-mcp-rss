@@ -13,6 +13,12 @@ def mock_home(tmp_path):
         yield tmp_path
 
 
+@pytest.fixture(autouse=True)
+def mock_load_dotenv():
+    with patch("zotero_mcp.utils.config.load_dotenv"):
+        yield
+
+
 def test_load_config_empty(mock_home):
     """Test loading with no config files and no env vars."""
     with patch.dict(os.environ, {}, clear=True):
