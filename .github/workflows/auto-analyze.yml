@@ -1,14 +1,14 @@
 name: Automated Zotero
 
 # Schedule:
-#   - 3:00 AM Beijing Time (19:00 UTC previous day) - Analyze new items
-#   - 8:00 PM Beijing Time (12:00 UTC) - Organize existing items
+#   - 1:00 AM Beijing Time (17:00 UTC previous day) - Analyze new items
+#   - 3:00 PM Beijing Time (7:00 UTC) - Organize existing items
 on:
   schedule:
-    # 3:00 AM Beijing Time (19:00 UTC previous day) - Process new items
-    - cron: '0 19 * * *'
-    # 8:00 PM Beijing Time (12:00 UTC) - Process existing items
-    - cron: '0 12 * * *'
+    # 1:00 AM Beijing Time (17:00 UTC previous day) - Process new items
+    - cron: '0 17 * * *'
+    # 3:00 PM Beijing Time (7:00 UTC) - Process existing items
+    - cron: '0 7 * * *'
 
   # Manual triggering with configurable options
   workflow_dispatch:
