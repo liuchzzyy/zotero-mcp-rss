@@ -13,7 +13,7 @@ async def test_llm_client_custom_template():
     client = LLMClient(provider="openai", api_key="test_key")
 
     # Mock the internal _call_openai_style method to avoid actual API calls
-    client._call_openai_style = AsyncMock(return_value="Mock Analysis")
+    client._call_openai_style = AsyncMock(return_value="Mock Analysis")  # type: ignore
 
     custom_template = "My Custom Template with {title}"
 
@@ -30,7 +30,7 @@ async def test_llm_client_custom_template():
 
     # Verify
     # Check if the prompt sent to _call_openai_style contains our custom template RAW content
-    call_args = client._call_openai_style.call_args
+    call_args = client._call_openai_style.call_args  # type: ignore
     prompt = call_args[0][0]
 
     # The implementation inserts the template string AS IS, without formatting it
@@ -93,17 +93,17 @@ async def test_workflow_service_propagates_template():
         item.title = "Title"
 
         # We need to bypass _get_items or mock it
-        service._get_items = AsyncMock(return_value=[item])
+        service._get_items = AsyncMock(return_value=[item])  # type: ignore
 
         # Mock Checkpoint Manager behaviors
         mock_cp = service.checkpoint_manager
-        mock_cp.create_workflow.return_value = MagicMock(
+        mock_cp.create_workflow.return_value = MagicMock(  # type: ignore
             workflow_id="wf_1",
             total_items=1,
             processed_keys=[],
             get_remaining_items=lambda k: ["ABC"],
         )
-        mock_cp.load_state.return_value = None
+        mock_cp.load_state.return_value = None  # type: ignore
 
         # Execute
         await service.batch_analyze(

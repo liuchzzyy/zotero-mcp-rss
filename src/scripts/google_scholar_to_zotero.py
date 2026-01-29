@@ -389,6 +389,7 @@ async def import_articles_to_zotero(
                 logger.info("      - Metadata not found, using email data")
 
                 # Fallback: create item from email data
+                creators: list[dict[str, str]] = []
                 item_data = {
                     "itemType": "journalArticle",
                     "title": cleaned_title,
@@ -397,7 +398,7 @@ async def import_articles_to_zotero(
                     "accessDate": datetime.now().strftime("%Y-%m-%d"),
                     "collections": [collection_key],
                     "extra": f"Source: Google Scholar Alerts\nEmail Subject: {email_subject}",
-                    "creators": [],
+                    "creators": creators,
                 }
 
                 # Parse authors if available
@@ -406,7 +407,7 @@ async def import_articles_to_zotero(
                     for author_name in author_list:
                         author_name = author_name.strip()
                         if author_name:
-                            item_data["creators"].append(
+                            creators.append(
                                 {"creatorType": "author", "name": author_name}
                             )
 

@@ -140,19 +140,20 @@ class CrossrefWork:
 
     def to_zotero_item(self) -> dict[str, Any]:
         """Convert to Zotero item template format."""
+        creators: list[dict[str, str]] = []
         item = {
             "itemType": self.item_type,
             "title": self.title,
             "DOI": self.doi,
             "url": self.url,
-            "creators": [],
+            "creators": creators,
         }
 
         # Add authors
         for author in self.authors:
             if ", " in author:
                 parts = author.split(", ", 1)
-                item["creators"].append(
+                creators.append(
                     {
                         "creatorType": "author",
                         "lastName": parts[0],
@@ -160,7 +161,7 @@ class CrossrefWork:
                     }
                 )
             else:
-                item["creators"].append(
+                creators.append(
                     {
                         "creatorType": "author",
                         "name": author,
