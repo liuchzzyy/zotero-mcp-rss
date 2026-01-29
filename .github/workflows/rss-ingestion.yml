@@ -2,8 +2,8 @@ name: RSS Ingestion
 
 on:
   schedule:
-    # Run daily at 9 AM UTC (good time for US/Europe)
-    - cron: '0 9 * * *'
+    # Run daily at 02:00 Beijing Time (18:00 UTC previous day)
+    - cron: '0 18 * * *'
     
   workflow_dispatch:
     inputs:
@@ -24,7 +24,7 @@ env:
   ZOTERO_LIBRARY_ID: ${{ secrets.ZOTERO_LIBRARY_ID }}
   ZOTERO_API_KEY: ${{ secrets.ZOTERO_API_KEY }}
   RSS_PROMPT: ${{ vars.RSS_PROMPT }}
-  ZOTERO_INBOX_COLLECTION: ${{ vars.collection_name }}
+  ZOTERO_INBOX_COLLECTION: ${{ github.event.inputs.collection_name || '00_INBOXS' }}
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
   DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
   GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

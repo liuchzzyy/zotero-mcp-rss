@@ -2,8 +2,8 @@ name: Gmail Ingestion
 
 on:
   schedule:
-    # Run every 6 hours to check for new papers
-    - cron: '0 */6 * * *'
+    # Run daily at 00:00 Beijing Time (16:00 UTC previous day)
+    - cron: '0 16 * * *'
     
   workflow_dispatch:
     inputs:
@@ -32,7 +32,7 @@ env:
   ZOTERO_LIBRARY_ID: ${{ secrets.ZOTERO_LIBRARY_ID }}
   ZOTERO_API_KEY: ${{ secrets.ZOTERO_API_KEY }}
   GMAIL_TOKEN_JSON: ${{ secrets.GMAIL_TOKEN_JSON }}
-  ZOTERO_INBOX_COLLECTION: ${{ vars.collection_name }}
+  ZOTERO_INBOX_COLLECTION: ${{ github.event.inputs.collection_name || '00_INBOXS' }}
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
   DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
   GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
