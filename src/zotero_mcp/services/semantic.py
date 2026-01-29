@@ -232,8 +232,8 @@ class ZoteroSemanticSearch:
                                 chroma_has_fulltext = existing_metadata.get(
                                     "has_fulltext", False
                                 )
-                                local_has_fulltext = (
-                                    len(list(reader._iter_attachments(it.item_id))) > 0
+                                local_has_fulltext = any(
+                                    True for _ in reader._iter_attachments(it.item_id)
                                 )
 
                                 if not chroma_has_fulltext and local_has_fulltext:
