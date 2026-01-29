@@ -2,13 +2,13 @@ name: Automated Zotero
 
 # Schedule:
 #   - 1:00 AM Beijing Time (17:00 UTC previous day) - Analyze new items
-#   - 3:00 PM Beijing Time (7:00 UTC) - Organize existing items
+#   - 3:00 AM Beijing Time (19:00 UTC previous day) - Organize existing items
 on:
   schedule:
     # 1:00 AM Beijing Time (17:00 UTC previous day) - Process new items
     - cron: '0 17 * * *'
-    # 3:00 PM Beijing Time (7:00 UTC) - Process existing items
-    - cron: '0 7 * * *'
+    # 3:00 AM Beijing Time (19:00 UTC previous day) - Process existing items
+    - cron: '0 19 * * *'
 
   # Manual triggering with configurable options
   workflow_dispatch:
@@ -114,7 +114,7 @@ jobs:
   # Job 2: Re-analyze existing items and add tags
   organize-existing-items:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && (inputs.job == 'all' || inputs.job == 'organize-existing') || (github.event_name == 'schedule' && github.event.schedule == '0 12 * * *')
+    if: github.event_name == 'workflow_dispatch' && (inputs.job == 'all' || inputs.job == 'organize-existing') || (github.event_name == 'schedule' && github.event.schedule == '0 19 * * *')
     
     environment: production
     timeout-minutes: 120
