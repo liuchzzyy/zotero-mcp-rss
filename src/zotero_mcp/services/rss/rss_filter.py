@@ -70,7 +70,7 @@ class RSSFilter:
     def load_prompt(self, prompt_file: str | None = None) -> str:
         """
         Load research interests from environment variable or prompt file.
-        
+
         Priority:
         1. RSS_PROMPT environment variable
         2. Explicitly provided prompt_file
@@ -79,7 +79,9 @@ class RSSFilter:
         # 1. Check environment variable
         env_prompt = os.getenv("RSS_PROMPT")
         if env_prompt and env_prompt.strip():
-            logger.info("Loaded research interests from RSS_PROMPT environment variable")
+            logger.info(
+                "Loaded research interests from RSS_PROMPT environment variable"
+            )
             return env_prompt.strip()
 
         # 2. Check file
@@ -288,7 +290,9 @@ Select exactly 10 keywords. Do not include any other text."""
             cache_data = {
                 "hash": prompt_hash,
                 "keywords": best_keywords,
-                "source": "env" if os.getenv("RSS_PROMPT") else str(prompt_file or self.prompt_file or "RSS/prompt.txt"),
+                "source": "env"
+                if os.getenv("RSS_PROMPT")
+                else str(prompt_file or self.prompt_file or "RSS/prompt.txt"),
             }
             KEYWORDS_CACHE_FILE.write_text(
                 json.dumps(cache_data, indent=2), encoding="utf-8"
@@ -301,6 +305,83 @@ Select exactly 10 keywords. Do not include any other text."""
         logger.info(f"Final keywords: {best_keywords}")
         return best_keywords
 
+    def _normalize_text(self, text: str) -> str:
+        """
+        Normalize text for flexible matching.
+
+        - Lowercase
+        - Replace hyphens with spaces (Zn-MnO2 -> zn mno2)
+        - Remove common punctuation
+        - Normalize whitespace
+        """
+        text = text.lower()
+        # Replace hyphens and underscores with spaces
+        text = re.sub(r"[-_]", " ", text)
+        # Remove punctuation except alphanumeric and spaces
+        text = re.sub(r"[^\w\s]", " ", text)
+        # Normalize whitespace
+        text = re.sub(r"\s+", " ", text).strip()
+        return text
+
+    def _get_word_stem(self, word: str) -> str:
+        """
+        Get the stem of a single word.
+
+        Simple stemming: remove common suffixes (s, es, ed, ing, ion, ies).
+        """
+        word = word.lower()
+        # Simple suffix removal for common variations
+        if word.endswith("ies") and len(word) > 3:
+            return word[:-3] + "y"  # batteries -> battery
+        elif word.endswith("es") and len(word) > 2:
+            return word[:-2]  # watches -> watch
+        elif word.endswith("s") and len(word) > 2 and not word.endswith("ss"):
+            return word[:-1]  # items -> item
+        elif word.endswith("ed") and len(word) > 2:
+            return word[:-2]  # filtered -> filter
+        elif word.endswith("ing") and len(word) > 3:
+            return word[:-3]  # running -> run
+        return word
+
+    def _get_word_stems(self, text: str) -> set[str]:
+        """
+        Extract word stems for matching.
+
+        Returns a set of stems (one per word, not both original and stem).
+        """
+        words = self._normalize_text(text).split()
+        return {self._get_word_stem(word) for word in words}
+
+    def _matches_keyword(self, title: str, keyword: str) -> bool:
+        """
+        Check if a title matches a keyword using flexible matching.
+
+        Matching strategies:
+        1. Exact substring match (after normalization)
+        2. All words in keyword appear in title (word-level match)
+        3. Stem-based matching for singular/plural variations
+        """
+        title_norm = self._normalize_text(title)
+        kw_norm = self._normalize_text(keyword)
+
+        # Strategy 1: Exact substring match
+        if kw_norm in title_norm:
+            return True
+
+        # Strategy 2: All keyword words appear in title
+        kw_words = set(kw_norm.split())
+        title_words = set(title_norm.split())
+        if kw_words and kw_words.issubset(title_words):
+            return True
+
+        # Strategy 3: Stem-based matching
+        title_stems = self._get_word_stems(title)
+        kw_stems = self._get_word_stems(keyword)
+        if kw_stems and kw_stems.issubset(title_stems):
+            return True
+
+        return False
+
     def filter_items(
         self,
         items: list[RSSItem],
@@ -308,6 +389,12 @@ Select exactly 10 keywords. Do not include any other text."""
     ) -> tuple[list[RSSItem], list[RSSItem]]:
         """
         Filter RSS items by matching keywords against titles.
+
+        Uses flexible matching that handles:
+        - Case insensitivity
+        - Hyphen/space variations (Zn-MnO2 vs Zn MnO2)
+        - Singular/plural variations (battery vs batteries)
+        - Word-level matching (all words in keyword appear in title)
 
         Args:
             items: List of RSSItem to filter
@@ -322,21 +409,19 @@ Select exactly 10 keywords. Do not include any other text."""
                 "No keywords available. Call extract_keywords() first or provide keywords."
             )
 
-        # Prepare keywords for case-insensitive matching
-        kw_lower = [kw.lower() for kw in kw_list]
-
         relevant = []
         irrelevant = []
 
         for item in items:
-            title_lower = item.title.lower()
-            # Check if any keyword is in the title
-            is_relevant = any(kw in title_lower for kw in kw_lower)
+            # Check if any keyword matches the title
+            is_relevant = any(self._matches_keyword(item.title, kw) for kw in kw_list)
 
             if is_relevant:
                 relevant.append(item)
+                logger.debug(f"  ✓ Matched: {item.title[:60]}...")
             else:
                 irrelevant.append(item)
+                logger.debug(f"  ✗ No match: {item.title[:60]}...")
 
         logger.info(
             f"Filtering complete: {len(relevant)} relevant, {len(irrelevant)} irrelevant"
