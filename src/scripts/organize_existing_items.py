@@ -3,7 +3,7 @@
 Automated Existing Item Re-analysis Script
 
 This script is designed to run in GitHub Actions on a schedule.
-It processes existing items in all collections (excluding the staging collection):
+It processes existing items in all collections (excluding staging collection):
 1. Filters for items with both PDF and notes but no tags
 2. Deletes old notes (moves to trash)
 3. Re-analyzes with AI
@@ -28,6 +28,7 @@ import sys
 # Setup path to import zotero_mcp modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from zotero_mcp.clients.llm import get_llm_client
 from zotero_mcp.services.analysis_status import AnalysisStatusService
 from zotero_mcp.services.data_access import get_data_service
 
@@ -207,7 +208,7 @@ async def add_tags_to_items(data_service, item_keys: list[str], tags: list[str])
 
 async def get_all_items_except_excluded(data_service, excluded_collection_key: str):
     """
-    Get all library items except those in the excluded collection.
+    Get all library items except those in excluded collection.
 
     Args:
         data_service: DataAccessService instance
@@ -347,8 +348,6 @@ async def main():
             )
 
         # Run batch re-analysis
-        # Note: We need to create a temporary collection or use a different approach
-        # For now, we'll process items one by one using the workflow service
         logger.info("")
         logger.info("=" * 70)
         logger.info("Starting batch re-analysis with DeepSeek AI")
@@ -357,14 +356,20 @@ async def main():
         logger.info("LLM Provider: DeepSeek")
         logger.info("")
 
-        # Use workflow service for batch analysis
         # Since we're processing items from multiple collections,
-        # we'll use the 'recent' source type and filter manually
+        # we'll use 'recent' source type and filter manually
         # Note: This is a limitation of the current workflow API
         # For now, we'll track successes manually
 
         processed_items = []
         failed_items = []
+
+        # Initialize LLM client
+        try:
+            llm_client = get_llm_client(provider="deepseek", model=None)
+        except Exception as e:
+            logger.error(f"Failed to initialize LLM client: {e}")
+            sys.exit(1)
 
         for idx, item in enumerate(items_to_process):
             item_key = item.get("key", "")
@@ -373,22 +378,67 @@ async def main():
             await progress_callback(idx + 1, len(items_to_process), item_title)
 
             try:
-                # Create note for this item using workflow service
-                # Note: batch_analyze requires collection_key, so we process individually
+                # Get item metadata and fulltext
+                item_data = await data_service.get_item(item_key)
+                metadata = item_data.get("data", {})
                 fulltext = await data_service.get_fulltext(item_key)
+
                 if not fulltext:
                     logger.warning(f"  No fulltext for {item_title[:50]}, skipping")
                     failed_items.append(item_key)
                     continue
 
-                # Here we would call the LLM to analyze the item
-                # For now, we'll use the workflow service
-                # This is a simplified version - in production, we'd use batch_analyze
-                # but it requires a collection_key which we don't have for cross-collection items
+                # Get PDF annotations
+                children = await data_service.get_item_children(item_key)
+                annotations = []
+                for child in children:
+                    child_data = child.get("data", {})
+                    if child_data.get("itemType") == "attachment":
+                        # Try to get annotations from this attachment
+                        try:
+                            child_key = child_data.get("key", "")
+                            attachment_annotations = await data_service.get_annotations(
+                                child_key
+                            )
+                            annotations.extend(attachment_annotations)
+                        except Exception:
+                            logger.debug(f"  No annotations for attachment")
 
-                # For now, we'll just mark as processed
-                # TODO: Implement actual LLM analysis call
+                # Call LLM to analyze the paper
+                logger.info(f"  Analyzing {item_title[:50]} with DeepSeek AI...")
+
+                # Get item metadata for analysis
+                creators = metadata.get("creators", [])
+                authors = (
+                    ", ".join([c.get("name", "") for c in creators])
+                    if creators
+                    else None
+                )
+
+                analysis_markdown = await llm_client.analyze_paper(
+                    title=metadata.get("title", ""),
+                    authors=authors,
+                    journal=metadata.get("publicationTitle"),
+                    date=metadata.get("date"),
+                    doi=metadata.get("doi"),
+                    fulltext=fulltext,
+                    annotations=annotations if annotations else None,
+                    template=None,  # Use default template
+                )
+
+                # Convert Markdown to HTML for Zotero note
+                from zotero_mcp.utils.markdown_html import markdown_to_html
+
+                note_html = markdown_to_html(analysis_markdown)
+
+                # Create note
+                logger.info(f"  Creating analysis note for {item_title[:50]}...")
+                await data_service.item_service.create_note(
+                    parent_key=item_key, content=note_html, tags=["AI分析"]
+                )
+
                 processed_items.append(item_key)
+                logger.info(f"  ✓ Successfully analyzed and tagged {item_title[:50]}")
 
             except Exception as e:
                 logger.error(f"  Error processing {item_title[:50]}: {e}")
