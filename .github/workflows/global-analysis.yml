@@ -1,0 +1,75 @@
+name: Global Analysis
+
+on:
+  schedule:
+    # Run weekly on Sundays at 10 AM UTC
+    - cron: '0 10 * * 0'
+    
+  workflow_dispatch:
+    inputs:
+      scan_limit:
+        description: 'Maximum items to process'
+        required: false
+        default: 20
+      target_collection:
+        description: 'Target collection for processed items'
+        required: false
+        default: '01_SHORTTERMS'
+      dry_run:
+        description: 'Preview mode - do not process items'
+        required: false
+        default: false
+
+env:
+  ZOTERO_LIBRARY_ID: ${{ secrets.ZOTERO_LIBRARY_ID }}
+  ZOTERO_API_KEY: ${{ secrets.ZOTERO_API_KEY }}
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+  ZOTERO_PROCESSED_COLLECTION: ${{ vars.target_collection }}
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: |
+          pip install feedparser
+          
+      - name: Run global scan
+        run: |
+          python -c "
+          import asyncio
+          import os
+          
+          from zotero_mcp.services.scanner import GlobalScanner
+          from zotero_mcp.services.data_access import get_data_service
+          
+          async def main():
+              service = GlobalScanner()
+              limit = int('${{ github.event.inputs.scan_limit }}')
+              target = '${{ github.event.inputs.target_collection }}'
+              dry_run = '${{ github.event.inputs.dry_run }}' == 'true'
+              
+              print(f'starting global scan...')
+              print(f'Limit: {limit}')
+              print(f'Target collection: {target}')
+              print(f'Dry run: {dry_run}')
+              
+              if dry_run:
+                  print('DRY RUN MODE - No actual processing')
+                  return
+              
+              result = await service.scan_and_process(limit=limit, collection_override=target)
+              print(f'Results: {result}')
+          
+          asyncio.run(main())
+          "

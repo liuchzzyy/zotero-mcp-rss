@@ -1,0 +1,78 @@
+name: RSS Ingestion
+
+on:
+  schedule:
+    # Run daily at 9 AM UTC (good time for US/Europe)
+    - cron: '0 9 * * *'
+    
+  workflow_dispatch:
+    inputs:
+      rss_feeds:
+        description: 'RSS feed URLs to process'
+        required: false
+        default: 'https://arxiv.org/rss/cs.xml,https://pubmed.ncbi.nlm.nih.gov/rss/annoucement/arxiv.rss'
+      collection_name:
+        description: 'Target Zotero collection name'
+        required: false
+        default: '00_INBOXS'
+      dry_run:
+        description: 'Preview mode - do not import items'
+        required: false
+        default: false
+
+env:
+  ZOTERO_LIBRARY_ID: ${{ secrets.ZOTERO_LIBRARY_ID }}
+  ZOTERO_API_KEY: ${{ secrets.ZOTERO_API_KEY }}
+  RSS_PROMPT: ${{ vars.RSS_PROMPT }}
+  ZOTERO_INBOX_COLLECTION: ${{ vars.collection_name }}
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: |
+          pip install feedparser
+          
+      - name: Run RSS ingestion
+        run: |
+          python -c "
+          import asyncio
+          import os
+          
+          from zotero_mcp.services.ingestion import IngestionService
+          from zotero_mcp.utils.config import get_ingestion_config
+          
+          async def main():
+              service = IngestionService()
+              config = get_ingestion_config()
+              
+              feeds = '${{ github.event.inputs.rss_feeds }}'.split(',')
+              collection = '${{ github.event.inputs.collection_name }}'
+              dry_run = '${{ github.event.inputs.dry_run }}' == 'true'
+              
+              print(f'Starting RSS ingestion...')
+              print(f'Feeds: {feeds}')
+              print(f'Collection: {collection}')
+              print(f'Dry run: {dry_run}')
+              
+              if dry_run:
+                  print('DRY RUN MODE - No actual imports')
+                  return
+              
+              result = await service.process_ingestion('rss')
+              print(f'Results: {result}')
+          
+          asyncio.run(main())
+          "
