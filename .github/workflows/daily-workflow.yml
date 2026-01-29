@@ -2,6 +2,9 @@ name: Daily Research Workflow (RSS + Gmail)
 
 # Schedule: Run daily at 3:00 AM Beijing Time (UTC 19:00 previous day)
 on:
+  push:
+    branches:
+      - feat/gmail-integration
   schedule:
     - cron: '0 19 * * *'
 
