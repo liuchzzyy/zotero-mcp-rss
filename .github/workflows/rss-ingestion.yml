@@ -50,6 +50,7 @@ jobs:
           uv sync
 
       - name: Run RSS ingestion
+        id: rss
         run: |
           ARGS="--opml ${{ github.event.inputs.opml_path || 'RSS/RSS_official.opml' }}"
           ARGS="$ARGS --collection ${{ github.event.inputs.collection_name || '00_INBOXS' }}"
@@ -59,4 +60,27 @@ jobs:
             ARGS="$ARGS --dry-run"
           fi
 
-          uv run zotero-mcp rss fetch $ARGS
+          uv run zotero-mcp rss fetch $ARGS 2>&1 | tee rss-output.log
+
+      - name: Upload RSS logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rss-ingestion-logs-${{ github.run_number }}
+          path: |
+            rss-output.log
+            ~/.cache/zotero-mcp/logs/
+          retention-days: 3
+
+      - name: Archive logs (keep last 3 days)
+        if: always()
+        run: |
+          tar -czf rss-ingestion-logs-$(date +%Y%m%d).tar.gz -C ~/.cache/zotero-mcp/ logs/ || true
+
+      - name: Upload archived logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rss-ingestion-archive-${{ github.run_number }}
+          path: rss-ingestion-logs-*.tar.gz
+          retention-days: 3

@@ -4,14 +4,15 @@ Command-line interface for Zotero MCP server.
 
 import argparse
 import json
-import logging
-import os
 from pathlib import Path
 import shutil
 import sys
 
 from zotero_mcp.server import mcp
 from zotero_mcp.utils.config import load_config
+from zotero_mcp.utils.logging_config import (
+    initialize_logging,
+)
 
 
 def obfuscate_sensitive_value(value: str | None, keep_chars: int = 4) -> str | None:
@@ -270,15 +271,8 @@ def main():
 
     args = parser.parse_args()
 
-    # Wire up DEBUG env var to logging
-    if os.getenv("DEBUG", "").lower() in ("true", "1", "yes"):
-        logging.basicConfig(
-            level=logging.DEBUG, format="%(name)s %(levelname)s: %(message)s"
-        )
-    else:
-        logging.basicConfig(
-            level=logging.INFO, format="%(name)s %(levelname)s: %(message)s"
-        )
+    # Initialize logging system
+    initialize_logging()
 
     if not args.command:
         args.command = "serve"

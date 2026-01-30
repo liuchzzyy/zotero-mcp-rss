@@ -9,12 +9,16 @@ from fastmcp import FastMCP
 
 from zotero_mcp.tools import register_all_tools
 from zotero_mcp.utils.config import load_config
+from zotero_mcp.utils.logging_config import initialize_logging
 
 # Initialize FastMCP server
 mcp = FastMCP(
     name="Zotero",
     # description param removed for compatibility
 )
+
+# Initialize logging
+initialize_logging()
 
 # Load configuration
 load_config()

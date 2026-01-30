@@ -56,6 +56,7 @@ jobs:
           uv sync
 
       - name: Run Gmail ingestion
+        id: gmail
         run: |
           ARGS="--collection ${{ github.event.inputs.collection_name || '00_INBOXS' }}"
           ARGS="$ARGS --max-emails ${{ github.event.inputs.max_emails || '50' }}"
@@ -74,4 +75,27 @@ jobs:
             ARGS="$ARGS --dry-run"
           fi
 
-          uv run zotero-mcp gmail process $ARGS
+          uv run zotero-mcp gmail process $ARGS 2>&1 | tee gmail-output.log
+
+      - name: Upload Gmail logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gmail-ingestion-logs-${{ github.run_number }}
+          path: |
+            gmail-output.log
+            ~/.cache/zotero-mcp/logs/
+          retention-days: 3
+
+      - name: Archive logs (keep last 3 days)
+        if: always()
+        run: |
+          tar -czf gmail-ingestion-logs-$(date +%Y%m%d).tar.gz -C ~/.cache/zotero-mcp/ logs/ || true
+
+      - name: Upload archived logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gmail-ingestion-archive-${{ github.run_number }}
+          path: gmail-ingestion-logs-*.tar.gz
+          retention-days: 3

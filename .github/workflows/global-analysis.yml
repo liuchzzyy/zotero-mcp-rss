@@ -46,6 +46,7 @@ jobs:
           uv sync
 
       - name: Run global scan
+        id: scan
         run: |
           ARGS="--limit ${{ github.event.inputs.scan_limit || '20' }}"
           ARGS="$ARGS --target-collection ${{ github.event.inputs.target_collection || '01_SHORTTERMS' }}"
@@ -54,4 +55,34 @@ jobs:
             ARGS="$ARGS --dry-run"
           fi
 
-          uv run zotero-mcp scan $ARGS
+          uv run zotero-mcp scan $ARGS 2>&1 | tee scan-output.log
+
+      - name: Upload scan logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: global-analysis-logs-${{ github.run_number }}
+          path: |
+            scan-output.log
+            ~/.cache/zotero-mcp/logs/
+          retention-days: 3
+
+      - name: Archive logs (keep last 3 days)
+        if: always()
+        run: |
+          # Create archive directory
+          mkdir -p archived-logs
+
+          # Copy recent logs (last 3 days)
+          find ~/.cache/zotero-mcp/logs/ -name "*.log" -mtime -3 -exec cp {} archived-logs/ \;
+
+          # Create dated archive
+          tar -czf global-analysis-logs-$(date +%Y%m%d).tar.gz -C ~/.cache/zotero-mcp/ logs/ || true
+
+      - name: Upload archived logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: global-analysis-archive-${{ github.run_number }}
+          path: global-analysis-logs-*.tar.gz
+          retention-days: 3

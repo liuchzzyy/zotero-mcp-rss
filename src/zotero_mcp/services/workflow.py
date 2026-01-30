@@ -6,7 +6,6 @@ with checkpoint support for resuming interrupted workflows.
 """
 
 from collections.abc import Callable
-import logging
 import time
 from typing import Any, Literal
 
@@ -22,10 +21,15 @@ from zotero_mcp.services.data_access import get_data_service
 from zotero_mcp.utils.batch_loader import BatchLoader
 from zotero_mcp.utils.beautify import beautify_ai_note
 from zotero_mcp.utils.helpers import format_creators
+from zotero_mcp.utils.logging_config import (
+    get_logger,
+    log_task_end,
+    log_task_start,
+)
 from zotero_mcp.utils.markdown_html import markdown_to_html
 from zotero_mcp.utils.templates import get_analysis_questions
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # -------------------- Workflow Service --------------------
@@ -188,6 +192,18 @@ class WorkflowService:
         Returns:
             BatchAnalyzeResponse with results
         """
+        # Log task start
+        task_name = f"Batch Analysis ({source})"
+        log_task_start(
+            logger,
+            task_name,
+            source=source,
+            collection=collection_key or collection_name or "N/A",
+            days=days,
+            limit=limit,
+            dry_run=dry_run,
+        )
+
         # Load or create workflow state
         workflow_state = None
         if resume_workflow_id:
@@ -347,6 +363,23 @@ class WorkflowService:
         total_processed = len(workflow_state.processed_keys)
         total_skipped = len(workflow_state.skipped_keys)
         total_failed = len(workflow_state.failed_keys)
+
+        # Collect errors
+        errors = [
+            f"{r.item_key}: {r.error}"
+            for r in results
+            if not r.success and not r.skipped
+        ]
+
+        # Log task end
+        log_task_end(
+            logger,
+            f"Batch Analysis ({source})",
+            items_processed=total_processed,
+            errors=errors if errors else None,
+            skipped=total_skipped,
+            failed=total_failed,
+        )
 
         return BatchAnalyzeResponse(
             workflow_id=workflow_state.workflow_id,
