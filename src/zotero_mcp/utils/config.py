@@ -4,6 +4,12 @@ Configuration loading and management for Zotero MCP.
 Supports loading configuration from:
 - Opencode CLI config (~/.opencode/)
 - Standalone config (~/.config/zotero-mcp/config.json)
+- Environment variables (.env)
+
+Features:
+- Configuration caching for performance
+- Environment mode support (development, testing, production)
+- Centralized configuration management
 """
 
 import json
@@ -12,6 +18,84 @@ from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
+
+# -------------------- Configuration Cache --------------------
+
+
+_config_cache: dict[str, Any] | None = None
+_cache_timestamp: float = 0
+_CACHE_TTL = 300  # 5 minutes cache TTL
+
+
+def _clear_cache() -> None:
+    """Clear configuration cache."""
+    global _config_cache, _cache_timestamp
+    _config_cache = None
+    _cache_timestamp = 0
+
+
+def _is_cache_valid() -> bool:
+    """Check if cache is still valid."""
+    import time
+
+    global _cache_timestamp
+    return _config_cache is not None and (time.time() - _cache_timestamp) < _CACHE_TTL
+
+
+# -------------------- Environment Modes --------------------
+
+
+ENV_MODES = {
+    "development": {
+        "ZOTERO_LOCAL": "true",
+        "DEBUG": "true",
+        "LOG_LEVEL": "DEBUG",
+    },
+    "testing": {
+        "ZOTERO_LOCAL": "true",
+        "DEBUG": "true",
+        "LOG_LEVEL": "INFO",
+    },
+    "production": {
+        "ZOTERO_LOCAL": "false",
+        "DEBUG": "false",
+        "LOG_LEVEL": "WARNING",
+    },
+}
+
+
+def get_env_mode() -> str:
+    """
+    Get the current environment mode.
+
+    Checks ENV_MODE environment variable, defaults to 'production'.
+
+    Returns:
+        Environment mode: 'development', 'testing', or 'production'
+    """
+    mode = os.getenv("ENV_MODE", "production").lower()
+    if mode not in ENV_MODES:
+        mode = "production"
+    return mode
+
+
+def apply_env_mode(mode: str) -> None:
+    """
+    Apply environment mode settings to environment variables.
+
+    Args:
+        mode: Environment mode ('development', 'testing', or 'production')
+    """
+    if mode not in ENV_MODES:
+        raise ValueError(
+            f"Invalid environment mode: {mode}. Must be one of: {list(ENV_MODES.keys())}"
+        )
+
+    mode_settings = ENV_MODES[mode]
+    for key, value in mode_settings.items():
+        # Only set if not already set in environment
+        if key not in os.environ:
+            os.environ[key] = value
 
 
 def get_config_path() -> Path:
@@ -104,7 +188,7 @@ def load_standalone_config() -> dict[str, Any]:
         return {}
 
 
-def load_config() -> dict[str, Any]:
+def load_config(use_cache: bool = True, load_dotenv_file: bool = True) -> dict[str, Any]:
     """
     Load configuration from all available sources.
 
@@ -113,11 +197,25 @@ def load_config() -> dict[str, Any]:
     2. Standalone config (~/.config/zotero-mcp/config.json)
     3. Opencode CLI config (lowest priority)
 
+    Args:
+        use_cache: Whether to use cached configuration (default: True)
+        load_dotenv_file: Whether to load .env file (default: True, set to False in tests)
+
     Returns:
         Merged configuration dictionary with 'env' and 'semantic_search' keys.
     """
+    import time
+
+    global _config_cache, _cache_timestamp
+
+    # Check cache first
+    if use_cache and _is_cache_valid():
+        assert _config_cache is not None
+        return _config_cache
+
     # Load from .env file
-    load_dotenv()
+    if load_dotenv_file:
+        load_dotenv()
 
     # Start with lowest priority and override with higher
     env_config: dict[str, str] = {}
@@ -133,7 +231,15 @@ def load_config() -> dict[str, Any]:
 
     # Apply environment variables (highest priority)
     # We scan for relevant keys to include in the returned config
-    relevant_prefixes = ["RSS_", "ZOTERO_", "OPENAI_", "GEMINI_", "DEEPSEEK_", "GMAIL_"]
+    relevant_prefixes = [
+        "RSS_",
+        "ZOTERO_",
+        "OPENAI_",
+        "GEMINI_",
+        "DEEPSEEK_",
+        "GMAIL_",
+        "ENV_MODE",
+    ]
     for key, value in os.environ.items():
         if any(key.startswith(prefix) for prefix in relevant_prefixes):
             env_config[key] = value
@@ -144,10 +250,27 @@ def load_config() -> dict[str, Any]:
         if key not in os.environ:
             os.environ[key] = str(value)
 
-    return {
+    config = {
         "env": env_config,
         "semantic_search": standalone.get("semantic_search", {}),
     }
+
+    # Update cache
+    _config_cache = config
+    _cache_timestamp = time.time()
+
+    return config
+
+
+def reload_config() -> dict[str, Any]:
+    """
+    Force reload configuration, bypassing cache.
+
+    Returns:
+        Freshly loaded configuration dictionary.
+    """
+    _clear_cache()
+    return load_config(use_cache=False)
 
 
 def get_semantic_search_config() -> dict[str, Any]:
