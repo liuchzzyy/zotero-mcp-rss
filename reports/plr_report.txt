@@ -1,0 +1,70 @@
+src\zotero_mcp\cli.py:76:5: PLR0912 Too many branches (51 > 12)
+src\zotero_mcp\cli.py:76:5: PLR0915 Too many statements (275 > 50)
+src\zotero_mcp\cli.py:453:29: PLR2004 Magic value used in comparison, consider replacing `15` with a constant variable
+src\zotero_mcp\cli.py:455:35: PLR2004 Magic value used in comparison, consider replacing `15` with a constant variable
+src\zotero_mcp\clients\better_bibtex.py:254:59: PLR2004 Magic value used in comparison, consider replacing `2` with a constant variable
+src\zotero_mcp\clients\cli_llm.py:78:15: PLR0913 Too many arguments in function definition (8 > 5)
+src\zotero_mcp\clients\crossref.py:306:42: PLR2004 Magic value used in comparison, consider replacing `404` with a constant variable
+src\zotero_mcp\clients\gmail.py:68:9: PLR0912 Too many branches (14 > 12)
+src\zotero_mcp\clients\llm.py:98:15: PLR0913 Too many arguments in function definition (8 > 5)
+src\zotero_mcp\clients\openalex.py:309:42: PLR2004 Magic value used in comparison, consider replacing `404` with a constant variable
+src\zotero_mcp\formatters\bibtex.py:111:9: PLR0912 Too many branches (24 > 12)
+src\zotero_mcp\formatters\bibtex.py:111:9: PLR0915 Too many statements (69 > 50)
+src\zotero_mcp\services\checkpoint.py:219:20: PLR1714 Consider merging multiple comparisons: `status_filter in ("all", state.status)`. Use a `set` if the elements are hashable.
+src\zotero_mcp\services\gmail\gmail_service.py:127:9: PLR0912 Too many branches (13 > 12)
+src\zotero_mcp\services\gmail\gmail_service.py:147:28: PLR2004 Magic value used in comparison, consider replacing `10` with a constant variable
+src\zotero_mcp\services\gmail\gmail_service.py:160:32: PLR2004 Magic value used in comparison, consider replacing `20` with a constant variable
+src\zotero_mcp\services\gmail\gmail_service.py:160:51: PLR2004 Magic value used in comparison, consider replacing `500` with a constant variable
+src\zotero_mcp\services\gmail\gmail_service.py:164:38: PLR2004 Magic value used in comparison, consider replacing `10` with a constant variable
+src\zotero_mcp\services\gmail\gmail_service.py:183:44: PLR2004 Magic value used in comparison, consider replacing `200` with a constant variable
+src\zotero_mcp\services\gmail\gmail_service.py:186:30: PLR2004 Magic value used in comparison, consider replacing `100` with a constant variable
+src\zotero_mcp\services\gmail\gmail_service.py:220:29: PLR2004 Magic value used in comparison, consider replacing `15` with a constant variable
+src\zotero_mcp\services\gmail\gmail_service.py:226:29: PLR2004 Magic value used in comparison, consider replacing `15` with a constant variable
+src\zotero_mcp\services\gmail\gmail_service.py:226:48: PLR2004 Magic value used in comparison, consider replacing `500` with a constant variable
+src\zotero_mcp\services\gmail\gmail_service.py:264:28: PLR2004 Magic value used in comparison, consider replacing `20` with a constant variable
+src\zotero_mcp\services\gmail\gmail_service.py:264:46: PLR2004 Magic value used in comparison, consider replacing `500` with a constant variable
+src\zotero_mcp\services\gmail\gmail_service.py:443:15: PLR0913 Too many arguments in function definition (9 > 5)
+src\zotero_mcp\services\gmail\gmail_service.py:443:15: PLR0912 Too many branches (16 > 12)
+src\zotero_mcp\services\gmail\gmail_service.py:443:15: PLR0915 Too many statements (65 > 50)
+src\zotero_mcp\services\item.py:168:13: PLR5501 [*] Use `elif` instead of `else` then `if`, to reduce indentation
+src\zotero_mcp\services\metadata.py:46:9: PLR0912 Too many branches (15 > 12)
+src\zotero_mcp\services\rss\rss_filter.py:143:31: PLR2004 Magic value used in comparison, consider replacing `10` with a constant variable
+src\zotero_mcp\services\rss\rss_filter.py:147:38: PLR2004 Magic value used in comparison, consider replacing `10` with a constant variable
+src\zotero_mcp\services\rss\rss_filter.py:415:49: PLR2004 Magic value used in comparison, consider replacing `3` with a constant variable
+src\zotero_mcp\services\rss\rss_filter.py:417:50: PLR2004 Magic value used in comparison, consider replacing `2` with a constant variable
+src\zotero_mcp\services\rss\rss_filter.py:419:49: PLR2004 Magic value used in comparison, consider replacing `2` with a constant variable
+src\zotero_mcp\services\rss\rss_filter.py:421:50: PLR2004 Magic value used in comparison, consider replacing `2` with a constant variable
+src\zotero_mcp\services\rss\rss_filter.py:423:51: PLR2004 Magic value used in comparison, consider replacing `3` with a constant variable
+src\zotero_mcp\services\rss\rss_filter.py:714:32: PLR2004 Magic value used in comparison, consider replacing `500` with a constant variable
+src\zotero_mcp\services\rss\rss_service.py:303:15: PLR0911 Too many return statements (7 > 6)
+src\zotero_mcp\services\rss\rss_service.py:396:15: PLR0913 Too many arguments in function definition (7 > 5)
+src\zotero_mcp\services\scanner.py:60:15: PLR0912 Too many branches (21 > 12)
+src\zotero_mcp\services\scanner.py:60:15: PLR0915 Too many statements (69 > 50)
+src\zotero_mcp\services\semantic.py:117:9: PLR0911 Too many return statements (9 > 6)
+src\zotero_mcp\services\semantic.py:167:9: PLR0912 Too many branches (20 > 12)
+src\zotero_mcp\services\semantic.py:167:9: PLR0915 Too many statements (66 > 50)
+src\zotero_mcp\services\workflow.py:48:15: PLR0913 Too many arguments in function definition (7 > 5)
+src\zotero_mcp\services\workflow.py:154:15: PLR0913 Too many arguments in function definition (15 > 5)
+src\zotero_mcp\services\workflow.py:154:15: PLR0912 Too many branches (14 > 12)
+src\zotero_mcp\services\workflow.py:154:15: PLR0915 Too many statements (54 > 50)
+src\zotero_mcp\services\workflow.py:395:15: PLR0913 Too many arguments in function definition (8 > 5)
+src\zotero_mcp\services\workflow.py:395:15: PLR0912 Too many branches (13 > 12)
+src\zotero_mcp\tools\annotations.py:33:5: PLR0915 Too many statements (99 > 50)
+src\zotero_mcp\tools\annotations.py:212:41: PLR2004 Magic value used in comparison, consider replacing `2000` with a constant variable
+src\zotero_mcp\tools\database.py:16:5: PLR0915 Too many statements (52 > 50)
+src\zotero_mcp\tools\items.py:36:5: PLR0915 Too many statements (64 > 50)
+src\zotero_mcp\tools\search.py:28:5: PLR0915 Too many statements (79 > 50)
+src\zotero_mcp\tools\workflow.py:27:5: PLR0915 Too many statements (65 > 50)
+src\zotero_mcp\utils\errors.py:64:5: PLR0911 Too many return statements (8 > 6)
+src\zotero_mcp\utils\logging_config.py:336:26: PLR2004 Magic value used in comparison, consider replacing `10` with a constant variable
+src\zotero_mcp\utils\setup.py:59:5: PLR0912 Too many branches (21 > 12)
+src\zotero_mcp\utils\setup.py:59:5: PLR0915 Too many statements (90 > 50)
+src\zotero_mcp\utils\setup.py:293:5: PLR0912 Too many branches (23 > 12)
+src\zotero_mcp\utils\setup.py:293:5: PLR0915 Too many statements (91 > 50)
+src\zotero_mcp\utils\setup.py:400:77: PLR2004 Magic value used in comparison, consider replacing `8` with a constant variable
+src\zotero_mcp\utils\updater.py:132:36: PLR2004 Magic value used in comparison, consider replacing `200` with a constant variable
+src\zotero_mcp\utils\updater.py:306:5: PLR0911 Too many return statements (10 > 6)
+src\zotero_mcp\utils\updater.py:306:5: PLR0912 Too many branches (14 > 12)
+src\zotero_mcp\utils\updater.py:306:5: PLR0915 Too many statements (60 > 50)
+Found 68 errors.
+[*] 1 fixable with the `--fix` option (1 hidden fix can be enabled with the `--unsafe-fixes` option).
