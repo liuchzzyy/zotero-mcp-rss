@@ -3,6 +3,12 @@ LLM client for Zotero MCP.
 
 Provides unified interface for calling LLM APIs (DeepSeek, OpenAI, Gemini)
 to analyze research papers and generate structured notes.
+
+Features:
+- Automatic retry with exponential backoff
+- Timeout control
+- Smart provider selection with priority: DeepSeek > OpenAI > Gemini
+- Unified error handling
 """
 
 import asyncio
@@ -13,6 +19,18 @@ from typing import Any, Literal
 from zotero_mcp.utils.templates import get_analysis_template
 
 logger = logging.getLogger(__name__)
+
+
+# -------------------- Configuration --------------------
+
+
+# API call configuration
+MAX_RETRIES = 3
+RETRY_DELAY = 1.0  # Base delay in seconds
+REQUEST_TIMEOUT = 60  # Timeout in seconds
+
+# Provider priority order (highest to lowest)
+PROVIDER_PRIORITY = ["deepseek", "openai", "gemini"]
 
 
 # -------------------- Provider Configuration --------------------
@@ -104,7 +122,11 @@ class LLMClient:
         )
 
     def _select_provider(self, provider: str) -> str:
-        """Auto-select provider if set to 'auto'."""
+        """
+        Auto-select provider if set to 'auto'.
+
+        Priority order: DeepSeek > OpenAI > Gemini
+        """
         if provider != "auto":
             if provider not in PROVIDERS:
                 raise ValueError(
@@ -112,10 +134,10 @@ class LLMClient:
                 )
             return provider
 
-        # Auto-select based on available API keys
-        for prov, config in PROVIDERS.items():
-            if os.getenv(config["env_key"]):
-                logger.info(f"Auto-selected provider: {prov}")
+        # Auto-select based on priority order and available API keys
+        for prov in PROVIDER_PRIORITY:
+            if prov in PROVIDERS and os.getenv(PROVIDERS[prov]["env_key"]):
+                logger.info(f"Auto-selected provider: {prov} (priority order)")
                 return prov
 
         raise ValueError(
@@ -217,16 +239,126 @@ class LLMClient:
                 annotations_section=annotations_section,
             )
 
-        # Call LLM
+        # Call LLM with retry
         if self.config["api_style"] == "openai":
-            return await self._call_openai_style(prompt)
+            return await self._call_with_retry(self._call_openai_style, prompt)
         elif self.config["api_style"] == "google":
-            return await self._call_google_style(prompt)
+            return await self._call_with_retry(self._call_google_style, prompt)
         else:
             raise ValueError(f"Unknown API style: {self.config['api_style']}")
 
+    async def _call_with_retry(self, api_call, *args, **kwargs) -> str:
+        """
+        Call API with retry mechanism and exponential backoff.
+
+        Args:
+            api_call: The async function to call
+            *args: Positional arguments for the API call
+            **kwargs: Keyword arguments for the API call
+
+        Returns:
+            API response content
+
+        Raises:
+            Exception: If all retry attempts fail
+        """
+        last_exception = None
+
+        for attempt in range(MAX_RETRIES):
+            try:
+                # Add timeout control
+                result = await asyncio.wait_for(
+                    api_call(*args, **kwargs),
+                    timeout=REQUEST_TIMEOUT,
+                )
+                return result
+
+            except asyncio.TimeoutError as e:
+                last_exception = e
+                logger.warning(
+                    f"API call timeout (attempt {attempt + 1}/{MAX_RETRIES}): {e}"
+                )
+
+            except Exception as e:
+                last_exception = e
+                # Check if error is retryable
+                if not self._is_retryable_error(e):
+                    logger.error(f"Non-retryable error: {e}")
+                    raise
+
+                logger.warning(
+                    f"API call failed (attempt {attempt + 1}/{MAX_RETRIES}): {e}"
+                )
+
+            # Don't sleep after last attempt
+            if attempt < MAX_RETRIES - 1:
+                # Exponential backoff
+                delay = RETRY_DELAY * (2**attempt)
+                logger.info(f"Retrying in {delay}s...")
+                await asyncio.sleep(delay)
+
+        # All retries failed
+        logger.error(f"API call failed after {MAX_RETRIES} attempts")
+        raise last_exception or Exception("API call failed")
+
+    def _is_retryable_error(self, error: Exception) -> bool:
+        """
+        Determine if an error is retryable.
+
+        Args:
+            error: The exception to check
+
+        Returns:
+            True if error should be retried, False otherwise
+        """
+        error_str = str(error).lower()
+
+        # Non-reetryable errors
+        non_retryable = [
+            "authentication",
+            "auth",
+            "permission",
+            "invalid",
+            "key",
+            "not found",
+            "401",
+            "403",
+            "404",
+        ]
+
+        if any(keyword in error_str for keyword in non_retryable):
+            return False
+
+        # Retryable errors
+        retryable = [
+            "timeout",
+            "connection",
+            "network",
+            "rate limit",
+            "429",
+            "502",
+            "503",
+            "504",
+            "500",
+            "502",
+        ]
+
+        if any(keyword in error_str for keyword in retryable):
+            return True
+
+        # Default: retry on unknown errors
+        return True
+
     async def _call_openai_style(self, prompt: str) -> str:
-        """Call OpenAI-compatible API (DeepSeek, OpenAI)."""
+        """
+        Call OpenAI-compatible API (DeepSeek, OpenAI).
+
+        Args:
+            prompt: The prompt to send
+
+        Returns:
+            Generated text response
+        """
         try:
             from openai import AsyncOpenAI
         except ImportError as e:
@@ -250,14 +382,26 @@ class LLMClient:
                 max_tokens=4000,
             )
 
-            return response.choices[0].message.content or ""
+            content = response.choices[0].message.content
+            if not content:
+                raise ValueError("Empty response from API")
+
+            return content
 
         except Exception as e:
-            logger.error(f"LLM API call failed: {e}")
+            logger.error(f"OpenAI-style API call failed: {e}")
             raise
 
     async def _call_google_style(self, prompt: str) -> str:
-        """Call Google Gemini API."""
+        """
+        Call Google Gemini API using async API.
+
+        Args:
+            prompt: The prompt to send
+
+        Returns:
+            Generated text response
+        """
         try:
             import google.generativeai as genai
         except ImportError as e:
@@ -271,12 +415,14 @@ class LLMClient:
         model = genai.GenerativeModel(self.model)
 
         try:
-            loop = asyncio.get_event_loop()
-            response = await loop.run_in_executor(
-                None, lambda: model.generate_content(prompt)
-            )
+            # Use async API instead of run_in_executor
+            response = await model.generate_content_async(prompt)
 
-            return response.text
+            content = response.text
+            if not content:
+                raise ValueError("Empty response from Gemini API")
+
+            return content
 
         except Exception as e:
             logger.error(f"Gemini API call failed: {e}")
