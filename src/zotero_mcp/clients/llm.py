@@ -341,17 +341,25 @@ class LLMClient:
 
 
 def get_llm_client(
+    provider: str = "auto",
     model: str | None = None,
-) -> LLMClient:
+) -> Any:
     """
-    Get configured DeepSeek LLM client.
+    Get configured LLM client.
 
     Args:
+        provider: LLM provider ("deepseek", "claude-cli", "auto")
         model: Model name (optional)
 
     Returns:
-        Configured LLMClient
+        Configured LLMClient or CLILLMClient
     """
+    if provider == "claude-cli":
+        from zotero_mcp.clients.cli_llm import CLILLMClient
+
+        return CLILLMClient(model=model)
+
+    # Default: DeepSeek API client
     return LLMClient(model=model)
 
 

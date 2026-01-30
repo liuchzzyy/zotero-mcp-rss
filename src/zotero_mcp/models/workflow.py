@@ -97,7 +97,7 @@ class BatchAnalyzeInput(BaseInput):
         default=True,
         description="Whether to include PDF annotations in analysis",
     )
-    llm_provider: Literal["deepseek", "openai", "gemini", "auto"] = Field(
+    llm_provider: Literal["deepseek", "openai", "gemini", "claude-cli", "auto"] = Field(
         default="auto",
         description="LLM provider to use for analysis",
     )

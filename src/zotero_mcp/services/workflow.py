@@ -501,6 +501,7 @@ class WorkflowService:
                     "deepseek": "DeepSeek",
                     "openai": "OpenAI",
                     "gemini": "Gemini",
+                    "claude-cli": "Claude",
                 }
                 provider_name = provider_map.get(
                     llm_client.provider, llm_client.provider.capitalize()

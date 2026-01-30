@@ -124,7 +124,7 @@ def register_workflow_tools(mcp: FastMCP) -> None:
                 - resume_workflow_id: 断点续传的工作流 ID
                 - skip_existing_notes: 跳过已有笔记的条目
                 - include_annotations: 包含 PDF 批注
-                - llm_provider: "deepseek" | "openai" | "gemini" | "auto"
+                - llm_provider: "deepseek" | "openai" | "gemini" | "claude-cli" | "auto"
                 - llm_model: 模型名称（可选）
                 - dry_run: 仅预览，不创建笔记
 

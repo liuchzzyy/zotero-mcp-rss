@@ -9,11 +9,11 @@ from zotero_mcp.services.workflow import WorkflowService
 @pytest.mark.asyncio
 async def test_llm_client_custom_template():
     """Test that LLMClient uses custom template when provided."""
-    # Setup
-    client = LLMClient(provider="openai", api_key="test_key")
+    # Setup - LLMClient is DeepSeek-only, requires API key
+    client = LLMClient(api_key="test_key")
 
-    # Mock the internal _call_openai_style method to avoid actual API calls
-    client._call_openai_style = AsyncMock(return_value="Mock Analysis")  # type: ignore
+    # Mock the internal _call_with_retry method to capture the prompt
+    client._call_with_retry = AsyncMock(return_value="Mock Analysis")  # type: ignore
 
     custom_template = "My Custom Template with {title}"
 
@@ -29,9 +29,9 @@ async def test_llm_client_custom_template():
     )
 
     # Verify
-    # Check if the prompt sent to _call_openai_style contains our custom template RAW content
-    call_args = client._call_openai_style.call_args  # type: ignore
-    prompt = call_args[0][0]
+    # _call_with_retry is called with (self._call_deepseek_api, prompt)
+    call_args = client._call_with_retry.call_args  # type: ignore
+    prompt = call_args[0][1]  # Second positional arg is the prompt
 
     # The implementation inserts the template string AS IS, without formatting it
     # This is to avoid format errors with user templates (e.g. ${...})
