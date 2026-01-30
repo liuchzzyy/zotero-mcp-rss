@@ -1,13 +1,13 @@
 """
-RSS Filter Service - DeepSeek-powered keyword extraction and filtering.
+RSS Filter Service - AI-powered keyword extraction and filtering.
 
 This module provides AI-powered filtering of RSS feed items based on
-research interests defined in a prompt file. It uses a two-stage
-keyword extraction pipeline for efficiency:
+research interests defined in a prompt file. Two filtering strategies:
 
-1. Generate candidate keywords from research interest prompt
-2. Select the best 10 keywords for matching
-3. Filter articles by matching keywords against titles (local, fast)
+1. **DeepSeek keywords** (default): Extract keywords via DeepSeek API,
+   then match locally against titles (fast, keyword-based).
+2. **Claude CLI** (`filter_with_cli`): Send papers + research interests
+   to Claude CLI for semantic relevance judgement (smarter, batch-based).
 
 Reference: https://github.com/liuchzzyy/RSS_Papers
 """
@@ -20,6 +20,7 @@ import logging
 import os
 from pathlib import Path
 import re
+import tempfile
 
 from openai import OpenAI
 
@@ -557,3 +558,228 @@ Select exactly 10 keywords. Do not include any other text."""
 
         relevant, irrelevant = self.filter_items(items, keywords)
         return relevant, irrelevant, keywords
+
+    # -------------------- Claude CLI Filtering --------------------
+
+    BATCH_SIZE = 50  # Max papers per CLI call
+
+    async def filter_with_cli(
+        self,
+        items: list[RSSItem],
+        prompt_file: str | None = None,
+    ) -> tuple[list[RSSItem], list[RSSItem], list[str]]:
+        """
+        Use Claude CLI to batch-judge paper relevance.
+
+        Sends research interests + paper list to Claude CLI,
+        asks it to return indices of relevant papers as JSON.
+
+        Args:
+            items: List of RSSItem to filter
+            prompt_file: Path to prompt file (optional)
+
+        Returns:
+            Tuple of (relevant_items, irrelevant_items, [])
+            Keywords list is empty since CLI does semantic matching.
+        """
+        if not items:
+            return [], [], []
+
+        research_prompt = self.load_prompt(prompt_file)
+
+        # Process in batches
+        all_relevant_indices: set[int] = set()
+        global_offset = 0
+
+        for batch_start in range(0, len(items), self.BATCH_SIZE):
+            batch = items[batch_start : batch_start + self.BATCH_SIZE]
+            batch_indices = await self._cli_filter_batch(
+                batch, research_prompt, batch_start
+            )
+            all_relevant_indices.update(batch_indices)
+            global_offset += len(batch)
+
+        # Split into relevant / irrelevant
+        relevant = [items[i] for i in sorted(all_relevant_indices)]
+        irrelevant = [
+            items[i] for i in range(len(items)) if i not in all_relevant_indices
+        ]
+
+        logger.info(
+            f"CLI filtering complete: {len(relevant)} relevant, "
+            f"{len(irrelevant)} irrelevant out of {len(items)} total"
+        )
+        return relevant, irrelevant, []
+
+    async def _cli_filter_batch(
+        self,
+        batch: list[RSSItem],
+        research_prompt: str,
+        global_offset: int,
+    ) -> set[int]:
+        """
+        Run a single CLI call for one batch of papers.
+
+        Args:
+            batch: Papers in this batch
+            research_prompt: Research interest text
+            global_offset: Starting index of this batch in the full list
+
+        Returns:
+            Set of global indices that are relevant
+        """
+        from zotero_mcp.clients.cli_llm import CLILLMClient
+
+        # Build paper list text
+        papers_text = self._build_papers_text(batch)
+
+        file_content = f"""## 研究兴趣
+
+{research_prompt}
+
+## 论文列表
+
+以下是 {len(batch)} 篇论文的标题和摘要。请判断每篇论文是否与上述研究兴趣相关。
+
+{papers_text}
+
+## 输出要求
+
+请仅输出一个 JSON 对象，标注与研究兴趣相关的论文编号（从 0 开始的索引）。
+格式：{{"relevant": [0, 3, 7, ...]}}
+
+只输出 JSON，不要输出任何其他文本或解释。
+如果没有相关论文，输出：{{"relevant": []}}
+"""
+
+        # Write to temp file and call CLI
+        temp_dir = Path(tempfile.gettempdir()) / "zotero-mcp-cli"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        temp_file = temp_dir / f"rss_filter_{os.getpid()}_{global_offset}.md"
+
+        try:
+            temp_file.write_text(file_content, encoding="utf-8")
+            logger.info(
+                f"Wrote batch ({len(batch)} papers, offset={global_offset}) "
+                f"to {temp_file}"
+            )
+
+            cli_client = CLILLMClient()
+            prompt = (
+                f"请阅读文件 {temp_file} 的内容，"
+                f"判断哪些论文与研究兴趣相关，"
+                f"仅输出 JSON 格式结果。"
+            )
+
+            cmd = [
+                cli_client.cli_command,
+                "-p",
+                prompt,
+                "--allowedTools",
+                "Read",
+                "--output-format",
+                "text",
+                "--max-turns",
+                "3",
+            ]
+            if cli_client.model:
+                cmd.extend(["--model", cli_client.model])
+
+            output = await cli_client._execute_subprocess(cmd)
+            batch_indices = self._parse_cli_filter_output(output, len(batch))
+
+            # Convert batch-local indices to global indices
+            return {global_offset + i for i in batch_indices}
+
+        except Exception as e:
+            logger.error(
+                f"CLI filter batch failed (offset={global_offset}): {e}. "
+                f"Treating all {len(batch)} papers as irrelevant."
+            )
+            return set()
+
+        finally:
+            try:
+                if temp_file.exists():
+                    temp_file.unlink()
+            except OSError:
+                pass
+
+    def _build_papers_text(self, items: list[RSSItem]) -> str:
+        """Build numbered paper list for CLI prompt."""
+        lines = []
+        for i, item in enumerate(items):
+            abstract = (item.description or "").strip()
+            # Truncate long abstracts
+            if len(abstract) > 500:
+                abstract = abstract[:500] + "..."
+            lines.append(f"### [{i}] {item.title}")
+            if abstract:
+                lines.append(f"{abstract}")
+            lines.append("")
+        return "\n".join(lines)
+
+    def _parse_cli_filter_output(self, output: str, batch_size: int) -> set[int]:
+        """
+        Parse CLI output to extract relevant paper indices.
+
+        Expects JSON like: {"relevant": [0, 3, 7]}
+        Falls back to regex extraction if JSON parsing fails.
+
+        Args:
+            output: Raw CLI output text
+            batch_size: Number of papers in the batch (for validation)
+
+        Returns:
+            Set of valid indices within [0, batch_size)
+        """
+        output = output.strip()
+
+        # Try direct JSON parse
+        try:
+            data = json.loads(output)
+            if isinstance(data, dict) and "relevant" in data:
+                return self._validate_indices(data["relevant"], batch_size)
+        except json.JSONDecodeError:
+            pass
+
+        # Try extracting JSON from markdown code blocks
+        json_match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", output, re.DOTALL)
+        if json_match:
+            try:
+                data = json.loads(json_match.group(1))
+                if isinstance(data, dict) and "relevant" in data:
+                    return self._validate_indices(data["relevant"], batch_size)
+            except json.JSONDecodeError:
+                pass
+
+        # Try finding JSON object anywhere in output
+        json_obj_match = re.search(
+            r'\{[^{}]*"relevant"\s*:\s*\[.*?\][^{}]*\}', output, re.DOTALL
+        )
+        if json_obj_match:
+            try:
+                data = json.loads(json_obj_match.group(0))
+                if isinstance(data, dict) and "relevant" in data:
+                    return self._validate_indices(data["relevant"], batch_size)
+            except json.JSONDecodeError:
+                pass
+
+        logger.warning(
+            f"Failed to parse CLI filter output as JSON. Output preview: {output[:200]}"
+        )
+        return set()
+
+    def _validate_indices(self, indices: list, batch_size: int) -> set[int]:
+        """Validate and filter indices to be within range."""
+        valid = set()
+        for idx in indices:
+            try:
+                i = int(idx)
+                if 0 <= i < batch_size:
+                    valid.add(i)
+                else:
+                    logger.warning(f"Index {i} out of range [0, {batch_size})")
+            except (ValueError, TypeError):
+                logger.warning(f"Invalid index value: {idx}")
+        return valid
