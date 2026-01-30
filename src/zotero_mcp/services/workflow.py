@@ -451,7 +451,7 @@ class WorkflowService:
             annotations = bundle.get("annotations", [])
 
             # 3. Call LLM
-            markdown_note = await llm_client.analyze_paper(
+            analysis_content = await llm_client.analyze_paper(
                 title=item.title,
                 authors=item.authors,
                 journal=metadata.get("data", {}).get("publicationTitle"),
@@ -462,7 +462,23 @@ class WorkflowService:
                 template=template,
             )
 
-            if not markdown_note:
+            # Add title and basic info section at the top
+            basic_info = f"""# AI分析 - {item.title}
+
+## 论文基本信息
+
+- **标题**: {item.title}
+- **作者**: {item.authors or "未知"}
+- **期刊**: {metadata.get("data", {}).get("publicationTitle") or "未知"}
+- **发表日期**: {item.date or "未知"}
+- **DOI**: {item.doi or "未知"}
+
+---
+
+{analysis_content}
+"""
+
+            if not analysis_content:
                 return ItemAnalysisResult(
                     item_key=item.key,
                     title=item.title,
@@ -491,7 +507,7 @@ class WorkflowService:
                                     f"Failed to delete old note {old_key}: {e}"
                                 )
 
-                html_note = markdown_to_html(markdown_note)
+                html_note = markdown_to_html(basic_info)
                 # Auto-beautify with Typora Orange Heart theme
                 html_note = beautify_ai_note(html_note)
 
@@ -500,9 +516,11 @@ class WorkflowService:
                 provider_map = {
                     "deepseek": "DeepSeek",
                     "claude-cli": "Claude",
+                    "claude": "Claude",
                 }
                 provider_name = provider_map.get(
-                    llm_client.provider, llm_client.provider.capitalize()
+                    llm_client.provider,
+                    llm_client.provider.capitalize() if llm_client.provider != "claude-cli" else "Claude"
                 )
                 note_tags = ["AI分析", provider_name]
 
