@@ -205,6 +205,12 @@ def main():
     rss_fetch_parser.add_argument(
         "--dry-run", action="store_true", help="Preview items without importing"
     )
+    rss_fetch_parser.add_argument(
+        "--llm-provider",
+        choices=["deepseek", "claude-cli"],
+        default="deepseek",
+        help="LLM provider for filtering (default: deepseek)",
+    )
 
     # Gmail command
     gmail_parser = subparsers.add_parser("gmail", help="Gmail email processing")
@@ -444,6 +450,7 @@ def main():
                         days_back=args.days,
                         max_items=args.max_items,
                         dry_run=args.dry_run,
+                        llm_provider=args.llm_provider,
                     )
                 )
 
