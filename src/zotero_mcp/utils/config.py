@@ -236,8 +236,6 @@ def load_config(
     relevant_prefixes = [
         "RSS_",
         "ZOTERO_",
-        "OPENAI_",
-        "GEMINI_",
         "DEEPSEEK_",
         "GMAIL_",
         "ENV_MODE",

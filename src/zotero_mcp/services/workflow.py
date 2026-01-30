@@ -496,11 +496,9 @@ class WorkflowService:
                 html_note = beautify_ai_note(html_note)
 
                 # Generate tags: AI分析 + LLM provider name
-                # Format provider name properly (DeepSeek, OpenAI, Gemini)
+                # Format provider name properly (DeepSeek, Claude)
                 provider_map = {
                     "deepseek": "DeepSeek",
-                    "openai": "OpenAI",
-                    "gemini": "Gemini",
                     "claude-cli": "Claude",
                 }
                 provider_name = provider_map.get(
