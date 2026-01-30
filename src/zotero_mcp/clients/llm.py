@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # API call configuration
 MAX_RETRIES = 3
 RETRY_DELAY = 1.0  # Base delay in seconds
-REQUEST_TIMEOUT = 60  # Timeout in seconds
+REQUEST_TIMEOUT = 360  # Timeout in seconds (6 minutes for PDF analysis)
 
 
 # -------------------- Provider Configuration --------------------
@@ -94,6 +94,9 @@ class LLMClient:
             f"Initialized DeepSeek LLM client: "
             f"model={self.model}, base_url={self.base_url}"
         )
+
+        # Store provider for downstream use
+        self.provider = "deepseek"
 
     async def analyze_paper(
         self,
