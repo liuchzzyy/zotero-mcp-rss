@@ -224,7 +224,7 @@ class RSSService:
                 )
                 if not is_retryable or attempt == max_retries - 1:
                     raise
-                delay = base_delay * (2 ** attempt)
+                delay = base_delay * (2**attempt)
                 logger.warning(
                     f"  ↻ {description} failed (attempt {attempt + 1}/{max_retries}): "
                     f"{e}. Retrying in {delay:.0f}s..."
