@@ -58,10 +58,10 @@ class GmailClient:
             credentials_path
             or os.getenv("GMAIL_CREDENTIALS_PATH")
             or DEFAULT_CREDENTIALS_PATH
-        )
+        ).expanduser()
         self.token_path = Path(
             token_path or os.getenv("GMAIL_TOKEN_PATH") or DEFAULT_TOKEN_PATH
-        )
+        ).expanduser()
         self._service: Any = None
         self._credentials: Credentials | None = None
 
@@ -80,7 +80,7 @@ class GmailClient:
         token_json_env = os.getenv("GMAIL_TOKEN_JSON")
         if token_json_env:
             try:
-                token_data = json.loads(token_json_env)
+                token_data = self._parse_token_json(token_json_env)
                 # Credentials.from_authorized_user_info returns Credentials
                 creds = cast(
                     Credentials,
@@ -166,6 +166,34 @@ class GmailClient:
 
         assert creds is not None
         return creds
+
+    @staticmethod
+    def _parse_token_json(raw: str) -> dict:
+        """Parse token JSON with tolerance for common formatting issues.
+
+        Handles:
+        - Single quotes instead of double quotes
+        - Leading/trailing whitespace or BOM
+        - Python-style True/False/None vs JSON true/false/null
+        """
+        import re as _re
+
+        cleaned = raw.strip().lstrip("\ufeff")
+
+        # Try standard parse first
+        try:
+            return json.loads(cleaned)
+        except json.JSONDecodeError:
+            pass
+
+        # Replace single quotes with double quotes
+        cleaned = cleaned.replace("'", '"')
+        # Replace Python booleans/None with JSON equivalents
+        cleaned = _re.sub(r"\bTrue\b", "true", cleaned)
+        cleaned = _re.sub(r"\bFalse\b", "false", cleaned)
+        cleaned = _re.sub(r"\bNone\b", "null", cleaned)
+
+        return json.loads(cleaned)
 
     def _save_token(self, creds: Credentials) -> None:
         """Save token to file for future use."""
