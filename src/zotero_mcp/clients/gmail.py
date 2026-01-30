@@ -172,9 +172,11 @@ class GmailClient:
         """Parse token JSON with tolerance for common formatting issues.
 
         Handles:
+        - Standard JSON
+        - Unquoted keys (e.g. ``{token: value}``)
         - Single quotes instead of double quotes
-        - Leading/trailing whitespace or BOM
         - Python-style True/False/None vs JSON true/false/null
+        - Leading/trailing whitespace or BOM
         """
         import re as _re
 
@@ -186,12 +188,20 @@ class GmailClient:
         except json.JSONDecodeError:
             pass
 
-        # Replace single quotes with double quotes
+        # Fix unquoted keys: word chars before a colon → wrap in double quotes
+        cleaned = _re.sub(r"(?m)^(\s*)(\w+)\s*:", r'\1"\2":', cleaned)
+        # Replace single quotes with double quotes (for values)
         cleaned = cleaned.replace("'", '"')
         # Replace Python booleans/None with JSON equivalents
         cleaned = _re.sub(r"\bTrue\b", "true", cleaned)
         cleaned = _re.sub(r"\bFalse\b", "false", cleaned)
         cleaned = _re.sub(r"\bNone\b", "null", cleaned)
+        # Wrap unquoted string values: "key": bare_value → "key": "bare_value"
+        cleaned = _re.sub(
+            r'("[\w]+")\s*:\s*(?![\[{"\d]|true|false|null)([^\s,}\]]+)',
+            r'\1: "\2"',
+            cleaned,
+        )
 
         return json.loads(cleaned)
 
