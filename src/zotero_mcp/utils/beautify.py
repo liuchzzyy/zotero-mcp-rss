@@ -43,7 +43,9 @@ def _deep_clean_html(html: str) -> str:
         html,
         flags=re.DOTALL,
     )
-    html = re.sub(r"<p>\s*(<h[1-6][^>]*>.*?</h[1-6]>)\s*</p>", r"\1", html, flags=re.DOTALL)
+    html = re.sub(
+        r"<p>\s*(<h[1-6][^>]*>.*?</h[1-6]>)\s*</p>", r"\1", html, flags=re.DOTALL
+    )
 
     html = re.sub(
         r"<p\s+[^>]*>\s*(<ul[^>]*>.*?</ul>)\s*</p>",

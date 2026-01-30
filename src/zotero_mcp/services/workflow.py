@@ -520,7 +520,9 @@ class WorkflowService:
                 }
                 provider_name = provider_map.get(
                     llm_client.provider,
-                    llm_client.provider.capitalize() if llm_client.provider != "claude-cli" else "Claude"
+                    llm_client.provider.capitalize()
+                    if llm_client.provider != "claude-cli"
+                    else "Claude",
                 )
                 note_tags = ["AI分析", provider_name]
 
