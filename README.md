@@ -36,7 +36,7 @@
 - Create and update notes and annotations
 
 ### Batch PDF Analysis
-- **AI-powered paper analysis** - Analyze multiple research papers with LLM (DeepSeek, OpenAI, Gemini)
+- **AI-powered paper analysis** - Analyze multiple research papers with LLM (DeepSeek)
 - **Checkpoint/resume support** - Automatically save progress and resume interrupted workflows
 - **Structured notes** - Generate formatted analysis notes with configurable templates
 - **Dual modes** - Preview data first or run fully automatic batch analysis
@@ -250,10 +250,8 @@ zotero-mcp setup --no-local --api-key YOUR_API_KEY --library-id YOUR_LIBRARY_ID
 - `ZOTERO_DB_PATH`: Custom `zotero.sqlite` path (optional)
 
 **Batch PDF Analysis:**
-- `DEEPSEEK_API_KEY`: DeepSeek API key (recommended for batch analysis)
+- `DEEPSEEK_API_KEY`: DeepSeek API key (required for batch analysis)
 - `DEEPSEEK_MODEL`: Model name (default: deepseek-chat)
-- `OPENAI_MODEL`: OpenAI model for analysis (default: gpt-4o-mini)
-- `GEMINI_MODEL`: Gemini model for analysis (default: gemini-2.0-flash-exp)
 
 **RSS Integration:**
 - `RSS_PROMPT`: AI filtering prompt for research interests
@@ -350,7 +348,7 @@ The first time you use PDF annotation features, the necessary tools will be auto
 
 ### Batch Workflow Tools
 - `zotero_prepare_analysis`: Collect PDF content and annotations for review
-- `zotero_batch_analyze_pdfs`: Automatically analyze papers with AI (DeepSeek/OpenAI/Gemini)
+- `zotero_batch_analyze_pdfs`: Automatically analyze papers with AI (DeepSeek)
 - `zotero_resume_workflow`: Resume interrupted batch analysis workflows
 - `zotero_list_workflows`: View all workflow states and progress
 - `zotero_find_collection`: Find collections by name with fuzzy matching
@@ -418,7 +416,7 @@ All tools return **structured Pydantic models** instead of formatted strings:
 - **Configuration lost after update**: The update process preserves configs automatically, but check `~/.config/zotero-mcp/` for backup files
 
 ### Batch Analysis Issues
-- **"No LLM provider API key found"**: Set at least one of `DEEPSEEK_API_KEY`, `OPENAI_API_KEY`, or `GEMINI_API_KEY`
+- **"DeepSeek API key not found"**: Set `DEEPSEEK_API_KEY` environment variable
 - **Analysis returns empty notes**: Ensure PDFs are indexed with `zotero-mcp update-db --fulltext`
 - **Workflow interrupted**: Use `zotero_list_workflows()` to find the workflow ID, then `zotero_resume_workflow()` to continue
 - **Rate limit errors**: The workflow automatically retries with exponential backoff. Check your API provider's rate limits if persistent.
