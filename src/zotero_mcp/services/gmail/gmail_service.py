@@ -450,6 +450,7 @@ class GmailService:
         delete_after: bool = True,
         trash_only: bool = True,
         dry_run: bool = False,
+        llm_provider: str = "deepseek",
     ) -> GmailProcessResult:
         """
         Full Gmail processing workflow.
@@ -525,9 +526,17 @@ class GmailService:
 
         # Step 4: Apply AI filter using RSS_PROMPT
         try:
-            relevant, irrelevant, keywords = await self.rss_filter.filter_with_keywords(
-                rss_items
-            )
+            if llm_provider == "claude-cli":
+                logger.info("Using Claude CLI for Gmail filtering")
+                relevant, irrelevant, keywords = await self.rss_filter.filter_with_cli(
+                    rss_items
+                )
+            else:
+                (
+                    relevant,
+                    irrelevant,
+                    keywords,
+                ) = await self.rss_filter.filter_with_keywords(rss_items)
             result.keywords_used = keywords
             result.items_filtered = len(relevant)
             logger.info(

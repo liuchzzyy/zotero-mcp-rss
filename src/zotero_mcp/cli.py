@@ -245,6 +245,12 @@ def main():
     gmail_process_parser.add_argument(
         "--dry-run", action="store_true", help="Preview without importing or deleting"
     )
+    gmail_process_parser.add_argument(
+        "--llm-provider",
+        choices=["deepseek", "claude-cli"],
+        default="deepseek",
+        help="LLM provider for filtering (default: deepseek)",
+    )
 
     gmail_auth_parser = gmail_subparsers.add_parser(
         "auth", help="Authenticate with Gmail"
@@ -536,6 +542,7 @@ def main():
                         delete_after=not args.no_delete,
                         trash_only=not args.permanent_delete,
                         dry_run=args.dry_run,
+                        llm_provider=args.llm_provider,
                     )
                 )
 
