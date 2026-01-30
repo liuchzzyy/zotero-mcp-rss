@@ -23,30 +23,9 @@ from zotero_mcp.utils.batch_loader import BatchLoader
 from zotero_mcp.utils.beautify import beautify_ai_note
 from zotero_mcp.utils.helpers import format_creators
 from zotero_mcp.utils.markdown_html import markdown_to_html
+from zotero_mcp.utils.templates import get_analysis_questions
 
 logger = logging.getLogger(__name__)
-
-
-# -------------------- Template Questions --------------------
-
-
-TEMPLATE_QUESTIONS = [
-    "这篇论文的主要研究问题是什么？",
-    "引用的文献是否最新、全面？以往文献有什么不足？",
-    "本研究聚焦的问题、逻辑思路、可行性和可靠性如何？",
-    "作者选题角度是否新颖？有什么价值？",
-    "提出了什么新的科学问题？",
-    "在制备方法上有什么创新？",
-    "研究思路有何独特之处？",
-    "使用了什么新的研究工具或技术？",
-    "在理论方面有何贡献？",
-    "关键的制备方法和步骤是什么？",
-    "使用了哪些表征方法？主要结果是什么？",
-    "关键性能数据和指标有哪些？",
-    "作者提出的机制解释是什么？",
-    "理论基础和模型是什么？",
-    "这篇论文有什么优点和不足？",
-]
 
 
 # -------------------- Workflow Service --------------------
@@ -85,7 +64,7 @@ class WorkflowService:
                 total_items=0,
                 prepared_items=0,
                 items=[],
-                template_structure={"questions": TEMPLATE_QUESTIONS},
+                template_structure={"questions": get_analysis_questions()},
             )
 
         prepared_items = []
@@ -153,7 +132,7 @@ class WorkflowService:
                             "abstract": data.get("abstractNote"),
                             "tags": data.get("tags"),
                         },
-                        template_questions=TEMPLATE_QUESTIONS,
+                        template_questions=get_analysis_questions(),
                     )
 
                     prepared_items.append(analysis_item)
@@ -165,7 +144,7 @@ class WorkflowService:
             prepared_items=len(prepared_items),
             skipped=skipped_count,
             items=prepared_items,
-            template_structure={"questions": TEMPLATE_QUESTIONS},
+            template_structure={"questions": get_analysis_questions()},
         )
 
     async def batch_analyze(
