@@ -1,0 +1,146 @@
+
+ ▐▛███▜▌   Claude Code v2.1.23
+▝▜█████▛▘  Opus 4.5 · Claude Pro
+  ▘▘ ▝▝    E:\Desktop\zotero-mcp
+
+╭──────────────────────────────────────────────────────────────────────────────╮
+│ Plan to implement                                                            │
+│                                                                              │
+│ TASK#3: RSS Code Architecture Optimization                                   │
+│                                                                              │
+│ Problem Summary                                                              │
+│                                                                              │
+│ The RSS workflow works but has several architectural issues that mirror the  │
+│ Gmail problems fixed in TASK#2:                                              │
+│                                                                              │
+│ 1. No get_rss_config() function: Gmail has get_gmail_config() in config.py,  │
+│ but RSS has no equivalent. CLI args like --opml, --collection, --days have   │
+│ no env var fallbacks.                                                        │
+│ 2. CLI doesn't fall back to env vars: Unlike the Gmail fix in TASK#2, the    │
+│ RSS CLI handler doesn't read config defaults from env vars.                  │
+│ 3. clean_title() in wrong location: Static method on RSSService but also     │
+│ used by GmailService (via delegation). Should be a shared utility.           │
+│ 4. Keywords cache path is relative: KEYWORDS_CACHE_FILE =                    │
+│ Path("RSS/keywords_cache.json") — fails if CWD differs from project root     │
+│ (e.g., GitHub Actions).                                                      │
+│ 5. Missing RSS env vars in .env.example: No RSS_OPML_PATH, RSS_COLLECTION,   │
+│ RSS_DAYS_BACK documented.                                                    │
+│ 6. ZOTERO_INBOX_COLLECTION set but unused in rss-ingestion.yml — dead env    │
+│ var.                                                                         │
+│ 7. Missing type hints on data_service and metadata_service params in         │
+│ create_zotero_item().                                                        │
+│                                                                              │
+│ Changes                                                                      │
+│                                                                              │
+│ 1. Add get_rss_config() to config.py                                         │
+│                                                                              │
+│ File: src/zotero_mcp/utils/config.py                                         │
+│                                                                              │
+│ Add a get_rss_config() function (mirroring get_gmail_config()):              │
+│ def get_rss_config() -> dict[str, Any]:                                      │
+│     config = load_config()                                                   │
+│     env = config.get("env", {})                                              │
+│     return {                                                                 │
+│         "opml_path": env.get("RSS_OPML_PATH", os.getenv("RSS_OPML_PATH",     │
+│ "RSS/RSS_official.opml")),                                                   │
+│         "collection": env.get("RSS_COLLECTION", os.getenv("RSS_COLLECTION",  │
+│ "00_INBOXS")),                                                               │
+│         "days_back": int(env.get("RSS_DAYS_BACK", os.getenv("RSS_DAYS_BACK", │
+│  "15"))),                                                                    │
+│         "prompt": env.get("RSS_PROMPT", os.getenv("RSS_PROMPT", "")),        │
+│     }                                                                        │
+│                                                                              │
+│ 2. Wire env var defaults into RSS CLI                                        │
+│                                                                              │
+│ File: src/zotero_mcp/cli.py                                                  │
+│                                                                              │
+│ In the rss fetch handler (lines 421-456):                                    │
+│ - After load_config(), call get_rss_config() to read env var defaults        │
+│ - Use config values when CLI args are at their defaults:                     │
+│   - --opml defaults to RSS_OPML_PATH env var                                 │
+│   - --collection defaults to RSS_COLLECTION env var                          │
+│   - --days defaults to RSS_DAYS_BACK env var                                 │
+│                                                                              │
+│ 3. Move clean_title() to utils/helpers.py                                    │
+│                                                                              │
+│ File: src/zotero_mcp/utils/helpers.py (add function)                         │
+│ File: src/zotero_mcp/services/rss/rss_service.py (delegate to helper)        │
+│ File: src/zotero_mcp/services/gmail/gmail_service.py (import from helpers    │
+│ directly)                                                                    │
+│                                                                              │
+│ Move the clean_title() implementation from RSSService to utils/helpers.py as │
+│  a standalone function. Keep RSSService.clean_title() as a thin delegator    │
+│ for backward compatibility, and update GmailService._clean_title() to call   │
+│ the helper directly instead of going through RSSService.                     │
+│                                                                              │
+│ 4. Fix keywords cache path to be absolute                                    │
+│                                                                              │
+│ File: src/zotero_mcp/services/rss/rss_filter.py                              │
+│                                                                              │
+│ Change KEYWORDS_CACHE_FILE = Path("RSS/keywords_cache.json") to resolve      │
+│ relative to the project root or use an absolute path derived from the config │
+│  directory:                                                                  │
+│ # Use project root (where pyproject.toml lives) as base for cache            │
+│ _PROJECT_ROOT = Path(__file__).resolve().parents[3]                          │
+│ KEYWORDS_CACHE_FILE = _PROJECT_ROOT / "RSS" / "keywords_cache.json"          │
+│                                                                              │
+│ 5. Add RSS env vars to .env.example                                          │
+│                                                                              │
+│ File: .env.example                                                           │
+│                                                                              │
+│ Add under the RSS section:                                                   │
+│ RSS_OPML_PATH="RSS/RSS_official.opml"                                        │
+│ RSS_COLLECTION="00_INBOXS"                                                   │
+│ RSS_DAYS_BACK=15                                                             │
+│                                                                              │
+│ 6. Remove dead ZOTERO_INBOX_COLLECTION env var from rss-ingestion.yml        │
+│                                                                              │
+│ File: .github/workflows/rss-ingestion.yml                                    │
+│                                                                              │
+│ Remove ZOTERO_INBOX_COLLECTION: ${{ github.event.inputs.collection_name ||   │
+│ '00_INBOXS' }} — it's set but never consumed by the code. The collection is  │
+│ passed via CLI --collection arg.                                             │
+│                                                                              │
+│ 7. Add type hints to create_zotero_item()                                    │
+│                                                                              │
+│ File: src/zotero_mcp/services/rss/rss_service.py                             │
+│                                                                              │
+│ Add proper type hints:                                                       │
+│ async def create_zotero_item(                                                │
+│     self,                                                                    │
+│     data_service: "DataAccessService",                                       │
+│     metadata_service: "MetadataService",                                     │
+│     rss_item: RSSItem,                                                       │
+│     collection_key: str,                                                     │
+│ ) -> str | None:                                                             │
+│ Use from __future__ import annotations or string annotations to avoid        │
+│ circular imports.                                                            │
+│                                                                              │
+│ Files Modified                                                               │
+│                                                                              │
+│ - src/zotero_mcp/utils/config.py — add get_rss_config()                      │
+│ - src/zotero_mcp/utils/helpers.py — add clean_title() function               │
+│ - src/zotero_mcp/cli.py — wire env var defaults into RSS CLI                 │
+│ - src/zotero_mcp/services/rss/rss_service.py — delegate clean_title(), add   │
+│ type hints                                                                   │
+│ - src/zotero_mcp/services/rss/rss_filter.py — fix cache path                 │
+│ - src/zotero_mcp/services/gmail/gmail_service.py — import clean_title from   │
+│ helpers                                                                      │
+│ - .env.example — add RSS env vars                                            │
+│ - .github/workflows/rss-ingestion.yml — remove dead env var                  │
+│                                                                              │
+│ Verification                                                                 │
+│                                                                              │
+│ 1. uv run ruff check — no lint errors                                        │
+│ 2. uv run ruff format --check — no formatting issues                         │
+│ 3. uv run pytest — all existing tests pass                                   │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+● I'll implement all 7 changes from the plan. Let me start by reading the
+  relevant files.
+
+● Read 8 files (ctrl+o to expand)
+  ⎿  You've hit your limit · resets 2pm (Asia/Shanghai)
+     /upgrade to increase your usage limit.
+
+✻ Churned for 37s

@@ -4,9 +4,10 @@ Gmail Service - Email processing and Zotero integration.
 This module provides the main workflow for processing Gmail emails:
 1. Search for emails by sender/subject
 2. Extract items from HTML tables
-3. Filter using AI (reusing RSS_PROMPT)
-4. Import to Zotero 00_INBOXS collection
-5. Delete processed emails
+3. Mark emails as read
+4. Filter using AI (reusing RSS_PROMPT)
+5. Import to Zotero 00_INBOXS collection
+6. Trash/delete processed emails
 """
 
 import asyncio
@@ -32,9 +33,10 @@ class GmailService:
     Workflow:
     1. Search emails by sender/subject filter
     2. Parse HTML tables to extract article items
-    3. Apply AI keyword filtering (reuses RSS_PROMPT)
-    4. Import matching items to Zotero
-    5. Delete/trash processed emails
+    3. Mark emails as read
+    4. Apply AI keyword filtering (reuses RSS_PROMPT)
+    5. Import matching items to Zotero
+    6. Trash/delete processed emails
     """
 
     def __init__(
@@ -425,9 +427,10 @@ class GmailService:
 
         1. Search and fetch emails
         2. Extract items from HTML tables
-        3. Apply AI keyword filtering (uses RSS_PROMPT)
-        4. Import to Zotero
-        5. Delete/trash processed emails
+        3. Mark emails as read
+        4. Apply AI keyword filtering (uses RSS_PROMPT)
+        5. Import to Zotero
+        6. Trash/delete processed emails
 
         Args:
             sender: Filter emails by sender
@@ -472,6 +475,15 @@ class GmailService:
                 result.emails_processed += 1
 
         result.items_extracted = len(all_items)
+
+        # Mark processed emails as read immediately after fetching
+        if processed_email_ids:
+            for email_id in processed_email_ids:
+                try:
+                    await self.gmail_client.mark_as_read(email_id)
+                    await asyncio.sleep(0.1)  # Rate limiting
+                except Exception as e:
+                    logger.error(f"Failed to mark email {email_id} as read: {e}")
 
         if not all_items:
             logger.info("No items extracted from emails")
@@ -539,15 +551,6 @@ class GmailService:
             except Exception as e:
                 logger.error(f"Failed to import item '{rss_item.title[:50]}': {e}")
                 result.errors.append(f"Import failed: {rss_item.title[:50]}")
-
-        # Mark processed emails as read
-        if processed_email_ids:
-            for email_id in processed_email_ids:
-                try:
-                    await self.gmail_client.mark_as_read(email_id)
-                    await asyncio.sleep(0.1)  # Rate limiting
-                except Exception as e:
-                    logger.error(f"Failed to mark email {email_id} as read: {e}")
 
         # Delete/trash processed emails
         if delete_after and processed_email_ids:

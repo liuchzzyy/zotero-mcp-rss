@@ -486,6 +486,20 @@ def main():
             import asyncio
 
             from zotero_mcp.services.gmail.gmail_service import GmailService
+            from zotero_mcp.utils.config import get_gmail_config
+
+            # Apply env var defaults for CLI args not explicitly provided
+            gmail_config = get_gmail_config()
+            if not args.sender and gmail_config.get("sender_filter"):
+                args.sender = gmail_config["sender_filter"]
+                print(f"Using GMAIL_SENDER_FILTER: {args.sender}")
+            if not args.subject and gmail_config.get("subject_filter"):
+                args.subject = gmail_config["subject_filter"]
+                print(f"Using GMAIL_SUBJECT_FILTER: {args.subject}")
+            if not args.collection or args.collection == "00_INBOXS":
+                config_collection = gmail_config.get("collection", "00_INBOXS")
+                if config_collection:
+                    args.collection = config_collection
 
             if not args.sender and not args.subject and not args.query:
                 args.query = "is:unread"
