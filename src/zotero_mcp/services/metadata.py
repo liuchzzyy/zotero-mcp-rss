@@ -145,7 +145,11 @@ class MetadataService:
     async def lookup_doi(self, title: str, author: str | None = None) -> str | None:
         """
         Lookup DOI for a given title and author.
-        Tries Crossref first, then OpenAlex.
+
+        Priority: DOI > title matching > URL matching
+
+        Uses lenient threshold (0.6) to find matches for papers with
+        slightly different titles or formatting variations.
 
         Args:
             title: Article title
@@ -154,16 +158,19 @@ class MetadataService:
         Returns:
             DOI string or None if not found
         """
-        # Try Crossref first
-        work = await self.crossref_client.find_best_match(title, threshold=0.7)
+        # Try Crossref first with lenient threshold
+        work = await self.crossref_client.find_best_match(title, threshold=0.6)
         if work and work.doi:
+            logger.debug(f"  ✓ DOI found via Crossref: {work.doi}")
             return work.doi
 
-        # Fallback to OpenAlex
-        work = await self.openalex_client.find_best_match(title, threshold=0.7)
+        # Fallback to OpenAlex with lenient threshold
+        work = await self.openalex_client.find_best_match(title, threshold=0.6)
         if work and work.doi:
+            logger.debug(f"  ✓ DOI found via OpenAlex: {work.doi}")
             return work.doi
 
+        logger.debug(f"  ✗ No DOI found for title: {title[:50]}...")
         return None
 
     async def lookup_metadata(
@@ -171,7 +178,10 @@ class MetadataService:
     ) -> ArticleMetadata | None:
         """
         Lookup complete metadata for a given title and author.
-        Tries Crossref first, then OpenAlex.
+
+        Priority: DOI > title matching > URL matching
+
+        Uses lenient threshold (0.6) for better matching success rate.
 
         Args:
             title: Article title
@@ -180,13 +190,13 @@ class MetadataService:
         Returns:
             ArticleMetadata object or None if not found
         """
-        # Try Crossref first
-        work = await self.crossref_client.find_best_match(title)
+        # Try Crossref first with lenient threshold
+        work = await self.crossref_client.find_best_match(title, threshold=0.6)
         if work:
             return self._crossref_work_to_metadata(work)
 
-        # Fallback to OpenAlex
-        work = await self.openalex_client.find_best_match(title)
+        # Fallback to OpenAlex with lenient threshold
+        work = await self.openalex_client.find_best_match(title, threshold=0.6)
         if work:
             return self._openalex_work_to_metadata(work)
 
