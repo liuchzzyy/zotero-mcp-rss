@@ -266,8 +266,8 @@ def main():
     )
     scan_parser.add_argument(
         "--target-collection",
-        default=None,
-        help="Move items to this collection after analysis",
+        default="01_SHORTTERMS",
+        help="Move items to this collection after analysis (default: 01_SHORTTERMS)",
     )
     scan_parser.add_argument(
         "--dry-run", action="store_true", help="Preview without processing"
