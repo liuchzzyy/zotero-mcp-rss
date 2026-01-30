@@ -11,22 +11,37 @@ on:
         description: 'Target Zotero collection name'
         required: false
         default: '00_INBOXS'
+        type: string
       sender_filter:
         description: 'Filter by sender email address'
         required: false
         default: ''
+        type: string
       subject_filter:
         description: 'Filter by subject (partial match)'
         required: false
         default: ''
+        type: string
       max_emails:
         description: 'Maximum emails to process'
         required: false
         default: '50'
+        type: choice
+        options:
+          - '10'
+          - '25'
+          - '50'
+          - '100'
       dry_run:
         description: 'Preview mode - do not import or delete emails'
         required: false
-        default: 'false'
+        default: false
+        type: boolean
+
+# Cancel in-progress runs for the same workflow
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   ZOTERO_LIBRARY_ID: ${{ secrets.ZOTERO_LIBRARY_ID }}
@@ -37,10 +52,13 @@ env:
   DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
   GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
   GMAIL_SENDER_FILTER: ${{ secrets.GMAIL_SENDER_FILTER }}
+  ENV_MODE: production
 
 jobs:
-  ingest:
+  gmail-ingestion:
+    name: Process Gmail Alerts
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -49,15 +67,31 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
+
+      - name: Cache uv cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
 
       - name: Install uv and dependencies
         run: |
           pip install uv
-          uv sync
+          uv sync --all
+
+      - name: Verify installation
+        run: |
+          uv run zotero-mcp --version
 
       - name: Run Gmail ingestion
         id: gmail
         run: |
+          echo "Starting Gmail ingestion at $(date)"
+          echo "========================================"
+
           ARGS="--collection ${{ github.event.inputs.collection_name || '00_INBOXS' }}"
           ARGS="$ARGS --max-emails ${{ github.event.inputs.max_emails || '50' }}"
 
@@ -73,9 +107,19 @@ jobs:
 
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
             ARGS="$ARGS --dry-run"
+            echo "Running in PREVIEW MODE (dry-run)"
           fi
 
+          echo "Command: zotero-mcp gmail process $ARGS"
+          echo "========================================"
+
           uv run zotero-mcp gmail process $ARGS 2>&1 | tee gmail-output.log
+
+          EXIT_CODE=${PIPESTATUS[0]}
+          echo "========================================"
+          echo "Ingestion completed at $(date)"
+          echo "Exit code: $EXIT_CODE"
+          exit $EXIT_CODE
 
       - name: Upload Gmail logs
         if: always()
@@ -86,11 +130,14 @@ jobs:
             gmail-output.log
             ~/.cache/zotero-mcp/logs/
           retention-days: 3
+          if-no-files-found: warn
 
       - name: Archive logs (keep last 3 days)
         if: always()
         run: |
+          echo "Creating log archive..."
           tar -czf gmail-ingestion-logs-$(date +%Y%m%d).tar.gz -C ~/.cache/zotero-mcp/ logs/ || true
+          echo "Archive created: gmail-ingestion-logs-$(date +%Y%m%d).tar.gz"
 
       - name: Upload archived logs
         if: always()
@@ -99,3 +146,24 @@ jobs:
           name: gmail-ingestion-archive-${{ github.run_number }}
           path: gmail-ingestion-logs-*.tar.gz
           retention-days: 3
+          if-no-files-found: warn
+
+      - name: Generate summary
+        if: always()
+        run: |
+          echo "## Gmail Ingestion Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Run Number**: ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Collection**: ${{ github.event.inputs.collection_name || '00_INBOXS' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Max Emails**: ${{ github.event.inputs.max_emails || '50' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Sender Filter**: ${{ github.event.inputs.sender_filter || 'None' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Subject Filter**: ${{ github.event.inputs.subject_filter || 'None' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Dry Run**: ${{ github.event.inputs.dry_run || 'false' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f gmail-output.log ]; then
+            echo "### Output Log" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -20 gmail-output.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi

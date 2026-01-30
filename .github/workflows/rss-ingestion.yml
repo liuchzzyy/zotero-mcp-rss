@@ -11,18 +11,31 @@ on:
         description: 'Path to OPML file with RSS feeds'
         required: false
         default: 'RSS/RSS_official.opml'
+        type: string
       collection_name:
         description: 'Target Zotero collection name'
         required: false
         default: '00_INBOXS'
+        type: string
       days:
         description: 'Import articles from the last N days'
         required: false
         default: '15'
+        type: choice
+        options:
+          - '7'
+          - '15'
+          - '30'
       dry_run:
         description: 'Preview mode - do not import items'
         required: false
-        default: 'false'
+        default: false
+        type: boolean
+
+# Cancel in-progress runs for the same workflow
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   ZOTERO_LIBRARY_ID: ${{ secrets.ZOTERO_LIBRARY_ID }}
@@ -31,10 +44,13 @@ env:
   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
   DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
   GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+  ENV_MODE: production
 
 jobs:
-  ingest:
+  rss-ingestion:
+    name: Fetch RSS Feeds
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -43,24 +59,50 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
+
+      - name: Cache uv cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
 
       - name: Install uv and dependencies
         run: |
           pip install uv
-          uv sync
+          uv sync --all
+
+      - name: Verify installation
+        run: |
+          uv run zotero-mcp --version
 
       - name: Run RSS ingestion
         id: rss
         run: |
+          echo "Starting RSS ingestion at $(date)"
+          echo "========================================"
+
           ARGS="--opml ${{ github.event.inputs.opml_path || 'RSS/RSS_official.opml' }}"
           ARGS="$ARGS --collection ${{ github.event.inputs.collection_name || '00_INBOXS' }}"
           ARGS="$ARGS --days ${{ github.event.inputs.days || '15' }}"
 
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
             ARGS="$ARGS --dry-run"
+            echo "Running in PREVIEW MODE (dry-run)"
           fi
 
+          echo "Command: zotero-mcp rss fetch $ARGS"
+          echo "========================================"
+
           uv run zotero-mcp rss fetch $ARGS 2>&1 | tee rss-output.log
+
+          EXIT_CODE=${PIPESTATUS[0]}
+          echo "========================================"
+          echo "Ingestion completed at $(date)"
+          echo "Exit code: $EXIT_CODE"
+          exit $EXIT_CODE
 
       - name: Upload RSS logs
         if: always()
@@ -71,11 +113,14 @@ jobs:
             rss-output.log
             ~/.cache/zotero-mcp/logs/
           retention-days: 3
+          if-no-files-found: warn
 
       - name: Archive logs (keep last 3 days)
         if: always()
         run: |
+          echo "Creating log archive..."
           tar -czf rss-ingestion-logs-$(date +%Y%m%d).tar.gz -C ~/.cache/zotero-mcp/ logs/ || true
+          echo "Archive created: rss-ingestion-logs-$(date +%Y%m%d).tar.gz"
 
       - name: Upload archived logs
         if: always()
@@ -84,3 +129,23 @@ jobs:
           name: rss-ingestion-archive-${{ github.run_number }}
           path: rss-ingestion-logs-*.tar.gz
           retention-days: 3
+          if-no-files-found: warn
+
+      - name: Generate summary
+        if: always()
+        run: |
+          echo "## RSS Ingestion Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Run Number**: ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **OPML Path**: ${{ github.event.inputs.opml_path || 'RSS/RSS_official.opml' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Collection**: ${{ github.event.inputs.collection_name || '00_INBOXS' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Days Back**: ${{ github.event.inputs.days || '15' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Dry Run**: ${{ github.event.inputs.dry_run || 'false' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f rss-output.log ]; then
+            echo "### Output Log" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -20 rss-output.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
