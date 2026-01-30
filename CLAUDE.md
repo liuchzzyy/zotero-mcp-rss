@@ -324,6 +324,15 @@ All workflows use `astral-sh/setup-uv@v4` for fast dependency installation with 
 2. **Type errors**: Run `uv run ty check` to identify issues
 3. **Lint errors**: Run `uv run ruff check --fix`
 4. **Test failures**: Ensure `uv sync --all-groups` has been run
+5. **`gh workflow` commands fail with 404**: Workflows live on the fork repo `liuchzzyy/zotero-mcp-rss`, not the upstream `54yyyu/zotero-mcp`. Always use `-R liuchzzyy/zotero-mcp-rss` flag:
+   ```bash
+   gh workflow list -R liuchzzyy/zotero-mcp-rss
+   gh workflow run "Gmail Ingestion" --ref main -R liuchzzyy/zotero-mcp-rss
+   gh run list -R liuchzzyy/zotero-mcp-rss -w "Gmail Ingestion" --limit 5
+   gh run view <run-id> -R liuchzzyy/zotero-mcp-rss --log
+   ```
+6. **`uv sync --all` not recognized**: Latest uv renamed `--all` to `--all-groups`
+7. **`zotero-mcp --version` unrecognized**: CLI uses subcommand `zotero-mcp version`, not `--version` flag
 
 ### Debug Mode
 
