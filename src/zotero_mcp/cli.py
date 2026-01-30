@@ -274,6 +274,12 @@ def main():
     scan_parser.add_argument(
         "--dry-run", action="store_true", help="Preview without processing"
     )
+    scan_parser.add_argument(
+        "--llm-provider",
+        choices=["auto", "claude-cli"],
+        default="auto",
+        help="LLM provider for analysis (default: auto)",
+    )
 
     # Version command
     subparsers.add_parser("version", help="Print version information")
@@ -580,6 +586,7 @@ def main():
                     limit=args.limit,
                     target_collection=args.target_collection,
                     dry_run=args.dry_run,
+                    llm_provider=args.llm_provider,
                 )
             )
 
