@@ -20,8 +20,8 @@ logger = logging.getLogger(__name__)
 # Crossref API base URL
 CROSSREF_API_BASE = "https://api.crossref.org"
 
-# Request timeout in seconds
-REQUEST_TIMEOUT = 30.0
+# Request timeout in seconds (increased to handle slow network conditions)
+REQUEST_TIMEOUT = 45.0
 
 # User-Agent for polite pool (faster rate limits)
 # See: https://github.com/CrossRef/rest-api-doc#good-manners--more-reliable-service

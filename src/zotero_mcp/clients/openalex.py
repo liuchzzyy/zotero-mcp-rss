@@ -20,8 +20,8 @@ logger = logging.getLogger(__name__)
 # OpenAlex API base URL
 OPENALEX_API_BASE = "https://api.openalex.org"
 
-# Request timeout in seconds
-REQUEST_TIMEOUT = 30.0
+# Request timeout in seconds (increased to handle slow network conditions)
+REQUEST_TIMEOUT = 45.0
 
 # User-Agent for polite pool
 USER_AGENT = (
