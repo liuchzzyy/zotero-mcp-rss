@@ -278,6 +278,11 @@ def main():
         default="auto",
         help="LLM provider for analysis (default: auto)",
     )
+    scan_parser.add_argument(
+        "--source-collection",
+        default="00_INBOXS",
+        help="Collection to scan first (default: 00_INBOXS)",
+    )
 
     # Version command
     subparsers.add_parser("version", help="Print version information")
@@ -585,6 +590,7 @@ def main():
                     target_collection=args.target_collection,
                     dry_run=args.dry_run,
                     llm_provider=args.llm_provider,
+                    source_collection=args.source_collection,
                 )
             )
 

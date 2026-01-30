@@ -33,24 +33,52 @@ class GlobalScanner:
         target_collection: str | None = None,
         dry_run: bool = False,
         llm_provider: str = "auto",
+        source_collection: str | None = "00_INBOXS",
     ) -> dict[str, Any]:
         """
         Scan library and process items needing analysis.
 
-        Fetches all items, filters to those that have PDFs but lack
-        the "AI分析" tag, then runs batch analysis on up to `limit` items.
+        Strategy:
+        1. First scan items in source_collection (default: 00_INBOXS)
+        2. If no candidates in source_collection, scan entire library
+        3. Filter to items with PDFs but lacking "AI分析" tag
+        4. Process up to `limit` items
 
         Args:
             limit: Maximum number of items to process
             target_collection: Collection name to move items after analysis
             dry_run: Preview only, no changes
+            llm_provider: LLM provider for analysis (auto/claude-cli)
+            source_collection: Priority collection to scan first (default: 00_INBOXS)
 
         Returns:
             Scan results with statistics
         """
         try:
-            # 1. Get all items from library
-            all_items = await self.data_service.get_all_items(limit=500)
+            # 1. Try to get items from source collection first (e.g., 00_INBOXS)
+            if source_collection:
+                logger.info(f"Scanning collection: {source_collection}")
+                # Find collection by name
+                collections = await self.data_service.find_collection_by_name(
+                    source_collection, exact_match=True
+                )
+
+                if collections:
+                    # Use the first matching collection
+                    collection_key = collections[0]["key"]
+                    all_items = await self.data_service.get_collection_items(
+                        collection_key, limit=500
+                    )
+                    logger.info(
+                        f"Found {len(all_items)} items in collection '{source_collection}'"
+                    )
+                else:
+                    logger.warning(
+                        f"Collection '{source_collection}' not found, scanning entire library"
+                    )
+                    all_items = await self.data_service.get_all_items(limit=500)
+            else:
+                all_items = await self.data_service.get_all_items(limit=500)
 
             if not all_items:
                 return {
