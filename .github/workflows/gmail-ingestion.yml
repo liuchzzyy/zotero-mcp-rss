@@ -25,7 +25,7 @@ on:
       max_emails:
         description: 'Maximum emails to process'
         required: false
-        default: '50'
+        default: '100'
         type: choice
         options:
           - '10'
@@ -89,7 +89,7 @@ jobs:
           echo "========================================"
 
           ARGS="--collection ${{ github.event.inputs.collection_name || '00_INBOXS' }}"
-          ARGS="$ARGS --max-emails ${{ github.event.inputs.max_emails || '50' }}"
+          ARGS="$ARGS --max-emails ${{ github.event.inputs.max_emails || '100' }}"
 
           SENDER="${{ github.event.inputs.sender_filter }}"
           if [ -n "$SENDER" ]; then
@@ -151,7 +151,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Run Number**: ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Collection**: ${{ github.event.inputs.collection_name || '00_INBOXS' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Max Emails**: ${{ github.event.inputs.max_emails || '50' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Max Emails**: ${{ github.event.inputs.max_emails || '100' }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Sender Filter**: ${{ github.event.inputs.sender_filter || 'None' }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Subject Filter**: ${{ github.event.inputs.subject_filter || 'None' }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Dry Run**: ${{ github.event.inputs.dry_run || 'false' }}" >> $GITHUB_STEP_SUMMARY
