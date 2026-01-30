@@ -508,8 +508,33 @@ class GmailService:
             relevant = rss_items
             result.items_filtered = len(relevant)
 
+        # Trash/delete processed emails (after AI filter, before import)
+        # Emails are trashed regardless of filter results — they have been processed
+        if delete_after and processed_email_ids and not dry_run:
+            for email_id in processed_email_ids:
+                try:
+                    if trash_only:
+                        success = await self.gmail_client.trash_message(email_id)
+                    else:
+                        success = await self.gmail_client.delete_message(email_id)
+
+                    if success:
+                        result.emails_deleted += 1
+
+                    await asyncio.sleep(0.1)  # Rate limiting
+
+                except Exception as e:
+                    logger.error(f"Failed to delete email {email_id}: {e}")
+                    result.errors.append(f"Delete failed: {email_id}")
+
         if not relevant:
             logger.info("No items passed AI filter")
+            logger.info(
+                f"Gmail workflow complete: "
+                f"{result.emails_processed} emails, "
+                f"{result.items_imported} imported, "
+                f"{result.emails_deleted} trashed"
+            )
             return result
 
         if dry_run:
@@ -551,29 +576,11 @@ class GmailService:
                 logger.error(f"Failed to import item '{rss_item.title[:50]}': {e}")
                 result.errors.append(f"Import failed: {rss_item.title[:50]}")
 
-        # Delete/trash processed emails
-        if delete_after and processed_email_ids:
-            for email_id in processed_email_ids:
-                try:
-                    if trash_only:
-                        success = await self.gmail_client.trash_message(email_id)
-                    else:
-                        success = await self.gmail_client.delete_message(email_id)
-
-                    if success:
-                        result.emails_deleted += 1
-
-                    await asyncio.sleep(0.1)  # Rate limiting
-
-                except Exception as e:
-                    logger.error(f"Failed to delete email {email_id}: {e}")
-                    result.errors.append(f"Delete failed: {email_id}")
-
         logger.info(
             f"Gmail workflow complete: "
             f"{result.emails_processed} emails, "
             f"{result.items_imported} imported, "
-            f"{result.emails_deleted} deleted"
+            f"{result.emails_deleted} trashed"
         )
 
         return result
