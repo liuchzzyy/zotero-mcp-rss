@@ -291,6 +291,49 @@ All workflows use `astral-sh/setup-uv@v4` for fast dependency installation with 
 - GitHub Step Summary for run overview
 - Uses `astral-sh/setup-uv@v4` for dependency installation
 
+### TASK#12: RSS/Gmail Creator Name Handling
+- **Fixed HTTP 413 errors** - Author names too long for Zotero sync
+- Added `_parse_creator_string()` helper function in `rss_service.py`
+  - Splits comma/semicolon/newline-separated author lists
+  - Truncates individual creator names to 210 characters (Zotero limit)
+  - Limits total creators to 10, adding "et al." if truncated
+  - Handles multiple separator formats automatically
+- Resolved "creator name too long" errors in RSS Ingestion and Gmail Ingestion
+
+### TASK#13: Metadata Matching Quality Improvement
+- **Lowered matching threshold** from 0.7/0.8 to 0.6
+- Improved Crossref/OpenAlex DOI lookup success rate
+- Added debug logging for successful/failed lookups
+- Updated `MetadataService.lookup_doi()` and `lookup_metadata()`
+- Better handling of papers with title variations or formatting differences
+- Reduced "No good match" warnings significantly
+
+### TASK#14: API Timeout Optimization
+- **Increased request timeout** from 30s to 45s
+- Updated CrossrefClient and OpenAlexClient REQUEST_TIMEOUT
+- Reduced "read operation timed out" errors during metadata lookup
+- Maintained existing retry logic (3 retries with exponential backoff)
+- Improved reliability for slow network conditions
+
+### TASK#15: GitHub Actions Cache Error Handling
+- **Added cache error tolerance** to prevent workflow failures
+- Set `continue-on-error: true` on uv setup steps
+- Set `prune-cache: false` to avoid cache corruption
+- Applied to all 3 ingestion workflows (RSS, Gmail, Global Analysis)
+- Workflows continue even if GitHub Actions cache service returns HTTP 400
+
+### TASK#16: Gmail Workflow Execution Order Fix
+- **Critical bug fix**: Emails were deleted BEFORE importing to Zotero
+- Corrected execution order:
+  1. Search emails
+  2. Extract items from HTML tables
+  3. Mark emails as read
+  4. Apply AI filtering
+  5. **Import to Zotero** ← MOVED BEFORE DELETE
+  6. Trash/delete processed emails
+- Ensures all imported papers are safely stored before email removal
+- Fixed issue where papers passing AI filter were lost
+
 ## Performance Considerations
 
 1. **Caching Strategy**

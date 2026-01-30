@@ -53,7 +53,22 @@
 - **Automated ingestion** - Process Google Scholar alerts and other email sources
 - **AI-powered filtering** - Filter papers by research interests using LLM
 - **Metadata enrichment** - Auto-complete metadata via Crossref/OpenAlex APIs
+- **Smart author handling** - Automatically truncates long author lists to avoid sync errors
+- **Correct execution order** - Papers imported to Zotero before emails are deleted
 - **Daily processing** - Automated via GitHub Actions with configurable schedule
+
+### Recent Improvements (January 2025)
+
+#### Enhanced Error Handling
+- **Fixed creator name errors** - HTTP 413 "creator name too long" errors resolved with automatic truncation
+- **Improved metadata matching** - Lowered threshold from 0.7 to 0.6 for better paper matching
+- **Increased API timeout** - Raised from 30s to 45s to handle slow network conditions
+- **Cache error tolerance** - GitHub Actions continue even if cache service fails
+
+#### Better Reliability
+- **Gmail workflow fix** - Corrected execution order to ensure papers are imported before email deletion
+- **Retry mechanisms** - All API calls use exponential backoff for transient failures
+- **Comprehensive logging** - Detailed logs with 3-day retention for debugging
 
 ### Automated Workflows (GitHub Actions)
 - **Daily RSS ingestion** - Fetch and filter new papers from RSS feeds
