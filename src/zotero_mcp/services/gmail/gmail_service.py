@@ -523,7 +523,7 @@ class GmailService:
         # Convert to RSSItem for filtering compatibility
         rss_items = [self._email_item_to_rss_item(item) for item in all_items]
 
-        # Step 5: Apply AI filter using RSS_PROMPT
+        # Step 4: Apply AI filter using RSS_PROMPT
         try:
             relevant, irrelevant, keywords = await self.rss_filter.filter_with_keywords(
                 rss_items
@@ -540,20 +540,20 @@ class GmailService:
             relevant = rss_items
             result.items_filtered = len(relevant)
 
-        # Step 4: Trash all matched emails after AI filtering
-        # Emails are trashed regardless of filter results — they have been processed
-        await self._trash_emails(
-            all_email_ids, delete_after, trash_only, dry_run, result
-        )
-
         if not relevant:
             logger.info("No items passed AI filter")
+            # Still trash emails even if no items passed filter
+            await self._trash_emails(
+                all_email_ids, delete_after, trash_only, dry_run, result
+            )
             return result
 
         if dry_run:
             logger.info(f"[DRY RUN] Would import {len(relevant)} items")
+            # Don't trash emails in dry-run mode
             return result
 
+        # Step 5: Import filtered items to Zotero FIRST
         # Get services for Zotero import
         data_service = get_data_service()
         metadata_service = MetadataService()
@@ -565,6 +565,10 @@ class GmailService:
             error_msg = f"Collection '{collection_name}' not found"
             logger.error(error_msg)
             result.errors.append(error_msg)
+            # Still trash emails even if import fails
+            await self._trash_emails(
+                all_email_ids, delete_after, trash_only, dry_run, result
+            )
             return result
 
         collection_key = matches[0].get("data", {}).get("key")
@@ -588,6 +592,12 @@ class GmailService:
             except Exception as e:
                 logger.error(f"Failed to import item '{rss_item.title[:50]}': {e}")
                 result.errors.append(f"Import failed: {rss_item.title[:50]}")
+
+        # Step 6: Trash all matched emails AFTER importing to Zotero
+        # Emails are trashed regardless of filter results — they have been processed
+        await self._trash_emails(
+            all_email_ids, delete_after, trash_only, dry_run, result
+        )
 
         logger.info(
             f"Gmail workflow complete: "
