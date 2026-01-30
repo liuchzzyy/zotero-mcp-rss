@@ -188,7 +188,9 @@ def load_standalone_config() -> dict[str, Any]:
         return {}
 
 
-def load_config(use_cache: bool = True, load_dotenv_file: bool = True) -> dict[str, Any]:
+def load_config(
+    use_cache: bool = True, load_dotenv_file: bool = True
+) -> dict[str, Any]:
     """
     Load configuration from all available sources.
 

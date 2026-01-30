@@ -355,11 +355,11 @@ async def import_articles_to_zotero(
 
             # 3. Lookup complete metadata from Crossref/OpenAlex
             logger.info("      ? Looking up metadata...")
-            metadata = await asyncio.to_thread(
-                metadata_service.lookup_metadata, cleaned_title, email_item.authors
+            metadata = await metadata_service.lookup_metadata(
+                cleaned_title, email_item.authors
             )
 
-            if metadata:
+            if metadata is not None:
                 metadata_found += 1
                 logger.info(
                     f"      + Found metadata (DOI: {metadata.doi}, "

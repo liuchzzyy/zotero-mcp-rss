@@ -19,8 +19,18 @@ def clear_test_env():
     # Clear config cache first
     _clear_cache()
     # Clear all relevant prefixes
-    prefixes = ["RSS_", "ZOTERO_", "OPENAI_", "GEMINI_", "DEEPSEEK_", "GMAIL_", "ENV_MODE"]
-    to_delete = [key for key in os.environ if any(key.startswith(prefix) for prefix in prefixes)]
+    prefixes = [
+        "RSS_",
+        "ZOTERO_",
+        "OPENAI_",
+        "GEMINI_",
+        "DEEPSEEK_",
+        "GMAIL_",
+        "ENV_MODE",
+    ]
+    to_delete = [
+        key for key in os.environ if any(key.startswith(prefix) for prefix in prefixes)
+    ]
     for key in to_delete:
         del os.environ[key]
     yield

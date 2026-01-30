@@ -119,6 +119,7 @@ def test_task_logger_with_filter():
 
 def test_log_task_operations():
     """Test task logging functions."""
+
     # Create a custom handler to capture log records
     class TestHandler(logging.Handler):
         def __init__(self):
@@ -135,7 +136,10 @@ def test_log_task_operations():
     # Test log_task_start
     log_task_start(logger, "Test Task", items=100)
 
-    assert any("Task Started: Test Task" in record.getMessage() for record in test_handler.records)
+    assert any(
+        "Task Started: Test Task" in record.getMessage()
+        for record in test_handler.records
+    )
     assert any("Start Time:" in record.getMessage() for record in test_handler.records)
 
     # Test log_task_end
@@ -148,9 +152,17 @@ def test_log_task_operations():
         skipped=5,
     )
 
-    assert any("Task Completed: Test Task" in record.getMessage() for record in test_handler.records)
-    assert any("Items Processed: 95" in record.getMessage() for record in test_handler.records)
-    assert any("Errors Encountered: 2" in record.getMessage() for record in test_handler.records)
+    assert any(
+        "Task Completed: Test Task" in record.getMessage()
+        for record in test_handler.records
+    )
+    assert any(
+        "Items Processed: 95" in record.getMessage() for record in test_handler.records
+    )
+    assert any(
+        "Errors Encountered: 2" in record.getMessage()
+        for record in test_handler.records
+    )
 
     # Test log_operation
     test_handler.records.clear()
@@ -162,6 +174,7 @@ def test_log_task_operations():
 
 def test_performance_monitor():
     """Test PerformanceMonitor context manager."""
+
     # Create a custom handler to capture log records
     class TestHandler(logging.Handler):
         def __init__(self):
@@ -181,7 +194,9 @@ def test_performance_monitor():
         time.sleep(0.01)
 
     assert any("completed in" in record.getMessage() for record in test_handler.records)
-    assert any("Test Operation" in record.getMessage() for record in test_handler.records)
+    assert any(
+        "Test Operation" in record.getMessage() for record in test_handler.records
+    )
 
 
 def test_cleanup_old_logs(tmp_path):

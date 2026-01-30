@@ -29,7 +29,9 @@ LOG_RETENTION_DAYS = 3
 
 # Log format strings
 CONSOLE_FORMAT = "%(name)s %(levelname)s: %(message)s"
-FILE_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s"
+FILE_FORMAT = (
+    "%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s"
+)
 GITHUB_FORMAT = "%(asctime)s [%(levelname)s] %(name)s - %(message)s"
 
 # Date format for logs
