@@ -12,7 +12,6 @@ This module provides the main workflow for processing Gmail emails:
 import asyncio
 from datetime import datetime
 import logging
-import re
 
 from bs4 import BeautifulSoup, Tag
 
@@ -20,6 +19,7 @@ from zotero_mcp.clients.gmail import GmailClient
 from zotero_mcp.models.gmail import EmailItem, EmailMessage, GmailProcessResult
 from zotero_mcp.models.rss import RSSItem
 from zotero_mcp.services.rss.rss_filter import RSSFilter
+from zotero_mcp.services.rss.rss_service import RSSService
 from zotero_mcp.utils.helpers import DOI_PATTERN
 
 logger = logging.getLogger(__name__)
@@ -302,15 +302,10 @@ class GmailService:
 
         return items
 
-    def _clean_title(self, title: str) -> str:
-        """Clean article title."""
-        if not title:
-            return ""
-        # Remove common prefixes
-        cleaned = re.sub(r"^\[.*?\]\s*", "", title)
-        # Remove extra whitespace
-        cleaned = " ".join(cleaned.split())
-        return cleaned.strip()
+    @staticmethod
+    def _clean_title(title: str) -> str:
+        """Clean article title. Delegates to RSSService.clean_title."""
+        return RSSService.clean_title(title)
 
     def _email_item_to_rss_item(self, email_item: EmailItem) -> RSSItem:
         """Convert EmailItem to RSSItem for filtering compatibility."""

@@ -246,6 +246,22 @@ def main():
         "--credentials", help="Path to OAuth2 credentials.json from Google Cloud"
     )
 
+    # Scan command (global analysis)
+    scan_parser = subparsers.add_parser(
+        "scan", help="Scan library and analyze items without AI notes"
+    )
+    scan_parser.add_argument(
+        "--limit", type=int, default=20, help="Maximum items to process (default: 20)"
+    )
+    scan_parser.add_argument(
+        "--target-collection",
+        default=None,
+        help="Move items to this collection after analysis",
+    )
+    scan_parser.add_argument(
+        "--dry-run", action="store_true", help="Preview without processing"
+    )
+
     # Version command
     subparsers.add_parser("version", help="Print version information")
 
@@ -513,6 +529,41 @@ def main():
             except Exception as e:
                 print(f"Error: {e}")
                 sys.exit(1)
+
+    elif args.command == "scan":
+        load_config()
+        import asyncio
+
+        from zotero_mcp.services.scanner import GlobalScanner
+
+        scanner = GlobalScanner()
+        try:
+            result = asyncio.run(
+                scanner.scan_and_process(
+                    limit=args.limit,
+                    target_collection=args.target_collection,
+                    dry_run=args.dry_run,
+                )
+            )
+
+            print("\n=== Global Scan Results ===")
+            print(f"  Total scanned: {result.get('total_scanned', 0)}")
+            print(f"  Candidates: {result.get('candidates', 0)}")
+            print(f"  Processed: {result.get('processed', 0)}")
+            print(f"  Failed: {result.get('failed', 0)}")
+            if result.get("message"):
+                print(f"  Message: {result['message']}")
+            if result.get("error"):
+                print(f"  Error: {result['error']}")
+                sys.exit(1)
+            if result.get("items"):
+                print("\n  Items to process:")
+                for title in result["items"]:
+                    print(f"    - {title}")
+
+        except Exception as e:
+            print(f"Error: {e}")
+            sys.exit(1)
 
     elif args.command == "serve":
         load_config()

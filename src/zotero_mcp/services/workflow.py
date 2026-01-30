@@ -183,6 +183,8 @@ class WorkflowService:
         template: str | None = None,
         dry_run: bool = False,
         progress_callback: Callable | None = None,
+        delete_old_notes: bool = False,
+        move_to_collection: str | None = None,
     ) -> BatchAnalyzeResponse:
         """
         Batch analyze PDFs with automatic LLM processing (Mode B).
@@ -201,8 +203,8 @@ class WorkflowService:
             template: Custom analysis template
             dry_run: Preview only, no changes
             progress_callback: Progress update callback
-            delete_old_notes: Delete existing notes before analysis
-            move_to_collection: Move items after analysis
+            delete_old_notes: Delete existing notes before creating new ones
+            move_to_collection: Collection name to move items to after analysis
 
         Returns:
             BatchAnalyzeResponse with results
@@ -339,6 +341,8 @@ class WorkflowService:
                     skip_existing=skip_existing,
                     template=template,
                     dry_run=dry_run,
+                    delete_old_notes=delete_old_notes,
+                    move_to_collection=move_to_collection,
                 )
 
                 results.append(result)
@@ -384,19 +388,30 @@ class WorkflowService:
         skip_existing: bool,
         template: str | None,
         dry_run: bool,
+        delete_old_notes: bool = False,
+        move_to_collection: str | None = None,
     ) -> ItemAnalysisResult:
-        """Analyze a single item using pre-fetched bundle."""
+        """Analyze a single item using pre-fetched bundle.
+
+        Args:
+            item: Item object with key, title, etc.
+            bundle: Pre-fetched data bundle from BatchLoader.
+            llm_client: LLM client for analysis.
+            skip_existing: Skip items with existing notes.
+            template: Custom analysis template.
+            dry_run: Preview only, no changes.
+            delete_old_notes: Delete all existing notes before creating new one.
+            move_to_collection: Collection name to move item to after analysis.
+        """
         start_time = time.time()
 
         try:
             # 1. Check skip condition (using notes from bundle if available, or fetch)
-            # Actually bundle has notes if requested.
-            # But skip logic might want to verify fresh state?
-            # BatchLoader fetches notes if include_notes=True.
+            existing_notes = bundle.get("notes", [])
 
-            if skip_existing:
-                # If bundle has notes, skip
-                if bundle.get("notes"):
+            if skip_existing and not delete_old_notes:
+                # If bundle has notes and we're not deleting them, skip
+                if existing_notes:
                     return ItemAnalysisResult(
                         item_key=item.key,
                         title=item.title,
@@ -447,6 +462,23 @@ class WorkflowService:
             # 4. Save Result
             note_key = None
             if not dry_run:
+                # 4a. Delete old notes if requested
+                if delete_old_notes and existing_notes:
+                    for old_note in existing_notes:
+                        old_key = old_note.get("key") or old_note.get("data", {}).get(
+                            "key"
+                        )
+                        if old_key:
+                            try:
+                                await self.data_service.delete_item(old_key)
+                                logger.debug(
+                                    f"Deleted old note {old_key} from {item.key}"
+                                )
+                            except Exception as e:
+                                logger.warning(
+                                    f"Failed to delete old note {old_key}: {e}"
+                                )
+
                 html_note = markdown_to_html(markdown_note)
                 # Auto-beautify with Typora Orange Heart theme
                 html_note = beautify_ai_note(html_note)
@@ -476,6 +508,10 @@ class WorkflowService:
                         note_data = list(success.values())[0] if success else {}
                         note_key = note_data.get("key", "unknown")
 
+                # 4b. Move item to target collection if specified
+                if move_to_collection and note_key:
+                    await self._move_to_collection(item, move_to_collection)
+
             return ItemAnalysisResult(
                 item_key=item.key,
                 title=item.title,
@@ -493,6 +529,56 @@ class WorkflowService:
                 error=str(e),
                 processing_time=time.time() - start_time,
             )
+
+    async def _move_to_collection(self, item: Any, target_collection_name: str) -> None:
+        """Move item to target collection (add to target, remove from source).
+
+        Args:
+            item: Item object with key and collection info.
+            target_collection_name: Name of the collection to move item to.
+        """
+        try:
+            # Find target collection by name
+            matches = await self.data_service.find_collection_by_name(
+                target_collection_name
+            )
+            if not matches:
+                logger.warning(
+                    f"Target collection '{target_collection_name}' not found, "
+                    f"skipping move for {item.key}"
+                )
+                return
+
+            target_key = matches[0].get("data", {}).get("key")
+            if not target_key:
+                return
+
+            # Add to target collection
+            await self.data_service.add_item_to_collection(target_key, item.key)
+            logger.debug(f"Added {item.key} to collection {target_collection_name}")
+
+            # Remove from source collections
+            # Get current item data to find its collections
+            item_data = await self.data_service.get_item(item.key)
+            if item_data:
+                data = item_data.get("data", {})
+                current_collections = data.get("collections", [])
+                for col_key in current_collections:
+                    if col_key != target_key:
+                        try:
+                            await self.data_service.remove_item_from_collection(
+                                col_key, item.key
+                            )
+                            logger.debug(
+                                f"Removed {item.key} from collection {col_key}"
+                            )
+                        except Exception as e:
+                            logger.warning(
+                                f"Failed to remove {item.key} from {col_key}: {e}"
+                            )
+
+        except Exception as e:
+            logger.warning(f"Failed to move item {item.key}: {e}")
 
     async def _get_items(
         self,

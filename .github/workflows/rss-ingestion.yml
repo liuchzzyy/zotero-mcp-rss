@@ -4,21 +4,25 @@ on:
   schedule:
     # Run daily at 02:00 Beijing Time (18:00 UTC previous day)
     - cron: '0 18 * * *'
-    
+
   workflow_dispatch:
     inputs:
-      rss_feeds:
-        description: 'RSS feed URLs to process'
+      opml_path:
+        description: 'Path to OPML file with RSS feeds'
         required: false
-        default: 'https://arxiv.org/rss/cs.xml,https://pubmed.ncbi.nlm.nih.gov/rss/annoucement/arxiv.rss'
+        default: 'RSS/RSS_official.opml'
       collection_name:
         description: 'Target Zotero collection name'
         required: false
         default: '00_INBOXS'
+      days:
+        description: 'Import articles from the last N days'
+        required: false
+        default: '15'
       dry_run:
         description: 'Preview mode - do not import items'
         required: false
-        default: false
+        default: 'false'
 
 env:
   ZOTERO_LIBRARY_ID: ${{ secrets.ZOTERO_LIBRARY_ID }}
@@ -35,44 +39,25 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          
-      - name: Install dependencies
+
+      - name: Install uv and dependencies
         run: |
-          pip install feedparser
-          
+          pip install uv
+          uv sync
+
       - name: Run RSS ingestion
         run: |
-          python -c "
-          import asyncio
-          import os
-          
-          from zotero_mcp.services.ingestion import IngestionService
-          from zotero_mcp.utils.config import get_ingestion_config
-          
-          async def main():
-              service = IngestionService()
-              config = get_ingestion_config()
-              
-              feeds = '${{ github.event.inputs.rss_feeds }}'.split(',')
-              collection = '${{ github.event.inputs.collection_name }}'
-              dry_run = '${{ github.event.inputs.dry_run }}' == 'true'
-              
-              print(f'Starting RSS ingestion...')
-              print(f'Feeds: {feeds}')
-              print(f'Collection: {collection}')
-              print(f'Dry run: {dry_run}')
-              
-              if dry_run:
-                  print('DRY RUN MODE - No actual imports')
-                  return
-              
-              result = await service.process_ingestion('rss')
-              print(f'Results: {result}')
-          
-          asyncio.run(main())
-          "
+          ARGS="--opml ${{ github.event.inputs.opml_path || 'RSS/RSS_official.opml' }}"
+          ARGS="$ARGS --collection ${{ github.event.inputs.collection_name || '00_INBOXS' }}"
+          ARGS="$ARGS --days ${{ github.event.inputs.days || '15' }}"
+
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+
+          uv run zotero-mcp rss fetch $ARGS

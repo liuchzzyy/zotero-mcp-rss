@@ -1,7 +1,8 @@
 """
 Global scanner service for Phase 3 of Task#1.
 
-Scans entire library for items needing AI analysis.
+Scans entire library for items needing AI analysis,
+filters out already-analyzed items, and processes in batch.
 """
 
 import logging
@@ -9,83 +10,194 @@ from typing import Any
 
 from zotero_mcp.services.data_access import get_data_service
 from zotero_mcp.services.workflow import get_workflow_service
+from zotero_mcp.utils.batch_loader import BatchLoader
 
 logger = logging.getLogger(__name__)
 
+# Tag applied to items after successful AI analysis
+AI_ANALYSIS_TAG = "AI分析"
+
 
 class GlobalScanner:
-    """Service for scanning library and triggering analysis."""
+    """Service for scanning library and triggering batch analysis."""
 
     def __init__(self):
         """Initialize global scanner service."""
         self.data_service = get_data_service()
         self.workflow_service = get_workflow_service()
+        self.batch_loader = BatchLoader(self.data_service.item_service)
 
     async def scan_and_process(
-        self, limit: int = 20, collection_override: str | None = None
+        self,
+        limit: int = 20,
+        target_collection: str | None = None,
+        dry_run: bool = False,
     ) -> dict[str, Any]:
         """
         Scan library and process items needing analysis.
 
+        Fetches all items, filters to those that have PDFs but lack
+        the "AI分析" tag, then runs batch analysis on up to `limit` items.
+
         Args:
             limit: Maximum number of items to process
-            collection_override: Override target collection name
+            target_collection: Collection name to move items after analysis
+            dry_run: Preview only, no changes
 
         Returns:
             Scan results with statistics
         """
         try:
-            # Get all items
-            all_items = await self.data_service.get_all_items()
+            # 1. Get all items from library
+            all_items = await self.data_service.get_all_items(limit=500)
 
             if not all_items:
                 return {
-                    "total": 0,
+                    "total_scanned": 0,
+                    "candidates": 0,
                     "processed": 0,
                     "skipped": 0,
                     "message": "No items found in library",
                 }
 
-            processed_count = 0
-            skipped_count = 0
+            # 2. Batch-fetch children to check for PDFs and AI分析 tag
+            candidates = []
+            item_keys = [item.key for item in all_items]
 
-            for item in all_items[:limit]:
-                # Check if item has PDF
-                children = await self.data_service.get_item_children(item.key)
-                has_pdf = any(
-                    child.get("data", {}).get("contentType") == "application/pdf"
-                    for child in children
+            # Fetch bundles in chunks for efficient parallel loading
+            chunk_size = 10
+            for i in range(0, len(item_keys), chunk_size):
+                chunk_keys = item_keys[i : i + chunk_size]
+                bundles = await self.batch_loader.fetch_many_bundles(
+                    chunk_keys,
+                    include_fulltext=False,
+                    include_annotations=False,
+                    include_bibtex=False,
                 )
 
-                # Check if already analyzed
-                notes = await self.data_service.get_notes(item.key)
-                is_analyzed = any("AI分析" in str(note) for note in notes)
+                bundle_map = {b["metadata"]["key"]: b for b in bundles}
 
-                if has_pdf and not is_analyzed:
-                    # Trigger analysis
-                    result = await self.workflow_service.batch_analyze(
-                        source="collection",
-                        collection_key="",  # Will use inbox collection
-                        days=0,
-                        limit=1,
-                        llm_provider="auto",
-                        dry_run=False,
+                for item in all_items[i : i + chunk_size]:
+                    bundle = bundle_map.get(item.key)
+                    if not bundle:
+                        continue
+
+                    # Check if item has PDF content available
+                    metadata = bundle.get("metadata", {})
+                    data = metadata.get("data", {})
+
+                    # Check for AI分析 tag — skip already analyzed
+                    tags = data.get("tags", [])
+                    has_ai_tag = any(tag.get("tag") == AI_ANALYSIS_TAG for tag in tags)
+                    if has_ai_tag:
+                        continue
+
+                    # Check if item has PDF attachment via children
+                    children = await self.data_service.get_item_children(item.key)
+                    has_pdf = any(
+                        child.get("data", {}).get("contentType") == "application/pdf"
+                        for child in children
                     )
+                    if not has_pdf:
+                        continue
 
-                    if result.success:
-                        processed_count += 1
-                    else:
-                        skipped_count += 1
-                else:
-                    skipped_count += 1
+                    candidates.append(item)
+
+                    if len(candidates) >= limit:
+                        break
+
+                if len(candidates) >= limit:
+                    break
+
+            if not candidates:
+                return {
+                    "total_scanned": len(all_items),
+                    "candidates": 0,
+                    "processed": 0,
+                    "skipped": 0,
+                    "message": "No items need analysis (all have AI分析 tag or no PDF)",
+                }
+
+            logger.info(
+                f"Found {len(candidates)} items needing analysis "
+                f"out of {len(all_items)} total"
+            )
+
+            if dry_run:
+                titles = [item.title for item in candidates]
+                return {
+                    "total_scanned": len(all_items),
+                    "candidates": len(candidates),
+                    "processed": 0,
+                    "skipped": 0,
+                    "dry_run": True,
+                    "items": titles,
+                    "message": f"[DRY RUN] Would process {len(candidates)} items",
+                }
+
+            # 3. Use WorkflowService to analyze candidates
+            #    We create a temporary collection-like context by passing item keys
+            #    directly through batch_analyze with source="recent" and the items
+            #    pre-filtered. However, batch_analyze fetches its own items.
+            #    Instead, we call _analyze_single_item directly for each candidate.
+            from zotero_mcp.clients.llm import get_llm_client
+
+            llm_client = get_llm_client(provider="auto")
+
+            processed_count = 0
+            failed_count = 0
+
+            # Fetch full bundles for candidates
+            candidate_keys = [item.key for item in candidates]
+            full_bundles = await self.batch_loader.fetch_many_bundles(
+                candidate_keys,
+                include_fulltext=True,
+                include_annotations=True,
+                include_bibtex=False,
+            )
+            full_bundle_map = {b["metadata"]["key"]: b for b in full_bundles}
+
+            for item in candidates:
+                bundle = full_bundle_map.get(item.key)
+                if not bundle:
+                    failed_count += 1
+                    continue
+
+                result = await self.workflow_service._analyze_single_item(
+                    item=item,
+                    bundle=bundle,
+                    llm_client=llm_client,
+                    skip_existing=True,
+                    template=None,
+                    dry_run=False,
+                    delete_old_notes=True,
+                    move_to_collection=target_collection,
+                )
+
+                if result.success and not result.skipped:
+                    processed_count += 1
+                elif not result.success:
+                    failed_count += 1
+                    logger.warning(f"Failed to analyze {item.key}: {result.error}")
 
             return {
-                "total": len(all_items[:limit]),
+                "total_scanned": len(all_items),
+                "candidates": len(candidates),
                 "processed": processed_count,
-                "skipped": skipped_count,
-                "message": f"Processed {processed_count}, skipped {skipped_count}",
+                "failed": failed_count,
+                "message": (
+                    f"Processed {processed_count}, "
+                    f"failed {failed_count} "
+                    f"out of {len(candidates)} candidates"
+                ),
             }
 
         except Exception as e:
             logger.error(f"Error during scan: {e}")
-            return {"total": 0, "processed": 0, "skipped": 0, "error": str(e)}
+            return {
+                "total_scanned": 0,
+                "candidates": 0,
+                "processed": 0,
+                "failed": 0,
+                "error": str(e),
+            }

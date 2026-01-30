@@ -4,7 +4,7 @@ on:
   schedule:
     # Run daily at 00:00 Beijing Time (16:00 UTC previous day)
     - cron: '0 16 * * *'
-    
+
   workflow_dispatch:
     inputs:
       collection_name:
@@ -22,11 +22,11 @@ on:
       max_emails:
         description: 'Maximum emails to process'
         required: false
-        default: 50
+        default: '50'
       dry_run:
         description: 'Preview mode - do not import or delete emails'
         required: false
-        default: false
+        default: 'false'
 
 env:
   ZOTERO_LIBRARY_ID: ${{ secrets.ZOTERO_LIBRARY_ID }}
@@ -43,46 +43,40 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          
-      - name: Install dependencies
+
+      - name: Install uv and dependencies
         run: |
-          pip install feedparser google-api-python-client
-          
+          pip install uv
+          uv sync
+
+      - name: Write Gmail token
+        if: env.GMAIL_TOKEN_JSON != ''
+        run: |
+          mkdir -p ~/.config/zotero-mcp
+          echo "$GMAIL_TOKEN_JSON" > ~/.config/zotero-mcp/gmail_token.json
+
       - name: Run Gmail ingestion
         run: |
-          python -c "
-          import asyncio
-          import json
-          import os
-          
-          from zotero_mcp.services.ingestion import IngestionService
-          from zotero_mcp.utils.config import get_ingestion_config
-          
-          async def main():
-              service = IngestionService()
-              config = get_ingestion_config()
-              
-              collection = '${{ github.event.inputs.collection_name }}'
-              dry_run = '${{ github.event.inputs.dry_run }}' == 'true'
-              
-              print(f'starting Gmail ingestion...')
-              print(f'Collection: {collection}')
-              print(f'Sender filter: ${{ github.event.inputs.sender_filter }}')
-              print(f'Subject filter: ${{ github.event.inputs.subject_filter }}')
-              print(f'Max emails: ${{ github.event.inputs.max_emails }}')
-              print(f'Dry run: {dry_run}')
-              
-              if dry_run:
-                  print('DRY RUN MODE - No actual imports')
-                  return
-              
-              result = await service.process_ingestion('gmail')
-              print(f'Results: {result}')
-          
-          asyncio.run(main())
-          "
+          ARGS="--collection ${{ github.event.inputs.collection_name || '00_INBOXS' }}"
+          ARGS="$ARGS --max-emails ${{ github.event.inputs.max_emails || '50' }}"
+
+          SENDER="${{ github.event.inputs.sender_filter }}"
+          if [ -n "$SENDER" ]; then
+            ARGS="$ARGS --sender $SENDER"
+          fi
+
+          SUBJECT="${{ github.event.inputs.subject_filter }}"
+          if [ -n "$SUBJECT" ]; then
+            ARGS="$ARGS --subject \"$SUBJECT\""
+          fi
+
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+
+          uv run zotero-mcp gmail process $ARGS
