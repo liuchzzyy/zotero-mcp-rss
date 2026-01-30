@@ -26,6 +26,9 @@ uv run pytest --cov=src               # Run with coverage
 uv run ruff check                     # Lint code
 uv run ruff format                    # Format code
 uv run ruff check --fix               # Auto-fix linting issues
+uv run ruff check --select F401,F841 --fix  # Remove unused imports/vars
+uv run radon cc src/zotero_mcp/ -a          # Check complexity
+uv run radon mi src/zotero_mcp/             # Check maintainability
 uv run ty check                       # Type check
 
 # Dependency Management

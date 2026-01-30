@@ -88,6 +88,15 @@
 - Web API for cloud library access
 - Smart update system that preserves your configuration
 
+## Development
+
+### Code Quality
+
+The codebase follows strict cleanup practices:
+- Unused modules are regularly removed
+- No dead code is kept in the repository
+- All files serve a documented purpose
+
 ## Quick Install
 
 We recommend using `uv` for installation.
