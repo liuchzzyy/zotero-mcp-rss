@@ -171,39 +171,21 @@ class GmailClient:
     def _parse_token_json(raw: str) -> dict:
         """Parse token JSON with tolerance for common formatting issues.
 
-        Handles:
-        - Standard JSON
-        - Unquoted keys (e.g. ``{token: value}``)
-        - Single quotes instead of double quotes
-        - Python-style True/False/None vs JSON true/false/null
-        - Leading/trailing whitespace or BOM
+        Tries standard JSON first, then falls back to YAML which natively
+        handles unquoted keys/values, single quotes, and other non-strict formats.
         """
-        import re as _re
+        import yaml
 
         cleaned = raw.strip().lstrip("\ufeff")
 
-        # Try standard parse first
+        # Try standard JSON first
         try:
             return json.loads(cleaned)
         except json.JSONDecodeError:
             pass
 
-        # Fix unquoted keys: word chars before a colon → wrap in double quotes
-        cleaned = _re.sub(r"(?m)^(\s*)(\w+)\s*:", r'\1"\2":', cleaned)
-        # Replace single quotes with double quotes (for values)
-        cleaned = cleaned.replace("'", '"')
-        # Replace Python booleans/None with JSON equivalents
-        cleaned = _re.sub(r"\bTrue\b", "true", cleaned)
-        cleaned = _re.sub(r"\bFalse\b", "false", cleaned)
-        cleaned = _re.sub(r"\bNone\b", "null", cleaned)
-        # Wrap unquoted string values: "key": bare_value → "key": "bare_value"
-        cleaned = _re.sub(
-            r'("[\w]+")\s*:\s*(?![\[{"\d]|true|false|null)([^\s,}\]]+)',
-            r'\1: "\2"',
-            cleaned,
-        )
-
-        return json.loads(cleaned)
+        # Fallback: YAML handles unquoted keys, bare values, etc.
+        return yaml.safe_load(cleaned)
 
     def _save_token(self, creds: Credentials) -> None:
         """Save token to file for future use."""
