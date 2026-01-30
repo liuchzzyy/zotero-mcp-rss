@@ -32,6 +32,7 @@ class GlobalScanner:
         limit: int = 20,
         target_collection: str | None = None,
         dry_run: bool = False,
+        llm_provider: str = "auto",
     ) -> dict[str, Any]:
         """
         Scan library and process items needing analysis.
@@ -142,7 +143,7 @@ class GlobalScanner:
             #    Instead, we call _analyze_single_item directly for each candidate.
             from zotero_mcp.clients.llm import get_llm_client
 
-            llm_client = get_llm_client(provider="auto")
+            llm_client = get_llm_client(provider=llm_provider)
 
             processed_count = 0
             failed_count = 0
