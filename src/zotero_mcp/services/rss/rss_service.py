@@ -306,6 +306,13 @@ class RSSService:
                 description=f"Create item '{cleaned_title[:30]}'",
             )
 
+            # Handle case where result might be an int (HTTP status code)
+            if isinstance(result, int):
+                logger.warning(
+                    f"  ✗ Failed to create: {cleaned_title[:50]} - HTTP status: {result}"
+                )
+                return None
+
             if result and len(result.get("successful", {})) > 0:
                 item_key = list(result["successful"].keys())[0]
                 logger.info(f"  ✓ Created: {cleaned_title[:50]} (key: {item_key})")
