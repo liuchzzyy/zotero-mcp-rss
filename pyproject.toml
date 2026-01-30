@@ -77,6 +77,7 @@ dependencies = [
 
     # Data Processing
     "beautifulsoup4>=4.14.3",  # HTML/XML parsing for web scraping
+    "lxml>=5.0.0",  # HTML parser backend for BeautifulSoup (required by Gmail service)
     "feedparser>=6.0.12",  # RSS/Atom feed parsing
     "pydantic>=2.0.0",  # Data validation and settings management
 

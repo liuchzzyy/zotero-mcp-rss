@@ -10,7 +10,7 @@ Zotero MCP is a Model Context Protocol (MCP) server that connects AI assistants 
 
 ```bash
 # Development
-uv sync --all                         # Install all dependencies (including dev)
+uv sync --all-groups                         # Install all dependencies (including dev)
 uv sync --group dev                   # Install dev dependencies only
 uv run zotero-mcp serve               # Run MCP server (stdio transport)
 uv run zotero-mcp setup               # Configure Zotero MCP
@@ -320,10 +320,10 @@ All workflows use `astral-sh/setup-uv@v4` for fast dependency installation with 
 
 ### Common Issues
 
-1. **Import errors**: Run `uv sync --all`
+1. **Import errors**: Run `uv sync --all-groups`
 2. **Type errors**: Run `uv run ty check` to identify issues
 3. **Lint errors**: Run `uv run ruff check --fix`
-4. **Test failures**: Ensure `uv sync --all` has been run
+4. **Test failures**: Ensure `uv sync --all-groups` has been run
 
 ### Debug Mode
 
