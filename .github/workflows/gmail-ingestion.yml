@@ -54,6 +54,26 @@ jobs:
           pip install uv
           uv sync
 
+      - name: Debug token format
+        run: |
+          python3 -c "
+          import os, json
+          raw = os.getenv('GMAIL_TOKEN_JSON', '')
+          print(f'Token length: {len(raw)}')
+          print(f'First 20 chars repr: {repr(raw[:20])}')
+          print(f'Starts with brace: {raw.strip().startswith(\"{\")}')
+          try:
+              json.loads(raw)
+              print('Standard JSON: OK')
+          except Exception as e:
+              print(f'Standard JSON: FAIL - {e}')
+          try:
+              json.loads(raw.replace(chr(39), chr(34)))
+              print('Single-quote fix: OK')
+          except Exception as e:
+              print(f'Single-quote fix: FAIL - {e}')
+          "
+
       - name: Run Gmail ingestion
         run: |
           ARGS="--collection ${{ github.event.inputs.collection_name || '00_INBOXS' }}"
