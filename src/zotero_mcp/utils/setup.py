@@ -6,7 +6,6 @@ for Opencode CLI and standalone usage.
 """
 
 import argparse
-import getpass
 import json
 import os
 from pathlib import Path
@@ -86,101 +85,9 @@ def setup_semantic_search(
 
     print("Configure embedding models for semantic search over your Zotero library.")
 
-    # Choose embedding model
-    print("\nAvailable embedding models:")
-    print("1. Default (all-MiniLM-L6-v2) - Free, runs locally")
-    print("2. OpenAI - Better quality, requires API key")
-    print("3. Gemini - Better quality, requires API key")
-
-    while True:
-        choice = input("\nChoose embedding model (1-3): ").strip()
-        if choice in ["1", "2", "3"]:
-            break
-        print("Please enter 1, 2, or 3")
-
-    config = {}
-
-    if choice == "1":
-        config["embedding_model"] = "default"
-        print("Using default embedding model (all-MiniLM-L6-v2)")
-
-    elif choice == "2":
-        config["embedding_model"] = "openai"
-
-        # Choose OpenAI model
-        print("\nOpenAI embedding models:")
-        print("1. text-embedding-3-small (recommended, faster)")
-        print("2. text-embedding-3-large (higher quality, slower)")
-
-        while True:
-            model_choice = input("Choose OpenAI model (1-2): ").strip()
-            if model_choice in ["1", "2"]:
-                break
-            print("Please enter 1 or 2")
-
-        if model_choice == "1":
-            config["embedding_config"] = {"model_name": "text-embedding-3-small"}
-        else:
-            config["embedding_config"] = {"model_name": "text-embedding-3-large"}
-
-        # Get API key
-        api_key = getpass.getpass("Enter your OpenAI API key (hidden): ").strip()
-        if api_key:
-            config["embedding_config"]["api_key"] = api_key
-        else:
-            print(
-                "Warning: No API key provided. Set OPENAI_API_KEY environment variable."
-            )
-
-        # Get optional base URL
-        base_url = input(
-            "Enter custom OpenAI base URL (leave blank for default): "
-        ).strip()
-        if base_url:
-            config["embedding_config"]["base_url"] = base_url
-            print(f"Using custom OpenAI base URL: {base_url}")
-        else:
-            print("Using default OpenAI base URL")
-
-    elif choice == "3":
-        config["embedding_model"] = "gemini"
-
-        # Choose Gemini model
-        print("\nGemini embedding models:")
-        print("1. models/text-embedding-004 (recommended)")
-        print("2. models/gemini-embedding-exp-03-07 (experimental)")
-
-        while True:
-            model_choice = input("Choose Gemini model (1-2): ").strip()
-            if model_choice in ["1", "2"]:
-                break
-            print("Please enter 1 or 2")
-
-        if model_choice == "1":
-            config["embedding_config"] = {"model_name": "models/text-embedding-004"}
-        else:
-            config["embedding_config"] = {
-                "model_name": "models/gemini-embedding-exp-03-07"
-            }
-
-        # Get API key
-        api_key = getpass.getpass("Enter your Gemini API key (hidden): ").strip()
-        if api_key:
-            config["embedding_config"]["api_key"] = api_key
-        else:
-            print(
-                "Warning: No API key provided. Set GEMINI_API_KEY environment variable."
-            )
-
-        # Get optional base URL
-        base_url = input(
-            "Enter custom Gemini base URL (leave blank for default): "
-        ).strip()
-        if base_url:
-            config["embedding_config"]["base_url"] = base_url
-            print(f"Using custom Gemini base URL: {base_url}")
-        else:
-            print("Using default Gemini base URL")
+    # Use default embedding model
+    print("\nUsing default embedding model (all-MiniLM-L6-v2) - Free, runs locally")
+    config = {"embedding_model": "default"}
 
     # Configure update frequency
     print("\n=== Database Update Configuration ===")
@@ -374,23 +281,6 @@ def write_standalone_config(
         client_env["ZOTERO_EMBEDDING_MODEL"] = semantic_config.get(
             "embedding_model", "default"
         )
-
-        embedding_config = semantic_config.get("embedding_config", {})
-        if semantic_config.get("embedding_model") == "openai":
-            if api_key := embedding_config.get("api_key"):
-                client_env["OPENAI_API_KEY"] = api_key
-            if model := embedding_config.get("model_name"):
-                client_env["OPENAI_EMBEDDING_MODEL"] = model
-            if base_url := embedding_config.get("base_url"):
-                client_env["OPENAI_BASE_URL"] = base_url
-
-        elif semantic_config.get("embedding_model") == "gemini":
-            if api_key := embedding_config.get("api_key"):
-                client_env["GEMINI_API_KEY"] = api_key
-            if model := embedding_config.get("model_name"):
-                client_env["GEMINI_EMBEDDING_MODEL"] = model
-            if base_url := embedding_config.get("base_url"):
-                client_env["GEMINI_BASE_URL"] = base_url
 
     full["client_env"] = client_env
 

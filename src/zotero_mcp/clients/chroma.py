@@ -14,7 +14,7 @@ import sys
 from typing import Any
 
 import chromadb
-from chromadb import Documents, EmbeddingFunction, Embeddings
+from chromadb import EmbeddingFunction
 from chromadb.config import Settings
 import chromadb.utils.embedding_functions
 
@@ -33,92 +33,6 @@ def suppress_stdout():
             sys.stdout = old_stdout
 
 
-class OpenAIEmbeddingFunction(EmbeddingFunction):
-    """Custom OpenAI embedding function for ChromaDB."""
-
-    def __init__(
-        self,
-        model_name: str = "text-embedding-3-small",
-        api_key: str | None = None,
-        base_url: str | None = None,
-    ):
-        self.model_name = model_name
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
-        self.base_url = base_url or os.getenv("OPENAI_BASE_URL")
-        if not self.api_key:
-            raise ValueError("OpenAI API key is required")
-
-        try:
-            import openai
-
-            self.client = openai.OpenAI(
-                api_key=self.api_key,
-                base_url=self.base_url,
-            )
-        except ImportError as e:
-            raise ImportError("openai package is required for OpenAI embeddings") from e
-
-    def name(self) -> str:
-        """Return the name of this embedding function."""
-        return "openai"
-
-    def __call__(self, input: Documents) -> Embeddings:
-        """Generate embeddings using OpenAI API."""
-        response = self.client.embeddings.create(model=self.model_name, input=input)
-        return [data.embedding for data in response.data]  # type: ignore[return-value]
-
-
-class GeminiEmbeddingFunction(EmbeddingFunction):
-    """Custom Gemini embedding function for ChromaDB using google-genai."""
-
-    def __init__(
-        self,
-        model_name: str = "models/text-embedding-004",
-        api_key: str | None = None,
-        base_url: str | None = None,
-    ):
-        self.model_name = model_name
-        self.api_key = (
-            api_key or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-        )
-        self.base_url = base_url or os.getenv("GEMINI_BASE_URL")
-        if not self.api_key:
-            raise ValueError("Gemini API key is required")
-
-        try:
-            from google import genai  # type: ignore[import-not-found]
-            from google.genai import types  # type: ignore[import-not-found]
-
-            client_kwargs: dict[str, Any] = {"api_key": self.api_key}
-            if self.base_url:
-                http_options = types.HttpOptions(base_url=self.base_url)
-                client_kwargs["http_options"] = http_options
-            self.client = genai.Client(**client_kwargs)
-            self.types = types
-        except ImportError as e:
-            raise ImportError(
-                "google-genai package is required for Gemini embeddings"
-            ) from e
-
-    def name(self) -> str:
-        """Return the name of this embedding function."""
-        return "gemini"
-
-    def __call__(self, input: Documents) -> Embeddings:
-        """Generate embeddings using Gemini API."""
-        embeddings = []
-        for text in input:
-            response = self.client.models.embed_content(
-                model=self.model_name,
-                contents=[text],
-                config=self.types.EmbedContentConfig(
-                    task_type="retrieval_document", title="Zotero library document"
-                ),
-            )
-            embeddings.append(response.embeddings[0].values)
-        return embeddings
-
-
 class ChromaClient:
     """ChromaDB client for Zotero semantic search."""
 
@@ -135,8 +49,8 @@ class ChromaClient:
         Args:
             collection_name: Name of the ChromaDB collection
             persist_directory: Directory to persist the database
-            embedding_model: Model to use for embeddings ('default', 'openai', 'gemini', 'qwen', 'embeddinggemma', or HuggingFace model name)
-            embedding_config: Configuration for the embedding model
+            embedding_model: Model to use for embeddings (only 'default' supported)
+            embedding_config: Configuration for the embedding model (not used for default)
         """
         self.collection_name = collection_name
         self.embedding_model = embedding_model
@@ -191,39 +105,9 @@ class ChromaClient:
 
     def _create_embedding_function(self) -> EmbeddingFunction:
         """Create the appropriate embedding function based on configuration."""
-        if self.embedding_model == "openai":
-            model_name = self.embedding_config.get(
-                "model_name", "text-embedding-3-small"
-            )
-            api_key = self.embedding_config.get("api_key")
-            base_url = self.embedding_config.get("base_url")
-            return OpenAIEmbeddingFunction(
-                model_name=model_name, api_key=api_key, base_url=base_url
-            )
-
-        elif self.embedding_model == "gemini":
-            model_name = self.embedding_config.get(
-                "model_name", "models/text-embedding-004"
-            )
-            api_key = self.embedding_config.get("api_key")
-            base_url = self.embedding_config.get("base_url")
-            return GeminiEmbeddingFunction(
-                model_name=model_name, api_key=api_key, base_url=base_url
-            )
-
-        else:
-            # Fallback for unknown models or default
-            # Since we removed local embeddings, we must require API configuration or use Chroma's default if available
-            # But users wanted to remove local LLM bloat, so we warn them.
-            if self.embedding_model != "default":
-                logger.warning(
-                    f"Embedding model '{self.embedding_model}' not supported without local LLM dependencies. "
-                    "Using ChromaDB default (if available) or falling back to error."
-                )
-
-            # Use ChromaDB's default embedding function (ONNX-based, lightweight) if available
-            # Note: This might still fail if onnxruntime is stripped, but it's part of chromadb standard
-            return chromadb.utils.embedding_functions.DefaultEmbeddingFunction()
+        # Use ChromaDB's default embedding function (ONNX-based, lightweight)
+        # Note: This is the all-MiniLM-L6-v2 model that runs locally
+        return chromadb.utils.embedding_functions.DefaultEmbeddingFunction()
 
     def add_documents(
         self,
@@ -404,31 +288,6 @@ def create_chroma_client(config_path: str | None = None) -> ChromaClient:
     env_embedding_model = os.getenv("ZOTERO_EMBEDDING_MODEL")
     if env_embedding_model:
         config["embedding_model"] = env_embedding_model
-
-    # Set up embedding config from environment
-    if config["embedding_model"] == "openai":
-        openai_api_key = os.getenv("OPENAI_API_KEY")
-        openai_model = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-small")
-        openai_base_url = os.getenv("OPENAI_BASE_URL")
-        if openai_api_key:
-            config["embedding_config"] = {
-                "api_key": openai_api_key,
-                "model_name": openai_model,
-            }
-            if openai_base_url:
-                config["embedding_config"]["base_url"] = openai_base_url
-
-    elif config["embedding_model"] == "gemini":
-        gemini_api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-        gemini_model = os.getenv("GEMINI_EMBEDDING_MODEL", "models/text-embedding-004")
-        gemini_base_url = os.getenv("GEMINI_BASE_URL")
-        if gemini_api_key:
-            config["embedding_config"] = {
-                "api_key": gemini_api_key,
-                "model_name": gemini_model,
-            }
-            if gemini_base_url:
-                config["embedding_config"]["base_url"] = gemini_base_url
 
     return ChromaClient(
         collection_name=str(config["collection_name"]),

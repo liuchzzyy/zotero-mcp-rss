@@ -35,8 +35,6 @@ def obfuscate_config_for_display(config: dict) -> dict:
         "ZOTERO_LIBRARY_ID",
         "API_KEY",
         "LIBRARY_ID",
-        "OPENAI_API_KEY",
-        "GEMINI_API_KEY",
     ]
 
     for key in sensitive_keys:
