@@ -41,12 +41,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Configuration
-GMAIL_SENDER = "scholaralerts-noreply@google.com"
+# Configuration (read from environment variables, with defaults)
+GMAIL_SENDER = os.getenv("GMAIL_SENDER_FILTER", "scholaralerts-noreply@google.com")
 # Google Scholar Alert subjects vary by topic, so we'll match by sender only
 # Common patterns include: "- 新的结果", "- new results", etc.
 GMAIL_SUBJECTS = []  # Empty means match all emails from this sender
-ZOTERO_COLLECTION_NAME = "00_INBOXS"
+ZOTERO_COLLECTION_NAME = os.getenv("GMAIL_COLLECTION", "00_INBOXS")
 
 # Runtime options from environment variables
 _max_emails_env = os.getenv("MAX_EMAILS", "").strip()
