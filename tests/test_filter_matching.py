@@ -3,12 +3,10 @@
 Quick test script for the improved keyword matching logic.
 """
 
-from pathlib import Path
 import sys
 
 # Setup path to import zotero_mcp modules (already handled by pytest)
 # sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from zotero_mcp.services.rss.rss_filter import RSSFilter
 
 
