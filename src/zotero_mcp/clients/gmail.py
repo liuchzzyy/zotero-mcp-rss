@@ -188,12 +188,12 @@ class GmailClient:
         data = yaml.safe_load(cleaned)
 
         # YAML auto-converts dates to datetime objects; stringify them back
-        # so that google-auth can parse them correctly.
+        # using the format google-auth expects (UTC without timezone suffix).
         from datetime import date, datetime
 
         for key, value in data.items():
             if isinstance(value, datetime):
-                data[key] = value.isoformat()
+                data[key] = value.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
             elif isinstance(value, date):
                 data[key] = value.isoformat()
 
