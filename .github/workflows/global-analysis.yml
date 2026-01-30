@@ -10,7 +10,7 @@ on:
       scan_limit:
         description: 'Maximum items to process'
         required: false
-        default: '20'
+        default: '50'
         type: choice
         options:
           - '10'
@@ -76,7 +76,7 @@ jobs:
           echo "Starting global analysis at $(date)"
           echo "========================================"
 
-          ARGS="--limit ${{ github.event.inputs.scan_limit || '20' }}"
+          ARGS="--limit ${{ github.event.inputs.scan_limit || '50' }}"
           ARGS="$ARGS --target-collection ${{ github.event.inputs.target_collection || '01_SHORTTERMS' }}"
 
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
