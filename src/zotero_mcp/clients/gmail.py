@@ -185,7 +185,19 @@ class GmailClient:
             pass
 
         # Fallback: YAML handles unquoted keys, bare values, etc.
-        return yaml.safe_load(cleaned)
+        data = yaml.safe_load(cleaned)
+
+        # YAML auto-converts dates to datetime objects; stringify them back
+        # so that google-auth can parse them correctly.
+        from datetime import date, datetime
+
+        for key, value in data.items():
+            if isinstance(value, datetime):
+                data[key] = value.isoformat()
+            elif isinstance(value, date):
+                data[key] = value.isoformat()
+
+        return data
 
     def _save_token(self, creds: Credentials) -> None:
         """Save token to file for future use."""
