@@ -308,6 +308,36 @@ class GmailService:
         """Clean article title. Delegates to utils.helpers.clean_title."""
         return clean_title(title)
 
+    async def _trash_emails(
+        self,
+        email_ids: list[str],
+        delete_after: bool,
+        trash_only: bool,
+        dry_run: bool,
+        result: "GmailProcessResult",
+    ) -> None:
+        """Trash or delete emails, updating result stats."""
+        if not delete_after or dry_run or not email_ids:
+            return
+
+        for email_id in email_ids:
+            try:
+                if trash_only:
+                    success = await self.gmail_client.trash_message(email_id)
+                else:
+                    success = await self.gmail_client.delete_message(email_id)
+
+                if success:
+                    result.emails_deleted += 1
+
+                await asyncio.sleep(0.1)  # Rate limiting
+
+            except Exception as e:
+                logger.error(f"Failed to delete email {email_id}: {e}")
+                result.errors.append(f"Delete failed: {email_id}")
+
+        logger.info(f"Trashed {result.emails_deleted}/{len(email_ids)} emails")
+
     def _email_item_to_rss_item(self, email_item: EmailItem) -> RSSItem:
         """Convert EmailItem to RSSItem for filtering compatibility."""
         return RSSItem(
@@ -474,7 +504,7 @@ class GmailService:
 
         result.items_extracted = len(all_items)
 
-        # Mark all matched emails as read
+        # Step 3: Mark all matched emails as read
         for email_id in all_email_ids:
             try:
                 await self.gmail_client.mark_as_read(email_id)
@@ -482,37 +512,18 @@ class GmailService:
             except Exception as e:
                 logger.error(f"Failed to mark email {email_id} as read: {e}")
 
-        # Trash all matched emails — they have been read regardless of content
-        if delete_after and not dry_run:
-            for email_id in all_email_ids:
-                try:
-                    if trash_only:
-                        success = await self.gmail_client.trash_message(email_id)
-                    else:
-                        success = await self.gmail_client.delete_message(email_id)
-
-                    if success:
-                        result.emails_deleted += 1
-
-                    await asyncio.sleep(0.1)  # Rate limiting
-
-                except Exception as e:
-                    logger.error(f"Failed to delete email {email_id}: {e}")
-                    result.errors.append(f"Delete failed: {email_id}")
-
         if not all_items:
             logger.info("No items extracted from emails")
-            logger.info(
-                f"Gmail workflow complete: "
-                f"{result.emails_processed} emails, "
-                f"{result.emails_deleted} trashed"
+            # Still trash emails even if no items extracted
+            await self._trash_emails(
+                all_email_ids, delete_after, trash_only, dry_run, result
             )
             return result
 
         # Convert to RSSItem for filtering compatibility
         rss_items = [self._email_item_to_rss_item(item) for item in all_items]
 
-        # Apply AI filter using RSS_PROMPT
+        # Step 5: Apply AI filter using RSS_PROMPT
         try:
             relevant, irrelevant, keywords = await self.rss_filter.filter_with_keywords(
                 rss_items
@@ -529,14 +540,14 @@ class GmailService:
             relevant = rss_items
             result.items_filtered = len(relevant)
 
+        # Step 4: Trash all matched emails after AI filtering
+        # Emails are trashed regardless of filter results — they have been processed
+        await self._trash_emails(
+            all_email_ids, delete_after, trash_only, dry_run, result
+        )
+
         if not relevant:
             logger.info("No items passed AI filter")
-            logger.info(
-                f"Gmail workflow complete: "
-                f"{result.emails_processed} emails, "
-                f"{result.items_imported} imported, "
-                f"{result.emails_deleted} trashed"
-            )
             return result
 
         if dry_run:
