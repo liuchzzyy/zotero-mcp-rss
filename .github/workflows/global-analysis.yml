@@ -11,14 +11,27 @@ on:
         description: 'Maximum items to process'
         required: false
         default: '20'
+        type: choice
+        options:
+          - '10'
+          - '20'
+          - '50'
+          - '100'
       target_collection:
         description: 'Target collection for processed items'
         required: false
         default: '01_SHORTTERMS'
+        type: string
       dry_run:
         description: 'Preview mode - do not process items'
         required: false
-        default: 'false'
+        default: false
+        type: boolean
+
+# Cancel in-progress runs for the same workflow
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   ZOTERO_LIBRARY_ID: ${{ secrets.ZOTERO_LIBRARY_ID }}
@@ -27,10 +40,13 @@ env:
   DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
   GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
   ZOTERO_PROCESSED_COLLECTION: ${{ github.event.inputs.target_collection || '01_SHORTTERMS' }}
+  ENV_MODE: production
 
 jobs:
-  scan:
+  global-analysis:
+    name: Batch Analyze Papers
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -39,23 +55,50 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
+
+      - name: Cache uv cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
 
       - name: Install uv and dependencies
         run: |
           pip install uv
-          uv sync
+          uv sync --all
+
+      - name: Verify installation
+        run: |
+          uv run zotero-mcp --version
+          uv run zotero-mcp setup-info
 
       - name: Run global scan
         id: scan
         run: |
+          echo "Starting global analysis at $(date)"
+          echo "========================================"
+
           ARGS="--limit ${{ github.event.inputs.scan_limit || '20' }}"
           ARGS="$ARGS --target-collection ${{ github.event.inputs.target_collection || '01_SHORTTERMS' }}"
 
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
             ARGS="$ARGS --dry-run"
+            echo "Running in PREVIEW MODE (dry-run)"
           fi
 
+          echo "Command: zotero-mcp scan $ARGS"
+          echo "========================================"
+
           uv run zotero-mcp scan $ARGS 2>&1 | tee scan-output.log
+
+          EXIT_CODE=${PIPESTATUS[0]}
+          echo "========================================"
+          echo "Analysis completed at $(date)"
+          echo "Exit code: $EXIT_CODE"
+          exit $EXIT_CODE
 
       - name: Upload scan logs
         if: always()
@@ -66,18 +109,24 @@ jobs:
             scan-output.log
             ~/.cache/zotero-mcp/logs/
           retention-days: 3
+          if-no-files-found: warn
 
       - name: Archive logs (keep last 3 days)
         if: always()
         run: |
-          # Create archive directory
+          echo "Creating log archive..."
           mkdir -p archived-logs
 
           # Copy recent logs (last 3 days)
-          find ~/.cache/zotero-mcp/logs/ -name "*.log" -mtime -3 -exec cp {} archived-logs/ \;
+          if [ -d ~/.cache/zotero-mcp/logs/ ]; then
+            find ~/.cache/zotero-mcp/logs/ -name "*.log" -mtime -3 -exec cp {} archived-logs/ \; || true
+          fi
 
           # Create dated archive
           tar -czf global-analysis-logs-$(date +%Y%m%d).tar.gz -C ~/.cache/zotero-mcp/ logs/ || true
+
+          echo "Archive created: global-analysis-logs-$(date +%Y%m%d).tar.gz"
+          ls -lh global-analysis-logs-*.tar.gz || true
 
       - name: Upload archived logs
         if: always()
@@ -86,3 +135,23 @@ jobs:
           name: global-analysis-archive-${{ github.run_number }}
           path: global-analysis-logs-*.tar.gz
           retention-days: 3
+          if-no-files-found: warn
+
+      - name: Generate summary
+        if: always()
+        run: |
+          echo "## Global Analysis Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Run Number**: ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Triggered by**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Limit**: ${{ github.event.inputs.scan_limit || '20' }} items" >> $GITHUB_STEP_SUMMARY
+          echo "- **Collection**: ${{ github.event.inputs.target_collection || '01_SHORTTERMS' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Dry Run**: ${{ github.event.inputs.dry_run || 'false' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f scan-output.log ]; then
+            echo "### Output Log" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -20 scan-output.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi

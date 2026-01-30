@@ -1,0 +1,129 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+# Cancel in-progress runs for the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # -------------------- Code Quality Checks --------------------
+  lint:
+    name: Lint and Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv and dependencies
+        run: |
+          pip install uv
+          uv sync --all
+
+      - name: Run Ruff linter
+        run: |
+          uv run ruff check src/ tests/
+
+      - name: Run Ruff formatter check
+        run: |
+          uv run ruff format --check src/ tests/
+
+      - name: Run type checker
+        run: |
+          uv run ty check src/
+
+  # -------------------- Unit Tests --------------------
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv and dependencies
+        run: |
+          pip install uv
+          uv sync --all
+
+      - name: Run tests with coverage
+        run: |
+          uv run pytest --cov=src --cov-report=xml --cov-report=term-missing
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+  # -------------------- Security Audit --------------------
+  security:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv and dependencies
+        run: |
+          pip install uv
+          uv sync --all
+
+      - name: Run dependency audit
+        run: |
+          pip install pip-audit
+          uv run pip-audit || true
+
+      - name: Check for outdated dependencies
+        run: |
+          uv pip list --outdated || true
+
+  # -------------------- Build Test --------------------
+  build:
+    name: Build Test
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install uv and dependencies
+        run: |
+          pip install uv
+          uv sync --all
+
+      - name: Build package
+        run: |
+          uv build
+
+      - name: Check package
+        run: |
+          uv pip check
