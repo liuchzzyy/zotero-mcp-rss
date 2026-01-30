@@ -1,0 +1,45 @@
+Unused Modules Analysis (2025-01-30)
+=====================================
+
+1. streaming.py
+   - Location: src/zotero_mcp/utils/streaming.py
+   - Purpose: Stream search results in batches
+   - Status: ZERO imports across codebase
+   - Verification commands:
+     * grep -r "from.*streaming\|import.*streaming" src/ tests/ --include="*.py" → NO MATCHES
+     * grep -r "streaming" src/zotero_mcp/server.py src/zotero_mcp/cli.py --include="*.py" → NO MATCHES
+   - Recommendation: SAFE TO DELETE
+
+2. response_converter.py
+   - Location: src/zotero_mcp/utils/response_converter.py
+   - Purpose: Convert Pydantic responses to legacy string formats
+   - Status: ZERO imports across codebase
+   - Verification commands:
+     * grep -r "from.*response_converter\|import.*response_converter" src/ tests/ --include="*.py" → NO MATCHES
+     * grep -r "response_converter" src/zotero_mcp/server.py src/zotero_mcp/cli.py --include="*.py" → NO MATCHES
+   - Recommendation: SAFE TO DELETE
+
+Codebase Search Results (2025-01-30)
+=====================================
+
+Search 1: streaming.py imports
+Command: grep -r "from.*streaming\|import.*streaming" src/ tests/ --include="*.py"
+Result: NO MATCHES
+
+Search 2: response_converter.py imports
+Command: grep -r "from.*response_converter\|import.*response_converter" src/ tests/ --include="*.py"
+Result: NO MATCHES
+
+Search 3: Entry point references
+Command: grep -r "streaming\|response_converter" src/zotero_mcp/server.py src/zotero_mcp/cli.py --include="*.py"
+Result: NO MATCHES
+
+Conclusion
+==========
+Both streaming.py (1,833 bytes) and response_converter.py (4,550 bytes) are completely unused
+across the entire codebase. No imports or references found in:
+- Source code (src/)
+- Test files (tests/)
+- Entry points (server.py, cli.py)
+
+These modules are safe to remove as part of the code cleanup plan.
