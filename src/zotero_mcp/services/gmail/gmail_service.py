@@ -463,29 +463,50 @@ class GmailService:
             logger.info("No emails to process")
             return result
 
-        # Collect all items from all emails
+        # Collect all items and track all email IDs for cleanup
         all_items: list[EmailItem] = []
-        processed_email_ids: list[str] = []
+        all_email_ids: list[str] = [email.id for email in emails]
 
         for email in emails:
             if email.items:
                 all_items.extend(email.items)
-                processed_email_ids.append(email.id)
                 result.emails_processed += 1
 
         result.items_extracted = len(all_items)
 
-        # Mark processed emails as read immediately after fetching
-        if processed_email_ids:
-            for email_id in processed_email_ids:
+        # Mark all matched emails as read
+        for email_id in all_email_ids:
+            try:
+                await self.gmail_client.mark_as_read(email_id)
+                await asyncio.sleep(0.1)  # Rate limiting
+            except Exception as e:
+                logger.error(f"Failed to mark email {email_id} as read: {e}")
+
+        # Trash all matched emails — they have been read regardless of content
+        if delete_after and not dry_run:
+            for email_id in all_email_ids:
                 try:
-                    await self.gmail_client.mark_as_read(email_id)
+                    if trash_only:
+                        success = await self.gmail_client.trash_message(email_id)
+                    else:
+                        success = await self.gmail_client.delete_message(email_id)
+
+                    if success:
+                        result.emails_deleted += 1
+
                     await asyncio.sleep(0.1)  # Rate limiting
+
                 except Exception as e:
-                    logger.error(f"Failed to mark email {email_id} as read: {e}")
+                    logger.error(f"Failed to delete email {email_id}: {e}")
+                    result.errors.append(f"Delete failed: {email_id}")
 
         if not all_items:
             logger.info("No items extracted from emails")
+            logger.info(
+                f"Gmail workflow complete: "
+                f"{result.emails_processed} emails, "
+                f"{result.emails_deleted} trashed"
+            )
             return result
 
         # Convert to RSSItem for filtering compatibility
@@ -507,25 +528,6 @@ class GmailService:
             # Fall back to all items if filtering fails
             relevant = rss_items
             result.items_filtered = len(relevant)
-
-        # Trash/delete processed emails (after AI filter, before import)
-        # Emails are trashed regardless of filter results — they have been processed
-        if delete_after and processed_email_ids and not dry_run:
-            for email_id in processed_email_ids:
-                try:
-                    if trash_only:
-                        success = await self.gmail_client.trash_message(email_id)
-                    else:
-                        success = await self.gmail_client.delete_message(email_id)
-
-                    if success:
-                        result.emails_deleted += 1
-
-                    await asyncio.sleep(0.1)  # Rate limiting
-
-                except Exception as e:
-                    logger.error(f"Failed to delete email {email_id}: {e}")
-                    result.errors.append(f"Delete failed: {email_id}")
 
         if not relevant:
             logger.info("No items passed AI filter")
