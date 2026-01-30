@@ -295,20 +295,53 @@ class ZoteroAPIClient:
         limit: int = 100,
     ) -> list[dict[str, Any]]:
         """
-        Get items in a collection.
+        Get items in a collection with pagination support.
 
         Args:
             collection_key: Collection key
-            limit: Maximum results
+            limit: Maximum results (will fetch all items if limit is None)
 
         Returns:
             List of items in collection
         """
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(
-            None,
-            lambda: self.client.collection_items(collection_key, limit=limit),
-        )
+
+        def fetch_all_items():
+            """Fetch all items with pagination."""
+            all_items = []
+            start = 0
+            page_size = 100  # pyzotero max per request
+
+            while True:
+                # If limit is specified and we've reached it, stop
+                if limit and len(all_items) >= limit:
+                    break
+
+                # Calculate how many to fetch in this iteration
+                fetch_size = page_size
+                if limit:
+                    remaining = limit - len(all_items)
+                    if remaining < page_size:
+                        fetch_size = remaining
+
+                # Fetch items with start parameter for pagination
+                items = self.client.collection_items(
+                    collection_key, limit=fetch_size, start=start
+                )
+
+                if not items:
+                    break
+
+                all_items.extend(items)
+                start += len(items)
+
+                # If we got fewer items than requested, we've reached the end
+                if len(items) < fetch_size:
+                    break
+
+            return all_items
+
+        return await loop.run_in_executor(None, fetch_all_items)
 
     # -------------------- Tag Methods --------------------
 
