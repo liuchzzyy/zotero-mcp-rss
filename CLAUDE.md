@@ -81,7 +81,6 @@ Layered architecture with strict separation of concerns:
   - `helpers.py` - Common helper functions
   - `errors.py` - Custom error definitions
   - `cache.py` - Caching utilities
-  - `metrics.py` - Performance metrics
   - `markdown_html.py` - Markdown to HTML conversion
   - `zotero_mapper.py` - Zotero data mapping
 
@@ -481,4 +480,3 @@ Code must handle both `ZOTERO_LOCAL=true` (SQLite) and `false` (Zotero API). Dat
 - `docs/GITHUB_ACTIONS_GUIDE.md` - GitHub Actions guide with setup and workflow descriptions
 - `docs/GMAIL-SETUP.md` - Gmail API setup guide
 - `.env.example` - Configuration template with detailed comments
-- `TaskFile.txt` - Task list and project roadmap
