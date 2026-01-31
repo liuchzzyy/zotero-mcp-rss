@@ -368,10 +368,17 @@ class RSSService:
                 description=f"Create item '{cleaned_title[:30]}'",
             )
 
-            # Handle case where result might be an int (HTTP status code)
+            # Handle case where result might be an int (HTTP status code) or other unexpected type
             if isinstance(result, int):
                 logger.warning(
                     f"  ✗ Failed to create: {cleaned_title[:50]} - HTTP status: {result}"
+                )
+                return None
+
+            # Ensure result is a dict before accessing dict methods
+            if not isinstance(result, dict):
+                logger.warning(
+                    f"  ✗ Failed to create: {cleaned_title[:50]} - Unexpected result type: {type(result).__name__}"
                 )
                 return None
 
