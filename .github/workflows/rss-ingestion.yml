@@ -2,8 +2,8 @@ name: RSS Ingestion
 
 on:
   schedule:
-    # Run daily at 02:00 Beijing Time (18:00 UTC previous day)
-    - cron: '0 18 * * *'
+    # Run daily at 00:00 Beijing Time (16:00 UTC previous day)
+    - cron: '0 16 * * *'
 
   workflow_dispatch:
     inputs:
@@ -13,10 +13,20 @@ on:
         default: 'RSS/RSS_official.opml'
         type: string
       collection_name:
-        description: 'Target Zotero collection name'
+        description: 'Target Zotero collection name (priority: 00_INBOXS > others)'
         required: false
         default: '00_INBOXS'
         type: string
+      max_items:
+        description: 'Maximum articles to process'
+        required: false
+        default: '100'
+        type: choice
+        options:
+          - '50'
+          - '100'
+          - '150'
+          - '200'
       days:
         description: 'Import articles from the last N days'
         required: false

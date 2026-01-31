@@ -2,8 +2,8 @@ name: Global Analysis
 
 on:
   schedule:
-    # Run daily at 03:00 Beijing Time (19:00 UTC previous day)
-    - cron: '0 19 * * *'
+    # Run daily at 01:00 Beijing Time (17:00 UTC previous day)
+    - cron: '0 17 * * *'
 
   workflow_dispatch:
     inputs:
