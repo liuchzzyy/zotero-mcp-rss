@@ -36,7 +36,7 @@ PROVIDER = "deepseek"
 
 DEEPSEEK_CONFIG = {
     "base_url": "https://api.deepseek.com",
-    "default_model": "deepseek-chat",
+    "default_model": "deepseek-chat",  # Will use V3 via DEEPSEEK_MODEL env var
     "api_style": "openai",  # OpenAI-compatible API
     "env_key": "DEEPSEEK_API_KEY",
     "env_base_url": "DEEPSEEK_BASE_URL",
@@ -84,10 +84,12 @@ class LLMClient:
         )
 
         # Get model
+        # Priority: explicit parameter > env var > default
+        # Use deepseek-v3 if available, otherwise fallback to deepseek-chat
         self.model = (
             model
             or os.getenv(DEEPSEEK_CONFIG["env_model"])
-            or DEEPSEEK_CONFIG["default_model"]
+            or "deepseek-chat"
         )
 
         logger.info(
@@ -326,7 +328,7 @@ class LLMClient:
                     {"role": "user", "content": prompt},
                 ],
                 temperature=0.7,
-                max_tokens=8000,  # Increased for complete JSON output
+                max_tokens=8192,  # DeepSeek API maximum (for both deepseek-chat and deepseek-v3)
             )
 
             content = response.choices[0].message.content

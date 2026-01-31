@@ -142,17 +142,26 @@ class StructuredNoteRenderer:
         return f'<{tag} style="{style}">{block.content}</{tag}>'
 
     def _render_paragraph(self, block: ParagraphBlock) -> str:
-        """Render paragraph block."""
+        """Render paragraph block with optional citations."""
         margin = self.theme.get("paragraph_margin", "0.2em")
         style = (
             f"margin: {margin} 0; "
             "line-height: 1.6; "
             "color: black;"
         )
-        return f'<p style="{style}">{block.content}</p>'
+
+        # Render paragraph content
+        content = block.content
+
+        # Add citations if present
+        if block.citations:
+            citation_html = self._render_citations(block.citations)
+            content = f"{content}\n{citation_html}"
+
+        return f'<p style="{style}">{content}</p>'
 
     def _render_bullet_list(self, block: BulletListBlock) -> str:
-        """Render bullet list block."""
+        """Render bullet list block with optional citations per item."""
         margin = self.theme.get("list_margin", "0.2em")
         item_margin = self.theme.get("list_item_margin", "0.2em")
 
@@ -267,11 +276,66 @@ class StructuredNoteRenderer:
         style = "margin: 1em 0; border: 0; border-top: 1px solid #e0e0e0;"
         return f'<hr style="{style}"/>'
 
-    def _format_list_item(self, item: str) -> str:
-        """Format list item text, preserving bold markers."""
+    def _format_list_item(self, item) -> str:
+        """Format list item text, preserving bold markers and adding citations."""
+        from zotero_mcp.models.note_structure import ListItemWithCitation
+
+        # Handle both string and ListItemWithCitation
+        if isinstance(item, str):
+            text = item
+            citations = []
+        else:
+            text = item.text
+            citations = item.citations
+
         # Convert **bold** to HTML
-        item = re.sub(r'\*\*(.*?)\*\*', r'<b style="font-weight: bold; color: rgb(239, 112, 96);">\1</b>', item)
-        return item
+        text = re.sub(
+            r'\*\*(.*?)\*\*',
+            r'<b style="font-weight: bold; color: rgb(239, 112, 96);">\1</b>',
+            text,
+        )
+
+        # Add citations if present
+        if citations:
+            citation_html = self._render_citations(citations)
+            return f"{text}\n{citation_html}"
+        return text
+
+    def _render_citations(self, citations) -> str:
+        """Render citations with source locations."""
+        if not citations:
+            return ""
+
+        citation_style = (
+            "display: block; "
+            "margin: 0.5em 0; "
+            "padding: 8px 12px; "
+            "background: #f8f9fa; "
+            "border-left: 3px solid rgb(239, 112, 96); "
+            "font-size: 0.85em; "
+            "color: #495057; "
+            "line-height: 1.4;"
+        )
+
+        location_style = (
+            "display: block; "
+            "font-weight: bold; "
+            "color: rgb(239, 112, 96); "
+            "margin-bottom: 4px;"
+        )
+
+        citations_html = []
+        for citation in citations:
+            location = citation.location
+            content = citation.content
+            citations_html.append(
+                f'<div style="{citation_style}">'
+                f'<span style="{location_style}">📍 {location}</span>'
+                f'<span>{content}</span>'
+                f'</div>'
+            )
+
+        return "\n".join(citations_html)
 
 
 # Singleton instance
