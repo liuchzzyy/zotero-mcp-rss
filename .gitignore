@@ -53,6 +53,10 @@ AI分析结果.md
 chroma_db/
 pyzotero/
 
+# Git worktrees (isolated workspaces)
+worktrees/
+.worktrees/
+
 # Runtime caches
 RSS/keywords_cache.json
 
