@@ -86,6 +86,8 @@ def _deep_clean_html(html: str) -> str:
     html = re.sub(r"(</li>)\s*<br\s*/?>", r"\1", html)
     # Remove <br/> between lists and after lists
     html = re.sub(r"(</ul>|</ol>)\s*<br\s*/?>\s*", r"\1", html)
+    # Remove <br/> after horizontal rules
+    html = re.sub(r"(<hr[^>]*>)\s*<br\s*/?>", r"\1", html)
 
     # Fix nested paragraphs
     html = re.sub(r"<p>\s*<p>", "<p>", html)
