@@ -478,8 +478,7 @@ Code must handle both `ZOTERO_LOCAL=true` (SQLite) and `false` (Zotero API). Dat
 - `CHANGELOG.md` - Version history
 - `CONTRIBUTING.md` - Contribution guidelines
 - `docs/DEPENDENCY_MANAGEMENT.md` - Dependency management guide
-- `docs/GITHUB_ACTIONS_GUIDE.md` - GitHub Actions guide
-- `docs/GITHUB-ACTIONS-SETUP.md` - Actions setup guide
+- `docs/GITHUB_ACTIONS_GUIDE.md` - GitHub Actions guide with setup and workflow descriptions
 - `docs/GMAIL-SETUP.md` - Gmail API setup guide
 - `.env.example` - Configuration template with detailed comments
 - `TaskFile.txt` - Task list and project roadmap

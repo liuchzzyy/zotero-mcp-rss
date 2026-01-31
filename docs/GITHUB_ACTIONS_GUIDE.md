@@ -10,6 +10,53 @@ Zotero MCP uses GitHub Actions for automated tasks:
 - **Gmail Ingestion**: Daily Gmail alerts processing
 - **Global Analysis**: Daily batch PDF analysis
 
+## Quick Setup
+
+### Prerequisites
+
+1. Fork the repository to your GitHub account
+2. Create a personal access token (PAT) with `repo` and `workflow` scopes
+3. Enable GitHub Actions in your fork repository settings
+
+### Required GitHub Secrets
+
+Configure these secrets in your fork (Settings → Secrets and variables → Actions):
+
+| Secret Name | Description | Example |
+|-------------|-------------|---------|
+| `ZOTERO_USER_ID` | Your Zotero user ID (numeric) | `1234567` |
+| `ZOTERO_API_KEY` | Zotero API key from zotero.org/settings/keys | `abc123...` |
+| `OPENAI_API_KEY` | OpenAI API key for AI analysis | `sk-...` |
+| `DEEPSEEK_API_KEY` | DeepSeek API key (optional, preferred) | `sk-...` |
+| `GMAIL_CREDENTIALS` | Base64-encoded Gmail credentials JSON | `eyJ...` |
+| `GMAIL_TOKEN` | Base64-encoded Gmail token pickle | `gASV...` |
+| `CHROMADB_API_KEY` | ChromaDB API key (optional) | `...` |
+| `CHROMADB_HOST` | ChromaDB host (optional) | `...` |
+
+### Secret Generation
+
+**Gmail Credentials:**
+```bash
+# Encode credentials.json
+base64 -i path/to/credentials.json -w 0
+
+# Encode token.pickle
+base64 -i path/to/token.pickle -w 0
+```
+
+For detailed setup instructions, see `.env.example` in the repository root.
+
+### Workflow Configuration
+
+All workflows use these defaults (override via workflow `with:` inputs):
+- **RSS Schedule**: Daily at 02:00 Beijing Time
+- **Gmail Schedule**: Daily at 00:00 Beijing Time
+- **Global Analysis**: Daily at 03:00 Beijing Time
+
+All workflows support:
+- `dry_run: true` - Test mode without making changes
+- Manual triggering via GitHub Actions UI
+
 ## Workflow Files
 
 ### CI/CD Pipeline (`.github/workflows/ci.yml`)
