@@ -1,5 +1,4 @@
-"""Gmail service package for Zotero MCP."""
+from .gmail_fetcher import GmailFetcher
+from .gmail_service import GmailService
 
-from zotero_mcp.services.gmail.gmail_service import GmailService
-
-__all__ = ["GmailService"]
+__all__ = ["GmailFetcher", "GmailService"]
