@@ -86,11 +86,7 @@ class LLMClient:
         # Get model
         # Priority: explicit parameter > env var > default
         # Use deepseek-v3 if available, otherwise fallback to deepseek-chat
-        self.model = (
-            model
-            or os.getenv(DEEPSEEK_CONFIG["env_model"])
-            or "deepseek-chat"
-        )
+        self.model = model or os.getenv(DEEPSEEK_CONFIG["env_model"]) or "deepseek-chat"
 
         logger.info(
             f"Initialized DeepSeek LLM client: "
