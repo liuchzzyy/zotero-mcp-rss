@@ -22,7 +22,6 @@ from zotero_mcp.models.search import (
 )
 from zotero_mcp.services import get_data_service
 from zotero_mcp.utils.cache import cached_tool
-from zotero_mcp.utils.metrics import monitored_tool
 
 
 def register_search_tools(mcp: FastMCP) -> None:
@@ -348,7 +347,6 @@ def register_search_tools(mcp: FastMCP) -> None:
             openWorldHint=False,
         ),
     )
-    @monitored_tool
     async def zotero_semantic_search(
         params: SemanticSearchInput, ctx: Context
     ) -> SearchResponse:
