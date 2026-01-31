@@ -11,10 +11,12 @@ from typing import Any
 from zotero_mcp.models.note_structure import (
     AnyBlock,
     BulletListBlock,
+    Citation,
     CodeBlock,
     ContentBlock,
     HeadingBlock,
     HorizontalRuleBlock,
+    ListItemWithCitation,
     NumberedListBlock,
     ParagraphBlock,
     QuoteBlock,
@@ -52,9 +54,16 @@ class StructuredNoteParser:
             json_str = json_code_block_match.group(1).strip()
             try:
                 data = json.loads(json_str)
+                # Handle different JSON structures
+                # Option 1: {"sections": [...]} (direct format)
+                # Option 2: {"analysis": {"sections": [...]}} (wrapped format)
+                sections_data = data.get("sections", [])
+                if not sections_data and "analysis" in data:
+                    sections_data = data.get("analysis", {}).get("sections", [])
+
                 # Convert to blocks
                 blocks = []
-                for section in data.get("sections", []):
+                for section in sections_data:
                     block = self._parse_json_section(section)
                     if block:
                         blocks.append(block)
@@ -89,8 +98,12 @@ class StructuredNoteParser:
         data = json.loads(json_str)
 
         # Handle both direct array and wrapped response
+        # Option 1: {"sections": [...]}
+        # Option 2: {"analysis": {"sections": [...]}}
         if isinstance(data, dict) and "sections" in data:
             sections = data["sections"]
+        elif isinstance(data, dict) and "analysis" in data:
+            sections = data.get("analysis", {}).get("sections", [])
         elif isinstance(data, list):
             sections = data
         else:
@@ -107,18 +120,56 @@ class StructuredNoteParser:
 
     def _parse_json_section(self, section: dict[str, Any]) -> ContentBlock | None:
         """Parse a single JSON section into ContentBlock."""
+
+        # Helper function to get content from either "content" or "text" field
+        def get_content(key: str = "", default: str = "") -> str:
+            return section.get("content") or section.get("text", default)
+
         block_type = section.get("type")
 
         if block_type == "heading":
             return HeadingBlock(
-                level=section.get("level", 2), content=section.get("content", "")
+                level=section.get("level", 2), content=get_content()
             )
         elif block_type == "paragraph":
-            return ParagraphBlock(content=section.get("content", ""))
+            # Parse paragraph with optional citations
+            citations_data = section.get("citations", [])
+            citations = [
+                Citation(
+                    location=cit.get("location", ""),
+                    content=cit.get("content", ""),
+                )
+                for cit in citations_data
+            ]
+            return ParagraphBlock(
+                content=get_content(), citations=citations
+            )
         elif block_type == "bullet_list":
-            items = section.get("items", [])
-            if isinstance(items, str):
-                items = [items]
+            # Parse bullet list with optional citations per item
+            items_data = section.get("items", [])
+            if isinstance(items_data, str):
+                items_data = [items_data]
+
+            items = []
+            for item_data in items_data:
+                if isinstance(item_data, str):
+                    # Simple string item without citations
+                    items.append(ListItemWithCitation(text=item_data, citations=[]))
+                else:
+                    # Dict with text and optional citations
+                    citations_data = item_data.get("citations", [])
+                    citations = [
+                        Citation(
+                            location=cit.get("location", ""),
+                            content=cit.get("content", ""),
+                        )
+                        for cit in citations_data
+                    ]
+                    items.append(
+                        ListItemWithCitation(
+                            text=item_data.get("text", ""), citations=citations
+                        )
+                    )
             return BulletListBlock(items=items)
         elif block_type == "numbered_list":
             items = section.get("items", [])
@@ -126,11 +177,11 @@ class StructuredNoteParser:
                 items = [items]
             return NumberedListBlock(items=items)
         elif block_type == "quote":
-            return QuoteBlock(content=section.get("content", ""))
+            return QuoteBlock(content=get_content())
         elif block_type == "code":
             return CodeBlock(
                 language=section.get("language"),
-                content=section.get("content", ""),
+                content=get_content(),
             )
         elif block_type == "table":
             return TableBlock(

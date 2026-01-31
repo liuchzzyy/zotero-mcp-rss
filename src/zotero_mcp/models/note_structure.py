@@ -9,6 +9,16 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
+class Citation(BaseModel):
+    """Citation with source location information."""
+
+    location: str = Field(
+        ...,
+        description="Location in format: 'page/total - first_50_chars'",
+    )
+    content: str = Field(..., description="Full quoted text from source")
+
+
 class ContentBlock(BaseModel):
     """Base class for all content blocks."""
 
@@ -24,17 +34,29 @@ class HeadingBlock(ContentBlock):
 
 
 class ParagraphBlock(ContentBlock):
-    """Paragraph block."""
+    """Paragraph block with optional citations."""
 
     type: Literal["paragraph"] = "paragraph"
     content: str = Field(..., description="Paragraph text")
+    citations: list[Citation] = Field(
+        default_factory=list, description="Supporting quotes with locations"
+    )
+
+
+class ListItemWithCitation(BaseModel):
+    """List item with optional citations."""
+
+    text: str = Field(..., description="Item text")
+    citations: list[Citation] = Field(
+        default_factory=list, description="Supporting quotes with locations"
+    )
 
 
 class BulletListBlock(ContentBlock):
-    """Bullet list block."""
+    """Bullet list block with optional citations per item."""
 
     type: Literal["bullet_list"] = "bullet_list"
-    items: list[str] = Field(..., description="List items")
+    items: list[ListItemWithCitation] = Field(..., description="List items with optional citations")
 
 
 class NumberedListBlock(ContentBlock):
