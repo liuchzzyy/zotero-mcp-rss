@@ -18,6 +18,8 @@ from zotero_mcp.models.workflow import (
 )
 from zotero_mcp.services.checkpoint import get_checkpoint_manager
 from zotero_mcp.services.data_access import get_data_service
+from zotero_mcp.services.note_parser import get_structured_note_parser
+from zotero_mcp.services.note_renderer import get_structured_note_renderer
 from zotero_mcp.utils.batch_loader import BatchLoader
 from zotero_mcp.utils.beautify import beautify_ai_note
 from zotero_mcp.utils.helpers import format_creators
@@ -27,7 +29,10 @@ from zotero_mcp.utils.logging_config import (
     log_task_start,
 )
 from zotero_mcp.utils.markdown_html import markdown_to_html
-from zotero_mcp.utils.templates import get_analysis_questions
+from zotero_mcp.utils.templates import (
+    DEFAULT_ANALYSIS_TEMPLATE_JSON,
+    get_analysis_questions,
+)
 
 logger = get_logger(__name__)
 
@@ -402,6 +407,7 @@ class WorkflowService:
         dry_run: bool,
         delete_old_notes: bool = False,
         move_to_collection: str | None = None,
+        use_structured: bool = True,
     ) -> ItemAnalysisResult:
         """Analyze a single item using pre-fetched bundle.
 
@@ -451,7 +457,11 @@ class WorkflowService:
             annotations = bundle.get("annotations", [])
 
             # 3. Call LLM
-            markdown_note = await llm_client.analyze_paper(
+            # Use JSON template for structured output
+            if use_structured and template is None:
+                template = DEFAULT_ANALYSIS_TEMPLATE_JSON
+
+            analysis_content = await llm_client.analyze_paper(
                 title=item.title,
                 authors=item.authors,
                 journal=metadata.get("data", {}).get("publicationTitle"),
@@ -462,7 +472,7 @@ class WorkflowService:
                 template=template,
             )
 
-            if not markdown_note:
+            if not analysis_content:
                 return ItemAnalysisResult(
                     item_key=item.key,
                     title=item.title,
@@ -471,7 +481,7 @@ class WorkflowService:
                     processing_time=time.time() - start_time,
                 )
 
-            # 4. Save Result
+            # 4. Generate HTML note
             note_key = None
             if not dry_run:
                 # 4a. Delete old notes if requested
@@ -491,19 +501,75 @@ class WorkflowService:
                                     f"Failed to delete old note {old_key}: {e}"
                                 )
 
-                html_note = markdown_to_html(markdown_note)
-                # Auto-beautify with Typora Orange Heart theme
-                html_note = beautify_ai_note(html_note)
+                # 4b. Generate HTML
+                if use_structured:
+                    # Use structured parser and renderer
+                    try:
+                        parser = get_structured_note_parser()
+                        renderer = get_structured_note_renderer()
+
+                        # Parse LLM output into blocks
+                        blocks = parser.parse(analysis_content)
+
+                        # Render blocks into HTML
+                        html_note = renderer.render(blocks, title=item.title)
+
+                        logger.info(
+                            f"Generated structured note with {len(blocks)} blocks"
+                        )
+
+                    except Exception as e:
+                        logger.warning(
+                            f"Structured parsing failed: {e}, falling back to Markdown"
+                        )
+                        # Fallback to traditional markdown approach
+                        basic_info = f"""# AI分析 - {item.title}
+
+## 论文基本信息
+
+- **标题**: {item.title}
+- **作者**: {item.authors or "未知"}
+- **期刊**: {metadata.get("data", {}).get("publicationTitle") or "未知"}
+- **发表日期**: {item.date or "未知"}
+- **DOI**: {item.doi or "未知"}
+
+---
+
+{analysis_content}
+"""
+                        html_note = markdown_to_html(basic_info)
+                        html_note = beautify_ai_note(html_note)
+                else:
+                    # Traditional markdown approach
+                    basic_info = f"""# AI分析 - {item.title}
+
+## 论文基本信息
+
+- **标题**: {item.title}
+- **作者**: {item.authors or "未知"}
+- **期刊**: {metadata.get("data", {}).get("publicationTitle") or "未知"}
+- **发表日期**: {item.date or "未知"}
+- **DOI**: {item.doi or "未知"}
+
+---
+
+{analysis_content}
+"""
+                    html_note = markdown_to_html(basic_info)
+                    html_note = beautify_ai_note(html_note)
 
                 # Generate tags: AI分析 + LLM provider name
-                # Format provider name properly (DeepSeek, OpenAI, Gemini)
+                # Format provider name properly (DeepSeek, Claude)
                 provider_map = {
                     "deepseek": "DeepSeek",
-                    "openai": "OpenAI",
-                    "gemini": "Gemini",
+                    "claude-cli": "Claude",
+                    "claude": "Claude",
                 }
                 provider_name = provider_map.get(
-                    llm_client.provider, llm_client.provider.capitalize()
+                    llm_client.provider,
+                    llm_client.provider.capitalize()
+                    if llm_client.provider != "claude-cli"
+                    else "Claude",
                 )
                 note_tags = ["AI分析", provider_name]
 
@@ -520,7 +586,7 @@ class WorkflowService:
                         note_data = list(success.values())[0] if success else {}
                         note_key = note_data.get("key", "unknown")
 
-                # 4b. Move item to target collection if specified
+                # 4c. Move item to target collection if specified
                 if move_to_collection and note_key:
                     await self._move_to_collection(item, move_to_collection)
 

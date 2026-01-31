@@ -401,6 +401,7 @@ class RSSService:
         days_back: int = 15,
         max_items: int | None = None,
         dry_run: bool = False,
+        llm_provider: str = "deepseek",
     ) -> RSSProcessResult:
         """Full RSS fetching and importing workflow."""
         from zotero_mcp.services.data_access import get_data_service
@@ -446,7 +447,13 @@ class RSSService:
             return result
 
         # AI filter
-        relevant, _, _ = await rss_filter.filter_with_keywords(all_items, prompt_path)
+        if llm_provider == "claude-cli":
+            logger.info("Using Claude CLI for RSS filtering")
+            relevant, _, _ = await rss_filter.filter_with_cli(all_items, prompt_path)
+        else:
+            relevant, _, _ = await rss_filter.filter_with_keywords(
+                all_items, prompt_path
+            )
         result.items_filtered = len(relevant)
 
         # Sort and limit

@@ -83,7 +83,7 @@
 
 - Python 3.10+
 - Git
-- uv (推荐) 或 pip
+- uv
 
 ### 本地开发环境搭建
 
@@ -105,25 +105,16 @@
 
 4. **安装开发依赖**
    ```bash
-   # 使用 uv (推荐)
-   uv pip install -e ".[dev]"
-   
-   # 或使用 pip
-   pip install -e ".[dev]"
+   uv sync --all-groups
    ```
 
-5. **安装 pre-commit hooks**
-   ```bash
-   pre-commit install
-   ```
-
-6. **验证安装**
+5. **验证安装**
    ```bash
    # 运行测试
-   pytest
-   
+   uv run pytest
+
    # 启动服务器
-   zotero-mcp serve
+   uv run zotero-mcp serve
    ```
 
 ---
@@ -135,27 +126,25 @@
 我们遵循以下规范：
 
 - **PEP 8** - Python 代码风格指南
-- **Black** - 代码格式化（line-length 88）
-- **isort** - 导入排序
+- **Ruff** - 统一的代码格式化和检查（line-length 88）
 - **Type Hints** - 所有函数使用类型注解
 
 ### 格式化代码
 
 ```bash
 # 格式化代码
-black src/
+uv run ruff format src/
+uv run ruff check --fix src/
 
-# 排序导入
-isort src/
-
-# 运行所有 pre-commit hooks
-pre-commit run --all-files
+# 检查格式
+uv run ruff format --check src/
+uv run ruff check src/
 ```
 
 ### 代码组织
 
 ```python
-# 导入顺序（由 isort 自动处理）
+# 导入顺序（由 ruff 自动处理）
 import asyncio  # 标准库
 from typing import Any  # 标准库类型
 
@@ -281,11 +270,11 @@ git checkout -b fix/bug-description
 
 ```bash
 # 运行测试
-pytest
+uv run pytest
 
 # 运行 linters
-black --check src/
-isort --check src/
+uv run ruff check src/
+uv run ruff format --check src/
 ```
 
 ### 4. 提交更改
@@ -388,13 +377,13 @@ git push origin feature/your-feature-name
 
 ```bash
 # 运行所有测试
-pytest
+uv run pytest
 
 # 运行特定测试
-pytest tests/test_search.py
+uv run pytest tests/test_search.py
 
 # 带覆盖率报告
-pytest --cov=src/zotero_mcp
+uv run pytest --cov=src/zotero_mcp
 ```
 
 ### 编写测试

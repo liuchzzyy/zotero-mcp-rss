@@ -10,6 +10,7 @@ Provides unified access to Zotero data through multiple backends:
 
 from .better_bibtex import BetterBibTeXClient, get_better_bibtex_client
 from .chroma import ChromaClient, create_chroma_client
+from .cli_llm import CLILLMClient
 from .local_db import LocalDatabaseClient, ZoteroItem, get_local_database_client
 from .zotero_client import ZoteroAPIClient, get_zotero_client
 
@@ -23,4 +24,5 @@ __all__ = [
     "get_local_database_client",
     "ChromaClient",
     "create_chroma_client",
+    "CLILLMClient",
 ]

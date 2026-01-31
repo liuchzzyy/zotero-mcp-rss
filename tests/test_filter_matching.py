@@ -3,12 +3,10 @@
 Quick test script for the improved keyword matching logic.
 """
 
-from pathlib import Path
 import sys
 
-# Setup path to import zotero_mcp modules
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
+# Setup path to import zotero_mcp modules (already handled by pytest)
+# sys.path.insert(0, str(Path(__file__).parent.parent))
 from zotero_mcp.services.rss.rss_filter import RSSFilter
 
 
@@ -79,7 +77,7 @@ def test_matching():
     print(f"Results: {passed} passed, {failed} failed")
     print("=" * 70)
 
-    return failed == 0
+    assert failed == 0, f"{failed} test(s) failed"
 
 
 def test_with_real_data():

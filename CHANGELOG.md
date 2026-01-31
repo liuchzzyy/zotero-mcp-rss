@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- Unused `streaming.py` utility module (no imports)
+- Unused `response_converter.py` utility module (no imports)
+- Duplicate `simple_gmail_auth.py` script (use `gmail_auth.py`)
+
+### Changed
+- Moved `test_filter_matching.py` from src/scripts/ to tests/
+- Moved `test_gmail.py` from src/scripts/ to scripts/ (manual integration test)
+- Removed unused imports and variables across codebase
+- Improved code maintainability index
+- Fixed type errors in test_cli_llm.py
+
+### Fixed
+- Misplaced test files now in proper directories
+- Test assertion style in test_filter_matching.py
+
 ### 🚀 Enhancements
 
 #### RSS Feed Integration

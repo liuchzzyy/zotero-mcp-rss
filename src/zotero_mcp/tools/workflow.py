@@ -109,7 +109,7 @@ def register_workflow_tools(mcp: FastMCP) -> None:
         """
         批量自动分析 PDF 并生成结构化笔记（模式 B）。
 
-        使用内置 LLM（DeepSeek/OpenAI/Gemini）自动分析每篇论文，
+        使用内置 LLM（DeepSeek 或 Claude CLI）自动分析每篇论文，
         按照预定义模板生成 Markdown 格式笔记并保存到 Zotero。
 
         支持断点续传：如果中途中断，可以使用返回的 workflow_id 继续处理。
@@ -124,7 +124,7 @@ def register_workflow_tools(mcp: FastMCP) -> None:
                 - resume_workflow_id: 断点续传的工作流 ID
                 - skip_existing_notes: 跳过已有笔记的条目
                 - include_annotations: 包含 PDF 批注
-                - llm_provider: "deepseek" | "openai" | "gemini" | "auto"
+                - llm_provider: "deepseek" | "claude-cli" | "auto"
                 - llm_model: 模型名称（可选）
                 - dry_run: 仅预览，不创建笔记
 
@@ -136,7 +136,7 @@ def register_workflow_tools(mcp: FastMCP) -> None:
             Use when: "使用 DeepSeek 分析最近 20 篇论文"
 
         Note:
-            - 需要配置 LLM API Key（DEEPSEEK_API_KEY/OPENAI_API_KEY/GEMINI_API_KEY）
+            - 需要配置 LLM API Key（DEEPSEEK_API_KEY）或 Claude CLI
             - 需要 Web API 访问权限以创建笔记
             - 处理时间较长，建议使用后台任务模式
         """

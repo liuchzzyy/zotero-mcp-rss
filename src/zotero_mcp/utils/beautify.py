@@ -35,13 +35,43 @@ def beautify_ai_note(html: str) -> str:
 
 def _deep_clean_html(html: str) -> str:
     """Remove redundant tags that cause spacing issues."""
-    # Remove <p> wrappers around block elements
+    # Remove <p> wrappers around block elements (with or without attributes)
+    # This needs to be done BEFORE styling is applied
+    html = re.sub(
+        r"<p\s+[^>]*>\s*(<h[1-6][^>]*>.*?</h[1-6]>)\s*</p>",
+        r"\1",
+        html,
+        flags=re.DOTALL,
+    )
     html = re.sub(
         r"<p>\s*(<h[1-6][^>]*>.*?</h[1-6]>)\s*</p>", r"\1", html, flags=re.DOTALL
     )
+
+    html = re.sub(
+        r"<p\s+[^>]*>\s*(<ul[^>]*>.*?</ul>)\s*</p>",
+        r"\1",
+        html,
+        flags=re.DOTALL,
+    )
     html = re.sub(r"<p>\s*(<ul[^>]*>.*?</ul>)\s*</p>", r"\1", html, flags=re.DOTALL)
+
+    html = re.sub(
+        r"<p\s+[^>]*>\s*(<ol[^>]*>.*?</ol>)\s*</p>",
+        r"\1",
+        html,
+        flags=re.DOTALL,
+    )
     html = re.sub(r"<p>\s*(<ol[^>]*>.*?</ol>)\s*</p>", r"\1", html, flags=re.DOTALL)
+
+    html = re.sub(r"<p\s+[^>]*>\s*(<hr\s*/?>\s*)</p>", r"\1", html)
     html = re.sub(r"<p>\s*(<hr\s*/?>\s*)</p>", r"\1", html)
+
+    html = re.sub(
+        r"<p\s+[^>]*>\s*(<blockquote[^>]*>.*?</blockquote>)\s*</p>",
+        r"\1",
+        html,
+        flags=re.DOTALL,
+    )
     html = re.sub(
         r"<p>\s*(<blockquote[^>]*>.*?</blockquote>)\s*</p>",
         r"\1",
@@ -54,6 +84,10 @@ def _deep_clean_html(html: str) -> str:
     html = re.sub(r"(<[uo]l[^>]*>)\s*<br\s*/?>", r"\1", html)
     html = re.sub(r"<br\s*/?>\s*(<li[^>]*>)", r"\1", html)
     html = re.sub(r"(</li>)\s*<br\s*/?>", r"\1", html)
+    # Remove <br/> between lists and after lists
+    html = re.sub(r"(</ul>|</ol>)\s*<br\s*/?>\s*", r"\1", html)
+    # Remove <br/> after horizontal rules
+    html = re.sub(r"(<hr[^>]*>)\s*<br\s*/?>", r"\1", html)
 
     # Fix nested paragraphs
     html = re.sub(r"<p>\s*<p>", "<p>", html)

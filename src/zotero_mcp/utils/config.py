@@ -236,8 +236,6 @@ def load_config(
     relevant_prefixes = [
         "RSS_",
         "ZOTERO_",
-        "OPENAI_",
-        "GEMINI_",
         "DEEPSEEK_",
         "GMAIL_",
         "ENV_MODE",
@@ -291,7 +289,7 @@ def get_llm_config() -> dict[str, Any]:
     Get LLM configuration for workflow tools.
 
     Returns:
-        Dictionary with LLM provider settings and API keys.
+        Dictionary with DeepSeek API key and model settings.
     """
     config = load_config()
     env = config.get("env", {})
@@ -299,16 +297,8 @@ def get_llm_config() -> dict[str, Any]:
     # Build LLM config from environment variables
     llm_config = {
         "deepseek_api_key": env.get("DEEPSEEK_API_KEY", os.getenv("DEEPSEEK_API_KEY")),
-        "openai_api_key": env.get("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY")),
-        "gemini_api_key": env.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY")),
         "deepseek_model": env.get(
             "DEEPSEEK_MODEL", os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
-        ),
-        "openai_model": env.get(
-            "OPENAI_MODEL", os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-        ),
-        "gemini_model": env.get(
-            "GEMINI_MODEL", os.getenv("GEMINI_MODEL", "gemini-2.0-flash-exp")
         ),
     }
 

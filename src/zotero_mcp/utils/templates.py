@@ -194,6 +194,102 @@ DEFAULT_ANALYSIS_TEMPLATE = """你是一位专业的科研文献分析助手。�
 **分析目标**: 帮助研究者快速把握论文核心内容，提取可引用的关键信息，发现潜在问题和研究机会。
 """
 
+
+DEFAULT_ANALYSIS_TEMPLATE_JSON = """你是一位专业的科研文献分析助手。请仔细阅读以下论文内容，并按照指定的结构进行深入、全面的分析。
+
+## 论文基本信息
+
+- **标题**: {title}
+- **作者**: {authors}
+- **期刊**: {journal}
+- **发表日期**: {date}
+- **DOI**: {doi}
+
+## 论文全文
+
+{fulltext}
+
+{annotations_section}
+
+---
+
+## 分析要求
+
+请严格按照以下 JSON 格式返回分析结果。
+
+**⚠️ 关键要求**：
+1. **必须使用 `{{"sections": [...]}}` 格式**
+2. **只在"✨ 笔记原子化"部分的 bullet_list 中添加 citations 字段**
+3. **其他部分使用简单的字符串格式**
+
+### JSON 输出格式示例：
+
+```json
+{{
+  "sections": [
+    {{"type": "heading", "level": 3, "text": "📖 粗读筛选"}},
+    {{"type": "paragraph", "text": "请从以下维度快速评估这篇论文的质量和阅读价值："}},
+    {{"type": "bullet_list", "items": [
+      {{"text": "期刊影响力：发表在顶级期刊"}},
+      {{"text": "研究问题重要性：聚焦关键科学问题"}}
+    ]}},
+
+    {{"type": "hr"}},
+
+    {{"type": "heading", "level": 3, "text": "✨ 笔记原子化"}},
+    {{"type": "paragraph", "text": "以下部分提取具体数据，**每条数据必须包含原文引用**："}},
+    {{"type": "heading", "level": 4, "text": "🔧 制备"}},
+    {{"type": "bullet_list", "items": [
+      {{
+        "text": "原料：前驱体A (99.9%)",
+        "citations": [
+          {{
+            "location": "第3段 - 所有化学试剂均购自Sigma-Aldrich",
+            "content": "所有化学试剂均购自Sigma-Aldrich，使用前未经进一步纯化。前驱体A (99.9%) 溶于去离子水中..."
+          }}
+        ]
+      }}
+    ]}},
+
+    {{"type": "hr"}},
+
+    {{"type": "heading", "level": 3, "text": "🤔 思考"}},
+    {{"type": "heading", "level": 4, "text": "优缺点分析"}},
+    {{"type": "bullet_list", "items": [
+      {{"text": "主要优点：实验设计严谨，数据可靠"}},
+      {{"text": "主要缺点：样本量较小"}}
+    ]}}
+  ]
+}}
+```
+
+### 必须遵守的格式规则：
+
+1. **顶层必须是 `{{"sections": [...]}}`**
+2. **heading 字段用 "text" 而不是 "content"**
+3. **paragraph 字段用 "text" 而不是 "content"**
+4. **bullet_list 的 items 格式**：
+   - 不需要引用的部分：`{{"text": "内容"}}`
+   - 需要引用的部分（仅笔记原子化）：`{{"text": "内容", "citations": [...]}}`
+5. **hr 使用 `{{"type": "hr"}}`**
+
+### 分析章节：
+
+请按顺序完成以下所有章节：
+- 📖 粗读筛选
+- 📚 前言及文献综述（引用文献评估、聚焦问题、选题新颖性）
+- 💡 创新点（5个维度：科学问题、制备方法、研究思路、研究工具、研究理论）
+- ✨ 笔记原子化（5个子章节：🔧 制备、📊 表征、⚡ 性能、🔬 机制、✨ 理论）**← 唯一需要引用的部分**
+- 🤔 思考（优缺点分析、疑问与争议、研究启发）
+- 🪸 重组分子化（逻辑链完整性、数据可信度、结论合理性）
+
+**输出要求**：
+- 使用 markdown 代码块：```json ... ```
+- 确保 JSON 完整且有效
+- 控制总长度在 8192 tokens 内
+"""
+
+
 # -------------------- Theme Configuration --------------------
 
 
@@ -210,13 +306,13 @@ THEME_PRESETS = {
         "blockquote_border": "rgb(239, 112, 96)",
         "blockquote_background": "#fff9f9",
         "max_width": "860px",
-        "paragraph_margin": "0.5em",
-        "list_margin": "0.8em",
+        "paragraph_margin": "0.2em",
+        "list_margin": "0.2em",
         "list_item_margin": "0.2em",
-        "h1_margin": "1em",
-        "h2_margin": "1em",
-        "h3_margin": "0.9em",
-        "h4_margin": "0.8em",
+        "h1_margin": "0.8em",
+        "h2_margin": "0.8em",
+        "h3_margin": "0.6em",
+        "h4_margin": "0.6em",
     },
     "default": {
         "name": "Default",

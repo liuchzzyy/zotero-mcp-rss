@@ -1,20 +1,19 @@
 """
 LLM client for Zotero MCP.
 
-Provides unified interface for calling LLM APIs (DeepSeek, OpenAI, Gemini)
-to analyze research papers and generate structured notes.
+Provides DeepSeek API integration for analyzing research papers
+and generating structured notes.
 
 Features:
 - Automatic retry with exponential backoff
 - Timeout control
-- Smart provider selection with priority: DeepSeek > OpenAI > Gemini
-- Unified error handling
+- DeepSeek API (OpenAI-compatible)
 """
 
 import asyncio
 import logging
 import os
-from typing import Any, Literal
+from typing import Any
 
 from zotero_mcp.utils.templates import get_analysis_template
 
@@ -27,40 +26,21 @@ logger = logging.getLogger(__name__)
 # API call configuration
 MAX_RETRIES = 3
 RETRY_DELAY = 1.0  # Base delay in seconds
-REQUEST_TIMEOUT = 60  # Timeout in seconds
-
-# Provider priority order (highest to lowest)
-PROVIDER_PRIORITY = ["deepseek", "openai", "gemini"]
+REQUEST_TIMEOUT = 360  # Timeout in seconds (6 minutes for PDF analysis)
 
 
 # -------------------- Provider Configuration --------------------
 
 
-PROVIDERS = {
-    "deepseek": {
-        "base_url": "https://api.deepseek.com",
-        "default_model": "deepseek-chat",
-        "api_style": "openai",  # OpenAI-compatible API
-        "env_key": "DEEPSEEK_API_KEY",
-        "env_base_url": "DEEPSEEK_BASE_URL",
-        "env_model": "DEEPSEEK_MODEL",
-    },
-    "openai": {
-        "base_url": "https://api.openai.com/v1",
-        "default_model": "gpt-4o-mini",
-        "api_style": "openai",
-        "env_key": "OPENAI_API_KEY",
-        "env_base_url": "OPENAI_BASE_URL",
-        "env_model": "OPENAI_MODEL",
-    },
-    "gemini": {
-        "base_url": "https://generativelanguage.googleapis.com",
-        "default_model": "gemini-1.5-flash",
-        "api_style": "google",
-        "env_key": "GEMINI_API_KEY",
-        "env_base_url": "GEMINI_BASE_URL",
-        "env_model": "GEMINI_MODEL",
-    },
+PROVIDER = "deepseek"
+
+DEEPSEEK_CONFIG = {
+    "base_url": "https://api.deepseek.com",
+    "default_model": "deepseek-chat",  # Will use V3 via DEEPSEEK_MODEL env var
+    "api_style": "openai",  # OpenAI-compatible API
+    "env_key": "DEEPSEEK_API_KEY",
+    "env_base_url": "DEEPSEEK_BASE_URL",
+    "env_model": "DEEPSEEK_MODEL",
 }
 
 
@@ -69,81 +49,52 @@ PROVIDERS = {
 
 class LLMClient:
     """
-    Unified LLM client supporting multiple providers.
+    DeepSeek LLM client for paper analysis.
 
-    Supports:
-    - DeepSeek (OpenAI-compatible)
-    - OpenAI
-    - Google Gemini
+    Simplified to only support DeepSeek API (OpenAI-compatible).
     """
 
     def __init__(
         self,
-        provider: Literal["deepseek", "openai", "gemini", "auto"] = "auto",
         model: str | None = None,
         api_key: str | None = None,
         base_url: str | None = None,
     ):
         """
-        Initialize LLM client.
+        Initialize DeepSeek LLM client.
 
         Args:
-            provider: LLM provider to use
             model: Model name (overrides default)
             api_key: API key (overrides env var)
-            base_url: Base URL (overrides default)
+            base_url: Base URL (overrides env var)
         """
-        self.provider = self._select_provider(provider)
-        self.config = PROVIDERS[self.provider]
-
         # Get API key
-        self.api_key = api_key or os.getenv(self.config["env_key"])
+        self.api_key = api_key or os.getenv(DEEPSEEK_CONFIG["env_key"])
         if not self.api_key:
             raise ValueError(
-                f"{self.provider.upper()} API key not found. "
-                f"Set {self.config['env_key']} environment variable."
+                f"DeepSeek API key not found. "
+                f"Set {DEEPSEEK_CONFIG['env_key']} environment variable."
             )
 
         # Get base URL
         self.base_url = (
             base_url
-            or os.getenv(self.config["env_base_url"])
-            or self.config["base_url"]
+            or os.getenv(DEEPSEEK_CONFIG["env_base_url"])
+            or DEEPSEEK_CONFIG["base_url"]
         )
 
         # Get model
-        self.model = (
-            model or os.getenv(self.config["env_model"]) or self.config["default_model"]
-        )
+        # Priority: explicit parameter > env var > default
+        # Use deepseek-v3 if available, otherwise fallback to deepseek-chat
+        self.model = model or os.getenv(DEEPSEEK_CONFIG["env_model"]) or "deepseek-chat"
 
         logger.info(
-            f"Initialized LLM client: provider={self.provider}, "
+            f"Initialized DeepSeek LLM client: "
             f"model={self.model}, base_url={self.base_url}"
         )
 
-    def _select_provider(self, provider: str) -> str:
-        """
-        Auto-select provider if set to 'auto'.
-
-        Priority order: DeepSeek > OpenAI > Gemini
-        """
-        if provider != "auto":
-            if provider not in PROVIDERS:
-                raise ValueError(
-                    f"Unknown provider: {provider}. Available: {list(PROVIDERS.keys())}"
-                )
-            return provider
-
-        # Auto-select based on priority order and available API keys
-        for prov in PROVIDER_PRIORITY:
-            if prov in PROVIDERS and os.getenv(PROVIDERS[prov]["env_key"]):
-                logger.info(f"Auto-selected provider: {prov} (priority order)")
-                return prov
-
-        raise ValueError(
-            "No LLM API key found. Set one of: "
-            + ", ".join(config["env_key"] for config in PROVIDERS.values())
-        )
+        # Store provider for downstream use
+        self.provider = "deepseek"
 
     async def analyze_paper(
         self,
@@ -157,7 +108,7 @@ class LLMClient:
         template: str | None = None,
     ) -> str:
         """
-        Analyze a research paper and generate structured notes.
+        Analyze a research paper and generate structured notes using DeepSeek API.
 
         Args:
             title: Paper title
@@ -182,10 +133,10 @@ class LLMClient:
                 comment = ann.get("comment", "")
                 page = ann.get("page", "")
 
-                annotations_section += f"**批注 {i}** ({ann_type}"
+                annotations_section += f"**批注 {i}** ({ann_type})"
                 if page:
                     annotations_section += f", 第{page}页"
-                annotations_section += "):\n"
+                annotations_section += ":\n"
 
                 if text:
                     annotations_section += f"> {text}\n"
@@ -239,13 +190,8 @@ class LLMClient:
                 annotations_section=annotations_section,
             )
 
-        # Call LLM with retry
-        if self.config["api_style"] == "openai":
-            return await self._call_with_retry(self._call_openai_style, prompt)
-        elif self.config["api_style"] == "google":
-            return await self._call_with_retry(self._call_google_style, prompt)
-        else:
-            raise ValueError(f"Unknown API style: {self.config['api_style']}")
+        # Call DeepSeek API with retry
+        return await self._call_with_retry(self._call_deepseek_api, prompt)
 
     async def _call_with_retry(self, api_call, *args, **kwargs) -> str:
         """
@@ -313,7 +259,7 @@ class LLMClient:
         """
         error_str = str(error).lower()
 
-        # Non-reetryable errors
+        # Non-retryable errors
         non_retryable = [
             "authentication",
             "auth",
@@ -340,7 +286,6 @@ class LLMClient:
             "503",
             "504",
             "500",
-            "502",
         ]
 
         if any(keyword in error_str for keyword in retryable):
@@ -349,9 +294,9 @@ class LLMClient:
         # Default: retry on unknown errors
         return True
 
-    async def _call_openai_style(self, prompt: str) -> str:
+    async def _call_deepseek_api(self, prompt: str) -> str:
         """
-        Call OpenAI-compatible API (DeepSeek, OpenAI).
+        Call DeepSeek API (OpenAI-compatible).
 
         Args:
             prompt: The prompt to send
@@ -379,53 +324,17 @@ class LLMClient:
                     {"role": "user", "content": prompt},
                 ],
                 temperature=0.7,
-                max_tokens=4000,
+                max_tokens=8192,  # DeepSeek API maximum (for both deepseek-chat and deepseek-v3)
             )
 
             content = response.choices[0].message.content
             if not content:
-                raise ValueError("Empty response from API")
+                raise ValueError("Empty response from DeepSeek API")
 
             return content
 
         except Exception as e:
-            logger.error(f"OpenAI-style API call failed: {e}")
-            raise
-
-    async def _call_google_style(self, prompt: str) -> str:
-        """
-        Call Google Gemini API using async API.
-
-        Args:
-            prompt: The prompt to send
-
-        Returns:
-            Generated text response
-        """
-        try:
-            import google.generativeai as genai
-        except ImportError as e:
-            raise ImportError(
-                "google-generativeai package not installed. "
-                "Install with: pip install google-generativeai"
-            ) from e
-
-        genai.configure(api_key=self.api_key)
-
-        model = genai.GenerativeModel(self.model)
-
-        try:
-            # Use async API instead of run_in_executor
-            response = await model.generate_content_async(prompt)
-
-            content = response.text
-            if not content:
-                raise ValueError("Empty response from Gemini API")
-
-            return content
-
-        except Exception as e:
-            logger.error(f"Gemini API call failed: {e}")
+            logger.error(f"DeepSeek API call failed: {e}")
             raise
 
 
@@ -435,31 +344,31 @@ class LLMClient:
 def get_llm_client(
     provider: str = "auto",
     model: str | None = None,
-) -> LLMClient:
+) -> Any:
     """
     Get configured LLM client.
 
     Args:
-        provider: Provider name or "auto"
+        provider: LLM provider ("deepseek", "claude-cli", "auto")
         model: Model name (optional)
 
     Returns:
-        Configured LLMClient
+        Configured LLMClient or CLILLMClient
     """
-    return LLMClient(provider=provider, model=model)  # type: ignore[arg-type]
+    if provider == "claude-cli":
+        from zotero_mcp.clients.cli_llm import CLILLMClient
+
+        return CLILLMClient(model=model)
+
+    # Default: DeepSeek API client
+    return LLMClient(model=model)
 
 
 def is_llm_configured() -> bool:
-    """Check if any LLM API is configured."""
-    for config in PROVIDERS.values():
-        if os.getenv(config["env_key"]):
-            return True
-    return False
+    """Check if DeepSeek API is configured."""
+    return bool(os.getenv(DEEPSEEK_CONFIG["env_key"]))
 
 
-def get_configured_provider() -> str | None:
-    """Get the first configured provider."""
-    for prov, config in PROVIDERS.items():
-        if os.getenv(config["env_key"]):
-            return prov
-    return None
+def get_configured_provider() -> str:
+    """Get the configured provider (always returns 'deepseek')."""
+    return "deepseek"

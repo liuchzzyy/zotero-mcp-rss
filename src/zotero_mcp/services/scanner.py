@@ -1,8 +1,10 @@
 """
 Global scanner service for Phase 3 of Task#1.
 
-Scans entire library for items needing AI analysis,
-filters out already-analyzed items, and processes in batch.
+Scans library for items needing AI analysis with priority strategy:
+1. First scan 00_INBOXS (or specified source collection)
+2. If need more items, scan entire library
+3. Process items with PDFs but lacking "AI分析" tag
 """
 
 import logging
@@ -27,122 +29,153 @@ class GlobalScanner:
         self.workflow_service = get_workflow_service()
         self.batch_loader = BatchLoader(self.data_service.item_service)
 
+    async def _check_item_needs_analysis(self, item) -> bool:
+        """
+        Check if an item needs AI analysis.
+
+        Returns True if:
+        - Item has PDF attachment
+        - Item lacks "AI分析" tag
+        """
+        # Check for AI分析 tag
+        tags = item.data.get("tags", []) if hasattr(item, "data") else []
+        has_ai_tag = any(
+            tag.get("tag") == AI_ANALYSIS_TAG
+            if isinstance(tag, dict)
+            else tag == AI_ANALYSIS_TAG
+            for tag in tags
+        )
+        if has_ai_tag:
+            return False
+
+        # Check for PDF attachment
+        children = await self.data_service.get_item_children(item.key)
+        has_pdf = any(
+            child.get("data", {}).get("contentType") == "application/pdf"
+            for child in children
+        )
+
+        return has_pdf
+
     async def scan_and_process(
         self,
         limit: int = 20,
-        target_collection: str | None = None,
+        target_collection: str | None = "01_SHORTTERMS",
         dry_run: bool = False,
+        llm_provider: str = "auto",
+        source_collection: str | None = "00_INBOXS",
     ) -> dict[str, Any]:
         """
         Scan library and process items needing analysis.
 
-        Fetches all items, filters to those that have PDFs but lack
-        the "AI分析" tag, then runs batch analysis on up to `limit` items.
+        Multi-stage strategy:
+        1. Scan items in source_collection (default: 00_INBOXS)
+        2. If need more items, scan all other collections
+        3. Accumulate candidates until reaching limit
+        4. Filter to items with PDFs but lacking "AI分析" tag
+        5. Process up to `limit` items
 
         Args:
             limit: Maximum number of items to process
-            target_collection: Collection name to move items after analysis
+            target_collection: Collection name to move items after analysis (default: 01_SHORTTERMS)
             dry_run: Preview only, no changes
+            llm_provider: LLM provider for analysis (auto/claude-cli)
+            source_collection: Priority collection to scan first (default: 00_INBOXS)
 
         Returns:
             Scan results with statistics
         """
         try:
-            # 1. Get all items from library
-            all_items = await self.data_service.get_all_items(limit=500)
-
-            if not all_items:
-                return {
-                    "total_scanned": 0,
-                    "candidates": 0,
-                    "processed": 0,
-                    "skipped": 0,
-                    "message": "No items found in library",
-                }
-
-            # 2. Batch-fetch children to check for PDFs and AI分析 tag
             candidates = []
-            item_keys = [item.key for item in all_items]
+            total_scanned = 0
+            scanned_keys = set()  # Track already scanned items to avoid duplicates
 
-            # Fetch bundles in chunks for efficient parallel loading
-            chunk_size = 10
-            for i in range(0, len(item_keys), chunk_size):
-                chunk_keys = item_keys[i : i + chunk_size]
-                bundles = await self.batch_loader.fetch_many_bundles(
-                    chunk_keys,
-                    include_fulltext=False,
-                    include_annotations=False,
-                    include_bibtex=False,
+            # Stage 1: Scan source collection (e.g., 00_INBOXS)
+            if source_collection:
+                logger.info(f"Stage 1: Scanning collection '{source_collection}'")
+                collections = await self.data_service.find_collection_by_name(
+                    source_collection, exact_match=True
                 )
 
-                bundle_map = {b["metadata"]["key"]: b for b in bundles}
-
-                for item in all_items[i : i + chunk_size]:
-                    bundle = bundle_map.get(item.key)
-                    if not bundle:
-                        continue
-
-                    # Check if item has PDF content available
-                    metadata = bundle.get("metadata", {})
-                    data = metadata.get("data", {})
-
-                    # Check for AI分析 tag — skip already analyzed
-                    tags = data.get("tags", [])
-                    has_ai_tag = any(tag.get("tag") == AI_ANALYSIS_TAG for tag in tags)
-                    if has_ai_tag:
-                        continue
-
-                    # Check if item has PDF attachment via children
-                    children = await self.data_service.get_item_children(item.key)
-                    has_pdf = any(
-                        child.get("data", {}).get("contentType") == "application/pdf"
-                        for child in children
+                if collections:
+                    collection_key = collections[0]["key"]
+                    items = await self.data_service.get_collection_items(
+                        collection_key, limit=500
                     )
-                    if not has_pdf:
+                    logger.info(f"Found {len(items)} items in '{source_collection}'")
+                    total_scanned += len(items)
+
+                    # Find candidates in this collection
+                    for item in items:
+                        scanned_keys.add(item.key)
+                        if await self._check_item_needs_analysis(item):
+                            candidates.append(item)
+                            logger.info(
+                                f"  ✓ Candidate: {item.title[:60]}... (key: {item.key})"
+                            )
+                            if len(candidates) >= limit:
+                                break
+                else:
+                    logger.warning(
+                        f"Collection '{source_collection}' not found, skipping to Stage 2"
+                    )
+            else:
+                logger.info("No source collection specified, skipping to Stage 2")
+
+            # Stage 2: If need more candidates, scan entire library
+            if len(candidates) < limit:
+                remaining_needed = limit - len(candidates)
+                logger.info(
+                    f"Stage 2: Need {remaining_needed} more items, scanning entire library"
+                )
+
+                all_items = await self.data_service.get_all_items(limit=500)
+                total_scanned += len(all_items)
+
+                for item in all_items:
+                    # Skip already scanned items
+                    if item.key in scanned_keys:
                         continue
 
-                    candidates.append(item)
+                    scanned_keys.add(item.key)
+                    if await self._check_item_needs_analysis(item):
+                        candidates.append(item)
+                        logger.info(
+                            f"  ✓ Candidate: {item.title[:60]}... (key: {item.key})"
+                        )
+                        if len(candidates) >= limit:
+                            break
 
-                    if len(candidates) >= limit:
-                        break
-
-                if len(candidates) >= limit:
-                    break
+            logger.info(
+                f"Scan complete: found {len(candidates)} candidates out of {total_scanned} total items"
+            )
 
             if not candidates:
                 return {
-                    "total_scanned": len(all_items),
+                    "total_scanned": total_scanned,
                     "candidates": 0,
                     "processed": 0,
-                    "skipped": 0,
+                    "failed": 0,
                     "message": "No items need analysis (all have AI分析 tag or no PDF)",
                 }
-
-            logger.info(
-                f"Found {len(candidates)} items needing analysis "
-                f"out of {len(all_items)} total"
-            )
 
             if dry_run:
                 titles = [item.title for item in candidates]
                 return {
-                    "total_scanned": len(all_items),
+                    "total_scanned": total_scanned,
                     "candidates": len(candidates),
                     "processed": 0,
-                    "skipped": 0,
+                    "failed": 0,
                     "dry_run": True,
                     "items": titles,
                     "message": f"[DRY RUN] Would process {len(candidates)} items",
                 }
 
-            # 3. Use WorkflowService to analyze candidates
-            #    We create a temporary collection-like context by passing item keys
-            #    directly through batch_analyze with source="recent" and the items
-            #    pre-filtered. However, batch_analyze fetches its own items.
-            #    Instead, we call _analyze_single_item directly for each candidate.
+            # Stage 3: Process candidates
+            logger.info(f"Starting AI analysis of {len(candidates)} items...")
             from zotero_mcp.clients.llm import get_llm_client
 
-            llm_client = get_llm_client(provider="auto")
+            llm_client = get_llm_client(provider=llm_provider)
 
             processed_count = 0
             failed_count = 0
@@ -157,31 +190,42 @@ class GlobalScanner:
             )
             full_bundle_map = {b["metadata"]["key"]: b for b in full_bundles}
 
-            for item in candidates:
+            for i, item in enumerate(candidates, 1):
+                logger.info(f"Processing {i}/{len(candidates)}: {item.title[:60]}...")
                 bundle = full_bundle_map.get(item.key)
                 if not bundle:
                     failed_count += 1
+                    logger.warning(f"  ✗ Failed to fetch bundle for {item.key}")
                     continue
 
-                result = await self.workflow_service._analyze_single_item(
-                    item=item,
-                    bundle=bundle,
-                    llm_client=llm_client,
-                    skip_existing=True,
-                    template=None,
-                    dry_run=False,
-                    delete_old_notes=True,
-                    move_to_collection=target_collection,
-                )
+                try:
+                    result = await self.workflow_service._analyze_single_item(
+                        item=item,
+                        bundle=bundle,
+                        llm_client=llm_client,
+                        skip_existing=True,
+                        template=None,
+                        dry_run=False,
+                        delete_old_notes=True,
+                        move_to_collection=target_collection,
+                    )
 
-                if result.success and not result.skipped:
-                    processed_count += 1
-                elif not result.success:
+                    if result.success and not result.skipped:
+                        processed_count += 1
+                        logger.info(f"  ✓ Successfully analyzed {item.key}")
+                    elif result.skipped:
+                        logger.info(f"  ⊘ Skipped {item.key} (already analyzed)")
+                    else:
+                        failed_count += 1
+                        logger.warning(
+                            f"  ✗ Failed to analyze {item.key}: {result.error}"
+                        )
+                except Exception as e:
                     failed_count += 1
-                    logger.warning(f"Failed to analyze {item.key}: {result.error}")
+                    logger.error(f"  ✗ Error analyzing {item.key}: {e}")
 
             return {
-                "total_scanned": len(all_items),
+                "total_scanned": total_scanned,
                 "candidates": len(candidates),
                 "processed": processed_count,
                 "failed": failed_count,

@@ -35,8 +35,6 @@ def obfuscate_config_for_display(config: dict) -> dict:
         "ZOTERO_LIBRARY_ID",
         "API_KEY",
         "LIBRARY_ID",
-        "OPENAI_API_KEY",
-        "GEMINI_API_KEY",
     ]
 
     for key in sensitive_keys:
@@ -205,6 +203,12 @@ def main():
     rss_fetch_parser.add_argument(
         "--dry-run", action="store_true", help="Preview items without importing"
     )
+    rss_fetch_parser.add_argument(
+        "--llm-provider",
+        choices=["deepseek", "claude-cli"],
+        default="deepseek",
+        help="LLM provider for filtering (default: deepseek)",
+    )
 
     # Gmail command
     gmail_parser = subparsers.add_parser("gmail", help="Gmail email processing")
@@ -239,6 +243,12 @@ def main():
     gmail_process_parser.add_argument(
         "--dry-run", action="store_true", help="Preview without importing or deleting"
     )
+    gmail_process_parser.add_argument(
+        "--llm-provider",
+        choices=["deepseek", "claude-cli"],
+        default="deepseek",
+        help="LLM provider for filtering (default: deepseek)",
+    )
 
     gmail_auth_parser = gmail_subparsers.add_parser(
         "auth", help="Authenticate with Gmail"
@@ -256,11 +266,22 @@ def main():
     )
     scan_parser.add_argument(
         "--target-collection",
-        default=None,
-        help="Move items to this collection after analysis",
+        default="01_SHORTTERMS",
+        help="Move items to this collection after analysis (default: 01_SHORTTERMS)",
     )
     scan_parser.add_argument(
         "--dry-run", action="store_true", help="Preview without processing"
+    )
+    scan_parser.add_argument(
+        "--llm-provider",
+        choices=["auto", "claude-cli"],
+        default="auto",
+        help="LLM provider for analysis (default: auto)",
+    )
+    scan_parser.add_argument(
+        "--source-collection",
+        default="00_INBOXS",
+        help="Collection to scan first (default: 00_INBOXS)",
     )
 
     # Version command
@@ -444,6 +465,7 @@ def main():
                         days_back=args.days,
                         max_items=args.max_items,
                         dry_run=args.dry_run,
+                        llm_provider=args.llm_provider,
                     )
                 )
 
@@ -529,6 +551,7 @@ def main():
                         delete_after=not args.no_delete,
                         trash_only=not args.permanent_delete,
                         dry_run=args.dry_run,
+                        llm_provider=args.llm_provider,
                     )
                 )
 
@@ -566,6 +589,8 @@ def main():
                     limit=args.limit,
                     target_collection=args.target_collection,
                     dry_run=args.dry_run,
+                    llm_provider=args.llm_provider,
+                    source_collection=args.source_collection,
                 )
             )
 
