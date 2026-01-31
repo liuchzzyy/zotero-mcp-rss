@@ -396,14 +396,85 @@ DEBUG=true
 LOG_LEVEL=DEBUG
 ```
 
-## Identity Requirement (from AGENTS.md)
+## AI Agent Workflow Rules
 
+### Identity Requirement
 **IMPORTANT**: Address the user as **干饭小伙子** in every response. This is mandatory per project rules.
+
+### Git Workflow
+- **Commit Locally**: Commit after each modification/task completion
+- **NO Pushing**: Do NOT push to remote unless explicitly instructed by the user
+- Use conventional commit messages: `feat:`, `fix:`, `refactor:`, `docs:`, etc.
+
+### CLI Workflow Examples
+
+Common Task#1 workflow commands:
+```bash
+# RSS ingestion with AI filtering
+zotero-mcp ingest rss --dry-run  # Test mode
+zotero-mcp ingest rss             # Live mode
+
+# Batch analysis of new papers
+zotero-mcp scan --dry-run         # Test mode
+zotero-mcp scan                   # Live mode
+
+# Configuration
+zotero-mcp setup                  # Interactive setup
+```
+
+### Additional Configuration
+
+Beyond the standard `.env` variables, these environment variables control workflow behavior:
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `RSS_PROMPT` | AI filtering prompt for RSS feeds | See `.env.example` |
+| `ZOTERO_INBOX_COLLECTION` | Target collection for new items | "Inbox" |
+| `ZOTERO_PROCESSED_COLLECTION` | Collection for processed items | "Library" |
+
+### Error Handling Guidelines
+
+When encountering errors:
+1. Check logs in `~/.cache/zotero-mcp/logs/`
+2. Verify environment variables are set correctly
+3. Use `--dry-run` flag to test without making changes
+4. Enable `DEBUG=true` for detailed diagnostic output
+
+### Common Patterns
+
+**Pydantic Dot Notation:**
+Use dot notation for accessing model fields in templates:
+```python
+# Good
+{title}
+{creators.0.lastName}
+{date}
+
+# Avoid
+{item['title']}
+{item.creators[0].lastName}
+```
+
+**DataAccessService Priority:**
+Always use `DataAccessService` instead of calling `ZoteroAPIClient` directly:
+```python
+# Good
+from zotero_mcp.services import get_data_service
+service = get_data_service()
+items = await service.get_items()
+
+# Avoid
+from zotero_mcp.clients import ZoteroAPIClient
+client = ZoteroAPIClient()
+items = await client.get_items()
+```
+
+**Local vs Web API:**
+Code must handle both `ZOTERO_LOCAL=true` (SQLite) and `false` (Zotero API). DataAccessService handles this automatically.
 
 ## Additional Documentation
 
 - `README.md` - User-facing documentation
-- `AGENTS.md` - Agent-specific development instructions
 - `CHANGELOG.md` - Version history
 - `CONTRIBUTING.md` - Contribution guidelines
 - `docs/DEPENDENCY_MANAGEMENT.md` - Dependency management guide
