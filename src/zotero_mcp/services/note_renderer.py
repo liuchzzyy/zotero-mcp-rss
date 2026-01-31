@@ -143,11 +143,7 @@ class StructuredNoteRenderer:
     def _render_paragraph(self, block: ParagraphBlock) -> str:
         """Render paragraph block with optional citations."""
         margin = self.theme.get("paragraph_margin", "0.2em")
-        style = (
-            f"margin: {margin} 0; "
-            "line-height: 1.6; "
-            "color: black;"
-        )
+        style = f"margin: {margin} 0; line-height: 1.6; color: black;"
 
         # Render paragraph content
         content = block.content
@@ -170,11 +166,7 @@ class StructuredNoteRenderer:
             "color: black; "
             "list-style-type: disc;"
         )
-        item_style = (
-            f"margin: {item_margin} 0; "
-            "line-height: 1.6; "
-            "color: rgb(1,1,1);"
-        )
+        item_style = f"margin: {item_margin} 0; line-height: 1.6; color: rgb(1,1,1);"
 
         items_html = "\n".join(
             f'<li style="{item_style}">{self._format_list_item(item)}</li>'
@@ -194,11 +186,7 @@ class StructuredNoteRenderer:
             "color: black; "
             "list-style-type: decimal;"
         )
-        item_style = (
-            f"margin: {item_margin} 0; "
-            "line-height: 1.6; "
-            "color: rgb(1,1,1);"
-        )
+        item_style = f"margin: {item_margin} 0; line-height: 1.6; color: rgb(1,1,1);"
 
         items_html = "\n".join(
             f'<li style="{item_style}">{self._format_list_item(item)}</li>'
@@ -247,11 +235,7 @@ class StructuredNoteRenderer:
         """Render table block."""
         margin = self.theme.get("list_margin", "0.2em")
 
-        table_style = (
-            f"margin: {margin} 0; "
-            "border-collapse: collapse; "
-            "width: 100%;"
-        )
+        table_style = f"margin: {margin} 0; border-collapse: collapse; width: 100%;"
 
         # Header
         headers_html = "\n".join(
@@ -288,7 +272,7 @@ class StructuredNoteRenderer:
 
         # Convert **bold** to HTML
         text = re.sub(
-            r'\*\*(.*?)\*\*',
+            r"\*\*(.*?)\*\*",
             r'<b style="font-weight: bold; color: rgb(239, 112, 96);">\1</b>',
             text,
         )
@@ -329,8 +313,8 @@ class StructuredNoteRenderer:
             citations_html.append(
                 f'<div style="{citation_style}">'
                 f'<span style="{location_style}">📍 {location}</span>'
-                f'<span>{content}</span>'
-                f'</div>'
+                f"<span>{content}</span>"
+                f"</div>"
             )
 
         return "\n".join(citations_html)

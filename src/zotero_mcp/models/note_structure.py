@@ -6,6 +6,7 @@ This allows complete control over note formatting independent of LLM output.
 """
 
 from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -22,7 +23,16 @@ class Citation(BaseModel):
 class ContentBlock(BaseModel):
     """Base class for all content blocks."""
 
-    type: Literal["heading", "paragraph", "bullet_list", "numbered_list", "quote", "code", "table", "hr"]
+    type: Literal[
+        "heading",
+        "paragraph",
+        "bullet_list",
+        "numbered_list",
+        "quote",
+        "code",
+        "table",
+        "hr",
+    ]
 
 
 class HeadingBlock(ContentBlock):
@@ -56,7 +66,9 @@ class BulletListBlock(ContentBlock):
     """Bullet list block with optional citations per item."""
 
     type: Literal["bullet_list"] = "bullet_list"
-    items: list[ListItemWithCitation] = Field(..., description="List items with optional citations")
+    items: list[ListItemWithCitation] = Field(
+        ..., description="List items with optional citations"
+    )
 
 
 class NumberedListBlock(ContentBlock):
@@ -118,6 +130,4 @@ class StructuredNote(BaseModel):
 class StructuredAnalysisResponse(BaseModel):
     """Structured analysis response from LLM."""
 
-    sections: list[AnyBlock] = Field(
-        ..., description="Analysis sections in order"
-    )
+    sections: list[AnyBlock] = Field(..., description="Analysis sections in order")

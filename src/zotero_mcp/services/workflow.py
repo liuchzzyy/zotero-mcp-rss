@@ -29,8 +29,10 @@ from zotero_mcp.utils.logging_config import (
     log_task_start,
 )
 from zotero_mcp.utils.markdown_html import markdown_to_html
-from zotero_mcp.utils.templates import get_analysis_questions
-from zotero_mcp.utils.templates import DEFAULT_ANALYSIS_TEMPLATE_JSON
+from zotero_mcp.utils.templates import (
+    DEFAULT_ANALYSIS_TEMPLATE_JSON,
+    get_analysis_questions,
+)
 
 logger = get_logger(__name__)
 
@@ -512,10 +514,14 @@ class WorkflowService:
                         # Render blocks into HTML
                         html_note = renderer.render(blocks, title=item.title)
 
-                        logger.info(f"Generated structured note with {len(blocks)} blocks")
+                        logger.info(
+                            f"Generated structured note with {len(blocks)} blocks"
+                        )
 
                     except Exception as e:
-                        logger.warning(f"Structured parsing failed: {e}, falling back to Markdown")
+                        logger.warning(
+                            f"Structured parsing failed: {e}, falling back to Markdown"
+                        )
                         # Fallback to traditional markdown approach
                         basic_info = f"""# AI分析 - {item.title}
 

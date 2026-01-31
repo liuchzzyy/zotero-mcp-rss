@@ -127,9 +127,7 @@ class StructuredNoteParser:
         block_type = section.get("type")
 
         if block_type == "heading":
-            return HeadingBlock(
-                level=section.get("level", 2), content=get_content()
-            )
+            return HeadingBlock(level=section.get("level", 2), content=get_content())
         elif block_type == "paragraph":
             # Parse paragraph with optional citations
             citations_data = section.get("citations", [])
@@ -140,9 +138,7 @@ class StructuredNoteParser:
                 )
                 for cit in citations_data
             ]
-            return ParagraphBlock(
-                content=get_content(), citations=citations
-            )
+            return ParagraphBlock(content=get_content(), citations=citations)
         elif block_type == "bullet_list":
             # Parse bullet list with optional citations per item
             items_data = section.get("items", [])
@@ -255,7 +251,9 @@ class StructuredNoteParser:
                     code_lines.append(lines[i])
                     i += 1
                 i += 1  # skip closing ```
-                blocks.append(CodeBlock(language=language, content="\n".join(code_lines)))
+                blocks.append(
+                    CodeBlock(language=language, content="\n".join(code_lines))
+                )
                 continue
 
             # Blockquotes
