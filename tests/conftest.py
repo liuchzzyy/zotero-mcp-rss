@@ -30,3 +30,11 @@ def mock_llm_client():
     mock = MagicMock()
     mock.analyze_paper = AsyncMock(return_value="# Mock Analysis Result")
     return mock
+
+
+@pytest.fixture
+def mock_metadata_service():
+    """Fixture for MetadataService mock."""
+    mock = MagicMock()
+    mock.lookup_doi = AsyncMock(return_value=None)
+    return mock

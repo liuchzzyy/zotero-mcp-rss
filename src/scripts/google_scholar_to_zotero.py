@@ -32,7 +32,7 @@ from zotero_mcp.clients.gmail import GmailClient
 from zotero_mcp.services.data_access import get_data_service
 from zotero_mcp.services.gmail import GmailService
 from zotero_mcp.services.metadata import MetadataService
-from zotero_mcp.services.rss import RSSFilter
+from zotero_mcp.services.common import PaperFilter
 
 # Configure logging
 logging.basicConfig(
@@ -165,15 +165,15 @@ async def filter_and_import_articles(
     logger.info("=" * 70)
     logger.info("")
 
-    # Initialize RSS filter
-    rss_filter = RSSFilter()
+    # Initialize paper filter
+    paper_filter = PaperFilter()
 
     # Extract keywords for filtering (async operation)
     logger.info("Extracting keywords from RSS_PROMPT...")
     keywords = None
 
     try:
-        keywords = await rss_filter.extract_keywords()
+        keywords = await paper_filter.extract_keywords()
         logger.info(f"✅ Extracted {len(keywords)} keywords")
         if DEBUG:
             logger.debug(f"   Keywords: {', '.join(keywords)}")
@@ -229,7 +229,7 @@ async def filter_and_import_articles(
                     rss_item = gmail_service._email_item_to_rss_item(item)
 
                     # Filter using keywords
-                    relevant, irrelevant = rss_filter.filter_items([rss_item], keywords)
+                    relevant, irrelevant = paper_filter.filter_items([rss_item], keywords)
 
                     if relevant:
                         filtered_items.append(item)

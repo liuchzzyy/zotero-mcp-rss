@@ -7,12 +7,12 @@ import sys
 
 # Setup path to import zotero_mcp modules (already handled by pytest)
 # sys.path.insert(0, str(Path(__file__).parent.parent))
-from zotero_mcp.services.rss.rss_filter import RSSFilter
+from zotero_mcp.services.common import PaperFilter
 
 
 def test_matching():
     """Test the improved keyword matching logic."""
-    filter = RSSFilter()
+    filter = PaperFilter()
 
     # Test cases: (title, keyword, expected_match)
     test_cases = [
@@ -82,7 +82,7 @@ def test_matching():
 
 def test_with_real_data():
     """Test with the actual article titles from the email."""
-    filter = RSSFilter()
+    filter = PaperFilter()
 
     # Keywords from RSS_PROMPT (extracted by DeepSeek)
     keywords = [

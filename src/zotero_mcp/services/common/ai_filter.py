@@ -33,8 +33,8 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 KEYWORDS_CACHE_FILE = _PROJECT_ROOT / "RSS" / "keywords_cache.json"
 
 
-class RSSFilter:
-    """Filter RSS items based on research interests using DeepSeek API."""
+class PaperFilter:
+    """Filter papers (RSS or Gmail) based on research interests using DeepSeek API."""
 
     def __init__(
         self,

@@ -19,7 +19,7 @@ from bs4 import BeautifulSoup, Tag
 from zotero_mcp.clients.gmail import GmailClient
 from zotero_mcp.models.gmail import EmailItem, EmailMessage, GmailProcessResult
 from zotero_mcp.models.rss import RSSItem
-from zotero_mcp.services.rss.rss_filter import RSSFilter
+from zotero_mcp.services.common import PaperFilter
 from zotero_mcp.utils.helpers import DOI_PATTERN, clean_title
 
 logger = logging.getLogger(__name__)
@@ -41,17 +41,17 @@ class GmailService:
     def __init__(
         self,
         gmail_client: GmailClient | None = None,
-        rss_filter: RSSFilter | None = None,
+        paper_filter: PaperFilter | None = None,
     ):
         """
         Initialize Gmail service.
 
         Args:
             gmail_client: GmailClient instance (created if not provided)
-            rss_filter: RSSFilter instance for AI filtering (created if not provided)
+            paper_filter: PaperFilter instance for AI filtering (created if not provided)
         """
         self._gmail_client = gmail_client
-        self._rss_filter = rss_filter
+        self._paper_filter = paper_filter
 
     @property
     def gmail_client(self) -> GmailClient:
@@ -61,11 +61,11 @@ class GmailService:
         return self._gmail_client
 
     @property
-    def rss_filter(self) -> RSSFilter:
-        """Lazy-initialize RSS filter (uses RSS_PROMPT env var)."""
-        if self._rss_filter is None:
-            self._rss_filter = RSSFilter()
-        return self._rss_filter
+    def paper_filter(self) -> PaperFilter:
+        """Lazy-initialize paper filter (uses RSS_PROMPT env var)."""
+        if self._paper_filter is None:
+            self._paper_filter = PaperFilter()
+        return self._paper_filter
 
     def parse_html_table(
         self,
@@ -528,7 +528,7 @@ class GmailService:
         try:
             if llm_provider == "claude-cli":
                 logger.info("Using Claude CLI for Gmail filtering")
-                relevant, irrelevant, keywords = await self.rss_filter.filter_with_cli(
+                relevant, irrelevant, keywords = await self.paper_filter.filter_with_cli(
                     rss_items
                 )
             else:
@@ -536,7 +536,7 @@ class GmailService:
                     relevant,
                     irrelevant,
                     keywords,
-                ) = await self.rss_filter.filter_with_keywords(rss_items)
+                ) = await self.paper_filter.filter_with_keywords(rss_items)
             result.keywords_used = keywords
             result.items_filtered = len(relevant)
             logger.info(

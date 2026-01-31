@@ -11,6 +11,8 @@ from zotero_mcp.services.common.zotero_item_creator import (
 @pytest.mark.asyncio
 async def test_create_zotero_item_with_minimal_data(mock_data_service, mock_metadata_service):
     """Test creating item with minimal required fields."""
+    from unittest.mock import AsyncMock
+
     creator = ZoteroItemCreator(mock_data_service, mock_metadata_service)
 
     item = RSSItem(
@@ -21,9 +23,9 @@ async def test_create_zotero_item_with_minimal_data(mock_data_service, mock_meta
     )
 
     # Mock the services
-    mock_data_service.search_items.return_value = []
-    mock_data_service.create_items.return_value = {"successful": {"KEY": {}}}
-    mock_metadata_service.lookup_doi.return_value = None
+    mock_data_service.search_items = AsyncMock(return_value=[])
+    mock_data_service.create_items = AsyncMock(return_value={"successful": {"KEY": {}}})
+    mock_metadata_service.lookup_doi = AsyncMock(return_value=None)
 
     result = await creator.create_item(item, collection_key="ABC123")
 
