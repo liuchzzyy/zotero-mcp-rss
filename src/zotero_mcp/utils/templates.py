@@ -220,39 +220,84 @@ DEFAULT_ANALYSIS_TEMPLATE_JSON = """你是一位专业的科研文献分析助�
 {{
   "sections": [
     {{"type": "heading", "level": 3, "content": "📖 粗读筛选"}},
-    {{"type": "paragraph", "content": "请从以下维度快速评估这篇论文的质量和阅读价值..."}},
-    {{"type": "bullet_list", "items": ["期刊影响力：...", "研究问题重要性：...", "方法和结论可靠性：...", "结论：..."]}},
+    {{"type": "paragraph", "content": "请从以下维度快速评估这篇论文的质量和阅读价值："}},
+    {{"type": "bullet_list", "items": ["论文发表期刊的影响力和领域地位", "研究问题的重要性和前沿性", "方法和结论的可靠性和创新性", "结论：是否建议深入阅读？适合哪类研究者？"]}},
+
     {{"type": "heading", "level": 3, "content": "📚 前言及文献综述"}},
     {{"type": "heading", "level": 4, "content": "引用文献评估"}},
-    {{"type": "bullet_list", "items": ["文献时效性：...", "文献全面性：...", "研究空白：..."]}},
+    {{"type": "paragraph", "content": "从时效性、全面性和研究空白三个维度评估引文质量"}},
+    {{"type": "bullet_list", "items": ["引用的文献是否最新、全面", "以往文献有什么不足或研究空白", "作者如何定位本研究与前人工作的关系"]}},
     {{"type": "heading", "level": 4, "content": "聚焦问题"}},
-    {{"type": "paragraph", "content": "本研究聚焦的核心科学问题是什么？..."}},
-    {{"type": "bullet_list", "items": ["可行性：...", "可靠性：..."]}},
+    {{"type": "paragraph", "content": "本研究聚焦的核心科学问题、逻辑思路、可行性和可靠性分析"}},
+    {{"type": "bullet_list", "items": ["本研究聚焦的核心科学问题", "研究的逻辑思路（从问题到方法到结论的完整链条）", "可行性：方法设计是否合理？技术路线是否可行？", "可靠性：实验设计是否严谨？对照组设置是否合理？"]}},
+    {{"type": "heading", "level": 4, "content": "选题新颖性"}},
+    {{"type": "paragraph", "content": "分析选题角度的新颖性以及研究的科学价值和应用前景"}},
+    {{"type": "bullet_list", "items": ["作者选题角度是否新颖", "这项研究有什么科学价值和应用前景"]}},
+
     {{"type": "hr"}},
+
     {{"type": "heading", "level": 3, "content": "💡 创新点"}},
-    {{"type": "bullet_list", "items": ["科学问题：...", "制备方法：...", "研究思路：...", "研究工具：...", "研究理论：..."]}},
+    {{"type": "paragraph", "content": "请从以下五个维度分析创新点："}},
+    {{"type": "heading", "level": 4, "content": "科学问题"}},
+    {{"type": "paragraph", "content": "提出了什么新的科学问题或研究视角？"}},
+    {{"type": "heading", "level": 4, "content": "制备方法"}},
+    {{"type": "bullet_list", "items": ["在材料制备或样品准备上有什么创新", "是否开发了新的合成路线或工艺"]}},
+    {{"type": "heading", "level": 4, "content": "研究思路"}},
+    {{"type": "paragraph", "content": "研究设计有何独特之处？是否采用了新的研究范式或策略？"}},
+    {{"type": "heading", "level": 4, "content": "研究工具"}},
+    {{"type": "bullet_list", "items": ["使用了什么新的研究工具、技术或表征手段", "是否开发了新的测试方法或分析手段"]}},
+    {{"type": "heading", "level": 4, "content": "研究理论"}},
+    {{"type": "paragraph", "content": "在理论层面有何贡献？是否提出了新的模型、机制解释或理论框架？"}},
+
     {{"type": "hr"}},
+
     {{"type": "heading", "level": 3, "content": "✨ 笔记原子化"}},
+    {{"type": "paragraph", "content": "以下部分请提取具体数据和关键信息，便于后续引用："}},
     {{"type": "heading", "level": 4, "content": "🔧 制备"}},
-    {{"type": "paragraph", "content": "原料/前驱体：..."}},
+    {{"type": "bullet_list", "items": ["原料/前驱体：列出关键材料和化学试剂", "制备步骤：简要描述核心工艺流程（温度、时间、气氛等关键参数）", "关键条件：影响结果的关键实验条件"]}},
     {{"type": "heading", "level": 4, "content": "📊 表征"}},
-    {{"type": "bullet_list", "items": ["表征方法：...", "主要结果：..."]}},
+    {{"type": "bullet_list", "items": ["表征方法：使用了哪些表征技术？（XRD, SEM, TEM, XPS, BET等）", "主要结果：每种表征方法得到的关键结论", "数据支持：提取关键的数值数据（如晶格常数、粒径、比表面积等）"]}},
     {{"type": "heading", "level": 4, "content": "⚡ 性能"}},
-    {{"type": "paragraph", "content": "性能指标：..."}},
+    {{"type": "bullet_list", "items": ["性能指标：列出关键性能参数（如活性、选择性、稳定性、效率等）", "具体数值：提取准确的数值和单位", "对比基准：与文献报道或商业标准的对比结果", "优势体现：性能优势体现在哪些方面？"]}},
+    {{"type": "heading", "level": 4, "content": "🔬 机制"}},
+    {{"type": "bullet_list", "items": ["机制假设：作者提出的反应机制或作用机理", "证据支持：哪些实验数据或表征结果支持这一机制", "关键步骤：机制中的关键反应步骤或物理化学过程", "争议点：是否存在其他可能的机制解释？"]}},
+    {{"type": "heading", "level": 4, "content": "✨ 理论"}},
+    {{"type": "bullet_list", "items": ["理论模型：使用或建立了什么理论模型", "计算方法：如涉及理论计算，使用了什么方法？（DFT, MD等）", "理论预测：理论计算或模型预测了什么", "实验验证：理论预测是否得到实验验证"]}},
+
     {{"type": "hr"}},
+
     {{"type": "heading", "level": 3, "content": "🤔 思考"}},
     {{"type": "heading", "level": 4, "content": "优缺点分析"}},
-    {{"type": "bullet_list", "items": ["主要优点：...", "主要缺点：..."]}}
+    {{"type": "bullet_list", "items": ["主要优点：这篇论文的突出贡献（至少3点）", "主要缺点：存在的问题或不足（至少2点）", "实验设计的局限性", "数据完整性或说服力的欠缺", "机制解释的不足或争议"]}},
+    {{"type": "heading", "level": 4, "content": "疑问与争议"}},
+    {{"type": "bullet_list", "items": ["你对哪些内容产生了疑问", "哪些结论的可靠性需要进一步验证", "是否存在替代性解释或争议性观点"]}},
+    {{"type": "heading", "level": 4, "content": "研究启发"}},
+    {{"type": "bullet_list", "items": ["这篇论文给你带来了什么研究启发", "可以如何改进或扩展这项工作", "对你自己的研究有什么借鉴意义"]}},
+
+    {{"type": "hr"}},
+
+    {{"type": "heading", "level": 3, "content": "🪸 重组分子化（深度批判性分析）"}},
+    {{"type": "paragraph", "content": "请对论文的逻辑严密性进行批判性评估："}},
+    {{"type": "heading", "level": 4, "content": "逻辑链完整性"}},
+    {{"type": "bullet_list", "items": ["围绕某一个实验现象的逻辑链是否完整、令人信服", "从问题提出 → 实验设计 → 数据呈现 → 结论推导", "论证过程中是否存在逻辑缺环", "是否存在其他可能的解释角度"]}},
+    {{"type": "heading", "level": 4, "content": "数据可信度"}},
+    {{"type": "bullet_list", "items": ["实验数据的可重复性如何", "对照实验是否充分", "统计分析是否规范", "数据是否支持作者的结论"]}},
+    {{"type": "heading", "level": 4, "content": "结论合理性"}},
+    {{"type": "bullet_list", "items": ["结论是否超出数据的支持范围", "是否存在过度解读或过度推广", "作者的推测与确凿证据之间的界限是否清晰"]}}
   ]
 }}
 ```
 
 **重要提示**：
-1. **必须返回有效的 JSON 格式**，不要包含任何其他文字说明
-2. 使用 `\\n` 转义换行符
-3. 不要在 JSON 中使用 markdown 格式（如 **粗体**）
+1. **必须返回有效的 JSON 格式**，使用 markdown 代码块包裹（```json ... ```）
+2. 使用 `\\n` 转义换行符（在 JSON 内容中）
+3. 不要在 JSON 字符串内容中使用 markdown 格式（如 **粗体**），直接使用纯文本
 4. 列表项使用 `items` 数组，每个元素是一个完整的项目
 5. 分隔符使用 `{{"type": "hr"}}`
+6. heading level 3 用于主要章节，level 4 用于子章节
+7. 保持结构完整，即使某部分内容较少，也要保留对应的数据结构
+8. 所有文本内容必须使用中文，关键术语可用英文标注
+9. 如果某个部分在论文中没有相关内容，请明确注明"本文未涉及"或"数据不足"
 """
 
 # -------------------- Theme Configuration --------------------

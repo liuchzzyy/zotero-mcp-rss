@@ -43,8 +43,9 @@ class StructuredNoteParser:
             ValueError: If content cannot be parsed
         """
         # Check if content is wrapped in markdown code blocks with JSON
+        # Pattern: ```json ... ``` or ``` ... ``` containing JSON
         json_code_block_match = re.search(
-            r"```(?:json)?\s*\n(\{[\s\S]*?\n)\s*```", content
+            r"```(?:json)?\s*\n(\{[\s\S]*?)\n```", content
         )
         if json_code_block_match:
             logger.info("Detected JSON in markdown code block, extracting...")
