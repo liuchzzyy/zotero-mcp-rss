@@ -326,6 +326,11 @@ def main():
         "--item-key",
         help="Update a specific item by key",
     )
+    update_metadata_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview metadata updates without applying changes",
+    )
 
     # Deduplicate command
     dedup_parser = subparsers.add_parser(
@@ -710,24 +715,31 @@ def main():
             try:
                 if args.item_key:
                     # Update single item
-                    result = await update_service.update_item_metadata(args.item_key)
+                    result = await update_service.update_item_metadata(
+                        args.item_key, dry_run=args.dry_run
+                    )
                     print("\n=== Update Result ===")
                     print(f"  Success: {result['success']}")
                     print(f"  Updated: {result['updated']}")
                     print(f"  Message: {result['message']}")
                     print(f"  Source: {result['source']}")
+                    if args.dry_run:
+                        print("  Mode: DRY RUN (no changes were applied)")
                 else:
                     # Update multiple items
                     result = await update_service.update_all_items(
                         collection_key=args.collection,
                         scan_limit=args.scan_limit,
                         treated_limit=args.treated_limit,
+                        dry_run=args.dry_run,
                     )
                     print("\n=== Metadata Update Results ===")
                     print(f"  Total processed: {result['total']}")
                     print(f"  Updated: {result['updated']}")
                     print(f"  Skipped: {result['skipped']}")
                     print(f"  Failed: {result['failed']}")
+                    if args.dry_run:
+                        print("  Mode: DRY RUN (no changes were applied)")
 
             except Exception as e:
                 print(f"Error: {e}")
