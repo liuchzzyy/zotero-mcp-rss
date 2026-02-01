@@ -18,6 +18,7 @@
 
 ### 🤖 AI-Powered Research Analysis
 - **Batch PDF Analysis**: Analyze multiple papers with LLM (DeepSeek/OpenAI/Gemini)
+- **Multi-Modal PDF Analysis**: Advanced image and text analysis with OCR support
 - **Intelligent Metadata Enhancement**: Auto-complete metadata via Crossref/OpenAlex APIs
 - **Checkpoint/Resume**: Interrupted workflows automatically save progress and can be resumed
 - **Configurable Templates**: Customizable analysis output formats (JSON/Markdown)
@@ -183,6 +184,7 @@ zotero-mcp setup-info                      # Show installation info
 ### Batch Workflow
 - `zotero_prepare_analysis` - Collect PDF content for review
 - `zotero_batch_analyze_pdfs` - AI-powered batch analysis
+- `zotero_analyze_pdf` - Multi-modal PDF analysis (image + text + OCR)
 - `zotero_resume_workflow` - Resume interrupted workflow
 - `zotero_list_workflows` - View workflow states
 
@@ -215,6 +217,24 @@ GEMINI_EMBEDDING_MODEL=models/text-embedding-004
 ```bash
 DEEPSEEK_API_KEY=your_key
 DEEPSEEK_MODEL=deepseek-chat
+```
+
+**Multi-Modal Analysis:**
+```bash
+# CLI LLM Provider Configuration
+ZOTERO_MCP_CLI_LLM_PROVIDER=deepseek       # deepseek, openai, gemini, claude
+ZOTERO_MCP_CLI_LLM_MODEL=deepseek-chat     # Model to use
+ZOTERO_MCP_CLI_LLM_API_KEY=your_key       # API key for the provider
+
+# OCR Configuration
+ZOTERO_MCP_CLI_LLM_OCR_ENABLED=true        # Enable OCR mode
+ZOTERO_MCP_CLI_LLM_OCR_LANGUAGES=zh,en     # OCR languages
+ZOTERO_MCP_CLI_LLM_OCR_ENGINE=tesseract    # OCR engine
+
+# Analysis Parameters
+ZOTERO_MCP_CLI_LLM_MAX_PAGES=50            # Max pages to process
+ZOTERO_MCP_CLI_LLM_MAX_IMAGES=20           # Max images to extract
+ZOTERO_MCP_CLI_LLM_CHUNK_SIZE=2000         # Text chunk size
 ```
 
 **RSS/Gmail:**
@@ -349,6 +369,7 @@ zotero-mcp setup
 
 - [CLAUDE.md](./CLAUDE.md) - Development guidelines for Claude Code
 - [CONTRIBUTING.md](./CONTRIBUTING.md) - Contribution guidelines
+- [Multi-Modal Analysis Guide](./docs/MULTIMODAL_ANALYSIS.md) - Comprehensive multi-modal PDF analysis documentation
 - [GitHub Actions Guide](./docs/GITHUB_ACTIONS_GUIDE.md) - Workflow automation
 - [Gmail Setup](./docs/GMAIL-SETUP.md) - Gmail integration setup
 - [Batch Workflow Example](./examples/workflow_example.py) - Production-grade code example
