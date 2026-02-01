@@ -45,6 +45,7 @@ DEFAULT_ANALYSIS_TEMPLATE = """你是一位专业的科研文献分析助手。�
 {fulltext}
 
 {annotations_section}
+{images_section}
 
 ---
 
@@ -210,6 +211,7 @@ DEFAULT_ANALYSIS_TEMPLATE_JSON = """你是一位专业的科研文献分析助�
 {fulltext}
 
 {annotations_section}
+{images_section}
 
 ---
 

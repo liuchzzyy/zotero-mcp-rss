@@ -85,6 +85,7 @@ class CLILLMClient:
         fulltext: str,
         annotations: list[dict[str, Any]] | None = None,
         template: str | None = None,
+        images: list[dict[str, Any]] | None = None,
     ) -> str:
         """
         Analyze a research paper using Claude CLI.
@@ -101,6 +102,7 @@ class CLILLMClient:
             fulltext: Full text content
             annotations: PDF annotations
             template: Custom analysis template/instruction
+            images: PDF images (base64 format) - embedded in prompt
 
         Returns:
             Markdown-formatted analysis
@@ -126,6 +128,18 @@ class CLILLMClient:
                     annotations_section += f"*评论*: {comment}\n"
                 annotations_section += "\n"
 
+        # Build images section
+        images_section = ""
+        if images:
+            images_section = "\n## Images\n\n"
+            for i, img in enumerate(images, 1):
+                page_num = img.get("page", "?")
+                images_section += f"### Image {i} (Page {page_num})\n"
+                if img.get("format") == "base64":
+                    # For Claude CLI, embed base64 as markdown image
+                    images_section += f"![Image](data:image/png;base64,{img['content']})\n"
+                images_section += f"*Figure {i}*\n\n"
+
         # Build prompt content for the file
         if template:
             file_content = f"""你是一位专业的科研文献分析助手。请仔细阅读以下论文内容，并按照提供的模板结构进行分析。
@@ -143,6 +157,7 @@ class CLILLMClient:
 {fulltext[:50000]}
 
 {annotations_section}
+{images_section}
 
 ---
 
@@ -169,6 +184,7 @@ class CLILLMClient:
                 doi=doi or "未知",
                 fulltext=fulltext[:50000],
                 annotations_section=annotations_section,
+                images_section=images_section,
             )
 
         # Write to temporary file and run CLI

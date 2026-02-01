@@ -106,6 +106,7 @@ class LLMClient:
         fulltext: str,
         annotations: list[dict[str, Any]] | None = None,
         template: str | None = None,
+        images: list[dict[str, Any]] | None = None,
     ) -> str:
         """
         Analyze a research paper and generate structured notes using DeepSeek API.
@@ -119,6 +120,7 @@ class LLMClient:
             fulltext: Full text content
             annotations: PDF annotations
             template: Custom analysis template/instruction
+            images: PDF images (base64 format) - DeepSeek cannot analyze images
 
         Returns:
             Markdown-formatted analysis
@@ -144,6 +146,17 @@ class LLMClient:
                     annotations_section += f"*评论*: {comment}\n"
                 annotations_section += "\n"
 
+        # Build images section
+        images_section = ""
+        if images and self.provider == "deepseek":
+            # DeepSeek can't handle images - add placeholder
+            images_section = "\n## Images\n\n"
+            images_section += (
+                f"[Note: This PDF contains {len(images)} image(s), "
+                f"but the current LLM (DeepSeek) cannot analyze images. "
+                f"Use a vision-capable model like Claude CLI for image analysis.]\n\n"
+            )
+
         # Build prompt
         if template:
             # Use custom template strategy
@@ -162,6 +175,7 @@ class LLMClient:
 {fulltext[:50000]}
 
 {annotations_section}
+{images_section}
 
 ---
 
@@ -188,6 +202,7 @@ class LLMClient:
                 doi=doi or "未知",
                 fulltext=fulltext[:50000],  # Limit to ~50k chars
                 annotations_section=annotations_section,
+                images_section=images_section,
             )
 
         # Call DeepSeek API with retry
