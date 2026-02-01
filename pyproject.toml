@@ -98,6 +98,12 @@ dependencies = [
 
     # Document Processing
     "markitdown[pdf]>=0.0.1",  # PDF to Markdown conversion
+
+    # Multi-modal PDF Processing (PyMuPDF)
+    "pymupdf>=1.24.0",  # PyMuPDF (fitz) - High-performance PDF library (~10x faster than pdfplumber)
+    "pymupdf4llm>=0.0.7",  # LLM-optimized helpers for PyMuPDF
+    "Pillow>=10.0.0",  # Image processing for PDF page images
+    "pytesseract>=0.3.10",  # OCR engine for scanned PDFs
 ]
 
 # -------------------- Development Dependencies --------------------
@@ -132,6 +138,14 @@ dev = [
 #
 # Optional dependencies are not listed here to keep the package lightweight.
 # Users can install them as needed based on their use case.
+
+[project.optional-dependencies]
+ocr = [
+    "pytesseract>=0.3.10",
+]
+all = [
+    "zotero-mcp[ocr]",
+]
 
 [project.urls]
 Homepage = "https://github.com/54yyyu/zotero-mcp"
