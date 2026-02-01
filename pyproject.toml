@@ -103,7 +103,6 @@ dependencies = [
     "pymupdf>=1.24.0",  # PyMuPDF (fitz) - High-performance PDF library (~10x faster than pdfplumber)
     "pymupdf4llm>=0.0.7",  # LLM-optimized helpers for PyMuPDF
     "Pillow>=10.0.0",  # Image processing for PDF page images
-    "pytesseract>=0.3.10",  # OCR engine for scanned PDFs
 ]
 
 # -------------------- Development Dependencies --------------------
