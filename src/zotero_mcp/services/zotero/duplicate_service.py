@@ -71,17 +71,146 @@ class DuplicateDetectionService:
         """
         logger.info("Starting duplicate detection...")
 
-        # Get all items with batch scanning
-        items = await self._get_items_to_scan(
-            collection_key, scan_limit, treated_limit
+        # Scan items incrementally, checking for duplicates as we go
+        duplicate_groups = []
+        total_scanned = 0
+        total_duplicates_found = 0
+
+        if collection_key:
+            # Single collection mode
+            offset = 0
+            while total_duplicates_found < treated_limit:
+                # Fetch batch from API
+                items = await self.item_service.get_collection_items(
+                    collection_key, limit=scan_limit, start=offset
+                )
+
+                if not items:
+                    break  # No more items
+
+                total_scanned += len(items)
+
+                # Convert to dict format for duplicate checking
+                batch_items = []
+                for item in items:
+                    batch_items.append({
+                        "key": item.key,
+                        "data": {
+                            "DOI": item.doi,
+                            "title": item.title,
+                            "url": item.url,
+                            "creators": [],
+                            "abstractNote": item.abstract,
+                            "publicationTitle": None,
+                            "date": item.date,
+                            "volume": None,
+                            "issue": None,
+                            "pages": None,
+                            "tags": [{"tag": tag} for tag in (item.tags or [])],
+                        },
+                        "children": [],
+                    })
+
+                # Find duplicates in this batch (combined with previously found groups)
+                new_groups = await self._find_duplicate_groups(
+                    batch_items, existing_groups=duplicate_groups
+                )
+
+                # Add new groups to the cumulative list
+                duplicate_groups.extend(new_groups)
+
+                new_duplicates = sum(len(g.duplicate_keys) for g in new_groups)
+                total_duplicates_found += new_duplicates
+
+                logger.info(
+                    f"  Batch: {len(batch_items)} items, {new_duplicates} new duplicates, "
+                    f"{total_duplicates_found} total duplicates found"
+                )
+
+                # If we got fewer items than scan_limit, we've exhausted the collection
+                if len(items) < scan_limit:
+                    break
+
+                offset += scan_limit
+        else:
+            # Scan all collections in order
+            logger.info("Scanning all collections in name order...")
+            collections = await self.item_service.get_sorted_collections()
+
+            for coll in collections:
+                # Check if we've found enough duplicates
+                if total_duplicates_found >= treated_limit:
+                    break
+
+                coll_key = coll["key"]
+                coll_name = coll.get("data", {}).get("name", "")
+                logger.info(f"Scanning collection: {coll_name}")
+
+                # Keep fetching batches from this collection
+                offset = 0
+                while total_duplicates_found < treated_limit:
+                    # Fetch batch from API
+                    items = await self.item_service.get_collection_items(
+                        coll_key, limit=scan_limit, start=offset
+                    )
+
+                    if not items:
+                        break  # No more items in this collection
+
+                    total_scanned += len(items)
+
+                    # Convert to dict format for duplicate checking
+                    batch_items = []
+                    for item in items:
+                        batch_items.append({
+                            "key": item.key,
+                            "data": {
+                                "DOI": item.doi,
+                                "title": item.title,
+                                "url": item.url,
+                                "creators": [],
+                                "abstractNote": item.abstract,
+                                "publicationTitle": None,
+                                "date": item.date,
+                                "volume": None,
+                                "issue": None,
+                                "pages": None,
+                                "tags": [{"tag": tag} for tag in (item.tags or [])],
+                            },
+                            "children": [],
+                        })
+
+                    # Find duplicates in this batch
+                    new_groups = await self._find_duplicate_groups(
+                        batch_items, existing_groups=duplicate_groups
+                    )
+
+                    # Add new groups to the cumulative list
+                    duplicate_groups.extend(new_groups)
+
+                    new_duplicates = sum(len(g.duplicate_keys) for g in new_groups)
+                    total_duplicates_found += new_duplicates
+
+                    logger.info(
+                        f"  Collection '{coll_name}': {len(batch_items)} items, "
+                        f"{new_duplicates} new duplicates, {total_duplicates_found} total"
+                    )
+
+                    # If we got fewer items than scan_limit, we've exhausted this collection
+                    if len(items) < scan_limit:
+                        break
+
+                    offset += scan_limit
+
+                # Early exit if we've found enough duplicates
+                if total_duplicates_found >= treated_limit:
+                    logger.info(f"Reached treated_limit ({treated_limit} duplicates), stopping scan")
+                    break
+
+        logger.info(
+            f"Scanned {total_scanned} items, found {total_duplicates_found} duplicates "
+            f"in {len(duplicate_groups)} groups"
         )
-        logger.info(f"Scanning {len(items)} items for duplicates...")
-
-        # Find duplicate groups
-        duplicate_groups = await self._find_duplicate_groups(items)
-
-        duplicates_found = sum(len(g.duplicate_keys) for g in duplicate_groups)
-        logger.info(f"Found {duplicates_found} duplicates in {len(duplicate_groups)} groups")
 
         if dry_run:
             logger.info("DRY RUN: No items will be deleted")
@@ -91,8 +220,8 @@ class DuplicateDetectionService:
                     f"(matched by {group.match_reason}: {group.match_value[:50]})"
                 )
             return {
-                "total_scanned": len(items),
-                "duplicates_found": duplicates_found,
+                "total_scanned": total_scanned,
+                "duplicates_found": total_duplicates_found,
                 "duplicates_removed": 0,
                 "groups": duplicate_groups,
                 "dry_run": True,
@@ -104,25 +233,40 @@ class DuplicateDetectionService:
         logger.info(f"Removed {duplicates_removed} duplicate items")
 
         return {
-            "total_scanned": len(items),
-            "duplicates_found": duplicates_found,
+            "total_scanned": total_scanned,
+            "duplicates_found": total_duplicates_found,
             "duplicates_removed": duplicates_removed,
             "groups": duplicate_groups,
             "dry_run": False,
         }
 
     async def _find_duplicate_groups(
-        self, items: list[dict[str, Any]]
+        self, items: list[dict[str, Any]], existing_groups: list[DuplicateGroup] | None = None
     ) -> list[DuplicateGroup]:
         """
         Find groups of duplicate items.
 
+        Args:
+            items: Items to check for duplicates
+            existing_groups: Previously found duplicate groups (for incremental checking)
+
         Priority: DOI > title > URL
         """
+        # Start with existing groups (if any)
+        all_duplicate_groups = existing_groups or []
+        existing_primary_keys = {g.primary_key for g in all_duplicate_groups}
+        existing_duplicate_keys = set()
+        for g in all_duplicate_groups:
+            existing_duplicate_keys.update(g.duplicate_keys)
+
         # Group by DOI (highest priority)
         doi_groups = defaultdict(list)
         for item in items:
             item_key = item.get("key", "")
+            # Skip if already in a duplicate group
+            if item_key in existing_primary_keys or item_key in existing_duplicate_keys:
+                continue
+
             item_data = item.get("data", {})
             doi = (item_data.get("DOI") or "").strip()
             if doi:
@@ -130,7 +274,7 @@ class DuplicateDetectionService:
 
         # Group by title (second priority) - only for items without DOI match
         title_groups = defaultdict(list)
-        processed_keys = set()
+        processed_keys = set(existing_primary_keys) | existing_duplicate_keys
 
         for doi, items_list in doi_groups.items():
             if len(items_list) > 1:

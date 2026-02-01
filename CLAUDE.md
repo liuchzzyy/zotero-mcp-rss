@@ -38,6 +38,66 @@ uv run ruff check --fix             # Auto-fix issues
 uv run ty check                     # Type check
 ```
 
+## Batch Operation Parameters
+
+Several commands support batch scanning with two key parameters:
+
+### `scan_limit`
+- **Purpose**: Number of items to fetch per batch from the Zotero API
+- **Default**: Varies by command (10-500)
+- **Example**: `--scan-limit 100` fetches 100 items at a time from each collection
+
+### `treated_limit`
+- **Purpose**: Maximum number of items to actually process (excludes skipped items)
+- **Default**: Varies by command (1-1000)
+- **Example**: `--treated-limit 20` stops after processing 20 items
+
+### Scanning Logic
+
+**For each collection:**
+```python
+while processed_count < treated_limit:
+    fetch scan_limit items (with pagination offset)
+    for each item:
+        if item should be skipped (has tag, etc.):
+            skip  # Does NOT count towards treated_limit
+        else:
+            process item
+            processed_count += 1
+
+    if fetched items < scan_limit:
+        break  # Collection exhausted
+
+    if processed_count >= treated_limit:
+        break  # Reached limit, stop all scanning
+```
+
+**Key behaviors:**
+1. **Collection-level pagination**: Continuously fetches batches within each collection until exhausted
+2. **Sequential collection scanning**: Only moves to next collection after current one is fully scanned
+3. **Skip logic**: Items with specific tags ("AI分析", "AI元数据") are skipped and don't count towards `treated_limit`
+4. **Early termination**: Stops scanning entirely once `treated_limit` is reached
+
+**Command-specific meanings:**
+
+| Command | `scan_limit` | `treated_limit` | Skip Tag | Counts |
+|---------|-------------|----------------|----------|--------|
+| `scan` | Items per batch | Items needing AI analysis | "AI分析" | Candidates without tag |
+| `update-metadata` | Items per batch | Items needing metadata update | "AI元数据" | Items without tag |
+| `deduplicate` | Items per batch | **Duplicate items found** | None | Duplicate entries |
+
+**Example:**
+```bash
+# Scan 100 items at a time, process first 20 needing analysis
+uv run zotero-mcp scan --scan-limit 100 --treated-limit 20
+
+# Scan 500 items at a time, process first 1000 needing metadata update
+uv run zotero-mcp update-metadata --scan-limit 500 --treated-limit 1000
+
+# Scan 100 items at a time, stop after finding 1 duplicate
+uv run zotero-mcp deduplicate --scan-limit 100 --treated-limit 1
+```
+
 ## Architecture
 
 Layered architecture with strict separation of concerns, organized by domain:

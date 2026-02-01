@@ -106,22 +106,38 @@ class GlobalScanner:
 
                 if collections:
                     collection_key = collections[0]["key"]
-                    items = await self.data_service.get_collection_items(
-                        collection_key, limit=scan_limit
-                    )
-                    logger.info(f"Found {len(items)} items in '{source_collection}'")
-                    total_scanned += len(items)
+                    coll_name = collections[0].get("data", {}).get("name", "")
 
-                    # Find candidates in this collection
-                    for item in items:
-                        scanned_keys.add(item.key)
-                        if await self._check_item_needs_analysis(item):
-                            candidates.append(item)
-                            logger.info(
-                                f"  ✓ Candidate: {item.title[:60]}... (key: {item.key})"
-                            )
-                            if len(candidates) >= treated_limit:
-                                break
+                    # Keep fetching batches from this collection until treated_limit or exhausted
+                    offset = 0
+                    while len(candidates) < treated_limit:
+                        items = await self.data_service.get_collection_items(
+                            collection_key, limit=scan_limit, start=offset
+                        )
+
+                        if not items:
+                            break  # No more items in this collection
+
+                        total_scanned += len(items)
+                        logger.info(f"Fetched {len(items)} items from '{coll_name}' (offset: {offset})")
+
+                        # Find candidates in this batch
+                        for item in items:
+                            scanned_keys.add(item.key)
+                            if await self._check_item_needs_analysis(item):
+                                candidates.append(item)
+                                logger.info(
+                                    f"  ✓ Candidate: {item.title[:60]}... (key: {item.key})"
+                                )
+                                if len(candidates) >= treated_limit:
+                                    break
+
+                        # If we got fewer items than scan_limit, we've exhausted the collection
+                        if len(items) < scan_limit:
+                            logger.info(f"  Collection '{coll_name}' fully scanned")
+                            break
+
+                        offset += scan_limit
                 else:
                     logger.warning(
                         f"Collection '{source_collection}' not found, skipping to Stage 2"
@@ -158,30 +174,44 @@ class GlobalScanner:
 
                     logger.info(f"Scanning collection: {coll_name}")
 
-                    # Get items from this collection
-                    items = await self.data_service.get_collection_items(
-                        coll_key, limit=scan_limit
-                    )
-                    total_scanned += len(items)
+                    # Keep fetching batches from this collection until treated_limit or exhausted
+                    offset = 0
+                    collection_candidates = 0
+                    while len(candidates) < treated_limit:
+                        items = await self.data_service.get_collection_items(
+                            coll_key, limit=scan_limit, start=offset
+                        )
 
-                    # Find candidates in this collection
-                    for item in items:
-                        # Skip already scanned items
-                        if item.key in scanned_keys:
-                            continue
+                        if not items:
+                            break  # No more items in this collection
 
-                        scanned_keys.add(item.key)
-                        if await self._check_item_needs_analysis(item):
-                            candidates.append(item)
-                            logger.info(
-                                f"  ✓ Candidate: {item.title[:60]}... (key: {item.key})"
-                            )
-                            if len(candidates) >= treated_limit:
-                                break
+                        total_scanned += len(items)
+
+                        # Find candidates in this batch
+                        for item in items:
+                            # Skip already scanned items
+                            if item.key in scanned_keys:
+                                continue
+
+                            scanned_keys.add(item.key)
+                            if await self._check_item_needs_analysis(item):
+                                candidates.append(item)
+                                collection_candidates += 1
+                                logger.info(
+                                    f"  ✓ Candidate: {item.title[:60]}... (key: {item.key})"
+                                )
+                                if len(candidates) >= treated_limit:
+                                    break
+
+                        # If we got fewer items than scan_limit, we've exhausted this collection
+                        if len(items) < scan_limit:
+                            break
+
+                        offset += scan_limit
 
                     logger.info(
-                        f"  Collection '{coll_name}': {len(items)} items, "
-                        f"{sum(1 for i in items if i.key in [c.key for c in candidates])} candidates"
+                        f"  Collection '{coll_name}': {total_scanned} items scanned, "
+                        f"{collection_candidates} candidates"
                     )
 
             logger.info(
