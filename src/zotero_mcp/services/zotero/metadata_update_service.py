@@ -402,16 +402,54 @@ class MetadataUpdateService:
     async def _get_all_items(
         self, scan_limit: int = 100, treated_limit: int | None = None
     ) -> list[dict[str, Any]]:
-        """Get all items from the library with batch scanning."""
-        logger.warning(
-            f"_get_all_items: Fetching items (batch: {scan_limit}, max: {treated_limit or 'all'})"
+        """Get all items from the library with batch scanning in collection order."""
+        logger.info(
+            f"Fetching items from all collections in order (batch: {scan_limit}, max: {treated_limit or 'all'})"
         )
-        # TODO: Implement proper batch scanning from API
-        # For now, return empty list - user should specify collection_key
-        logger.warning(
-            "_get_all_items: Not fully implemented. Please specify a collection_key for better results."
-        )
-        return []
+
+        all_items = []
+        seen_keys = set()
+
+        # Get collections sorted by name
+        collections = await self.item_service.get_sorted_collections()
+
+        for coll in collections:
+            # Check if we've reached the treated_limit
+            if treated_limit and len(all_items) >= treated_limit:
+                break
+
+            coll_key = coll["key"]
+            coll_name = coll.get("data", {}).get("name", "")
+            logger.info(f"Scanning collection: {coll_name}")
+
+            # Get items from this collection
+            items = await self.item_service.get_collection_items(
+                coll_key, limit=scan_limit
+            )
+
+            # Filter duplicates and convert to dict
+            for item in items:
+                if item.key not in seen_keys:
+                    seen_keys.add(item.key)
+                    all_items.append(
+                        {
+                            "key": item.key,
+                            "data": {
+                                "title": item.title,
+                                "DOI": item.doi,
+                                "url": item.url,
+                            },
+                        }
+                    )
+
+                    # Check if we've reached the treated_limit
+                    if treated_limit and len(all_items) >= treated_limit:
+                        break
+
+            logger.info(f"  Collection '{coll_name}': {len(items)} items")
+
+        logger.info(f"Retrieved {len(all_items)} items from all collections")
+        return all_items
 
     async def _get_collection_items_batch(
         self,

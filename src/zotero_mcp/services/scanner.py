@@ -124,29 +124,60 @@ class GlobalScanner:
             else:
                 logger.info("No source collection specified, skipping to Stage 2")
 
-            # Stage 2: If need more candidates, scan entire library
+            # Stage 2: If need more candidates, scan other collections in order
             if len(candidates) < treated_limit:
                 remaining_needed = treated_limit - len(candidates)
                 logger.info(
-                    f"Stage 2: Need {remaining_needed} more items, scanning entire library"
+                    f"Stage 2: Need {remaining_needed} more items, scanning collections in order"
                 )
 
-                all_items = await self.data_service.get_all_items(limit=scan_limit)
-                total_scanned += len(all_items)
+                # Get collections sorted by name (00_INBOXS, 01_*, 02_*, etc.)
+                sorted_collections = await self.data_service.get_sorted_collections()
 
-                for item in all_items:
-                    # Skip already scanned items
-                    if item.key in scanned_keys:
+                # Skip source_collection if specified
+                source_key = None
+                if source_collection and collections:
+                    source_key = collections[0]["key"]
+
+                for coll in sorted_collections:
+                    # Check if we've reached the limit
+                    if len(candidates) >= treated_limit:
+                        break
+
+                    coll_key = coll["key"]
+                    coll_name = coll.get("data", {}).get("name", "")
+
+                    # Skip source collection (already scanned)
+                    if coll_key == source_key:
                         continue
 
-                    scanned_keys.add(item.key)
-                    if await self._check_item_needs_analysis(item):
-                        candidates.append(item)
-                        logger.info(
-                            f"  ✓ Candidate: {item.title[:60]}... (key: {item.key})"
-                        )
-                        if len(candidates) >= treated_limit:
-                            break
+                    logger.info(f"Scanning collection: {coll_name}")
+
+                    # Get items from this collection
+                    items = await self.data_service.get_collection_items(
+                        coll_key, limit=scan_limit
+                    )
+                    total_scanned += len(items)
+
+                    # Find candidates in this collection
+                    for item in items:
+                        # Skip already scanned items
+                        if item.key in scanned_keys:
+                            continue
+
+                        scanned_keys.add(item.key)
+                        if await self._check_item_needs_analysis(item):
+                            candidates.append(item)
+                            logger.info(
+                                f"  ✓ Candidate: {item.title[:60]}... (key: {item.key})"
+                            )
+                            if len(candidates) >= treated_limit:
+                                break
+
+                    logger.info(
+                        f"  Collection '{coll_name}': {len(items)} items, "
+                        f"{sum(1 for i in items if i.key in [c.key for c in candidates])} candidates"
+                    )
 
             logger.info(
                 f"Scan complete: found {len(candidates)} candidates out of {total_scanned} total items"

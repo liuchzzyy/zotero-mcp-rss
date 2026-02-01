@@ -386,8 +386,69 @@ class DuplicateDetectionService:
                 f"Retrieved {len(all_items)} items from collection in batches of {scan_limit}"
             )
         else:
-            # Get all items from library in batches
-            all_items = await self._get_all_items(scan_limit, treated_limit)
+            # Scan all collections in order (00_INBOXS, 01_*, 02_*, etc.)
+            logger.info("Scanning all collections in name order...")
+
+            # Get collections sorted by name
+            collections = await self.item_service.get_sorted_collections()
+
+            for coll in collections:
+                # Check if we've reached the limit
+                if len(all_items) >= treated_limit:
+                    break
+
+                coll_key = coll["key"]
+                coll_name = coll.get("data", {}).get("name", "")
+                logger.info(f"Scanning collection: {coll_name}")
+
+                # Get items from this collection
+                offset = 0
+                while len(all_items) < treated_limit:
+                    items = await self.item_service.get_collection_items(
+                        coll_key, limit=scan_limit, start=offset
+                    )
+
+                    if not items:
+                        break
+
+                    # Convert and filter duplicates
+                    for item in items:
+                        if item.key not in seen_keys:
+                            seen_keys.add(item.key)
+                            all_items.append(
+                                {
+                                    "key": item.key,
+                                    "data": {
+                                        "DOI": item.doi,
+                                        "title": item.title,
+                                        "url": item.url,
+                                        "creators": [],
+                                        "abstractNote": item.abstractNote,
+                                        "publicationTitle": item.publicationTitle,
+                                        "date": item.date,
+                                        "volume": item.volume,
+                                        "issue": item.issue,
+                                        "pages": item.pages,
+                                        "tags": [{"tag": tag} for tag in (item.tags or [])],
+                                    },
+                                    "children": [],
+                                }
+                            )
+
+                            if len(all_items) >= treated_limit:
+                                break
+
+                    # If we got fewer items than scan_limit, we've exhausted this collection
+                    if len(items) < scan_limit:
+                        break
+
+                    offset += scan_limit
+
+                logger.info(
+                    f"  Collection '{coll_name}': {len([i for i in all_items if True])} items"
+                )
+
+            logger.info(f"Retrieved {len(all_items)} items from all collections")
 
         return all_items
 
