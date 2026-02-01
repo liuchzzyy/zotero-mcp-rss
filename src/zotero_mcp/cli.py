@@ -682,7 +682,6 @@ def main():
                     print(f"  Skipped: {result['skipped']}")
                     print(f"  Failed: {result['failed']}")
 
-                await data_service.close()
             except Exception as e:
                 print(f"Error: {e}")
                 sys.exit(1)
@@ -722,7 +721,6 @@ def main():
                         print(f"       Keeping: {group.primary_key}")
                         print(f"       Deleting: {len(group.duplicate_keys)} items")
 
-                await data_service.close()
             except Exception as e:
                 print(f"Error: {e}")
                 sys.exit(1)
