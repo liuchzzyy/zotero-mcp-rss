@@ -33,7 +33,6 @@ class PDFToMarkdownConverter:
         pdf_path: Path,
         show_progress: bool = False,
         page_breaks: bool = True,
-        extract_images: bool = True,
     ) -> str:
         """
         Convert PDF to markdown.
@@ -42,7 +41,6 @@ class PDFToMarkdownConverter:
             pdf_path: Path to PDF file
             show_progress: Show conversion progress (default: False)
             page_breaks: Insert page break markers (default: True)
-            extract_images: Extract and embed images (default: True)
 
         Returns:
             Markdown string
@@ -67,26 +65,35 @@ class PDFToMarkdownConverter:
         self,
         pdf_path: Path,
         image_format: str = "base64",
-        max_image_size: int = 5 * 1024 * 1024,  # 5MB limit
     ) -> dict[str, Any]:
         """
         Convert PDF to markdown with extracted images.
 
         Args:
             pdf_path: Path to PDF file
-            image_format: 'base64' or 'path'
-            max_image_size: Maximum image size in bytes
+            image_format: 'base64' or 'path' (default: 'base64')
 
         Returns:
-            Dictionary with 'markdown' and 'images' keys
+            Dictionary with 'markdown' and 'images' keys. Images are only
+            extracted separately when image_format='base64' for structured access.
         """
+        # Validate image_format parameter
+        if image_format not in ("base64", "path"):
+            raise ValueError(
+                f"image_format must be 'base64' or 'path', got '{image_format}'"
+            )
+
+        # Check file exists
+        if not pdf_path.exists():
+            raise FileNotFoundError(f"PDF file not found: {pdf_path}")
+
         result = {
             "markdown": "",
             "images": [],
         }
 
         try:
-            # Convert to markdown with images
+            # PyMuPDF4LLM automatically embeds images in markdown
             md_text = pymupdf4llm.to_markdown(
                 str(pdf_path),
                 pages=None,
@@ -94,13 +101,12 @@ class PDFToMarkdownConverter:
                 show_progress=False,
                 page_breaks=True,
             )
-
             result["markdown"] = md_text
 
-            # Extract images separately if needed
+            # For structured access, extract images separately when base64 is requested
+            # Note: PyMuPDF4LLM already embeds images in the markdown text above.
+            # This additional extraction provides structured access to images.
             if image_format == "base64":
-                # Note: PyMuPDF4LLM already embeds images in markdown
-                # This is for structured access if needed
                 from zotero_mcp.clients.zotero.pdf_extractor import (
                     MultiModalPDFExtractor,
                 )
