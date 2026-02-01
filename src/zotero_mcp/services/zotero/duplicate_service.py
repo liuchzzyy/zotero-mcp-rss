@@ -512,7 +512,10 @@ class DuplicateDetectionService:
         )
 
         if collections:
-            logger.info(f"Using existing trash collection: {collection_name}")
+            trash_key = collections[0].get("data", {}).get("key", "")
+            logger.info(
+                f"Using existing trash collection: '{collection_name}' (key: {trash_key})"
+            )
             return collections[0]
 
         logger.info(f"Creating new trash collection: {collection_name}")
@@ -523,6 +526,10 @@ class DuplicateDetectionService:
                     collection_name, exact_match=True
                 )
                 if collections:
+                    trash_key = collections[0].get("data", {}).get("key", "")
+                    logger.info(
+                        f"Created trash collection: '{collection_name}' (key: {trash_key})"
+                    )
                     return collections[0]
             return result
         except Exception as e:
@@ -542,16 +549,23 @@ class DuplicateDetectionService:
             )
             collections = []
 
+        logger.debug(
+            f"Item {item_key}: current collections = {collections}, target = {target_collection_key}"
+        )
+
         for collection_key in collections or []:
             try:
                 await self.item_service.remove_item_from_collection(
                     collection_key, item_key
                 )
+                logger.debug(f"  Removed {item_key} from collection {collection_key}")
             except Exception as e:
                 logger.warning(
                     f"Failed to remove {item_key} from collection {collection_key}: {e}"
                 )
 
-        return await self.item_service.add_item_to_collection(
+        result = await self.item_service.add_item_to_collection(
             target_collection_key, item_key
         )
+        logger.debug(f"  Added {item_key} to collection {target_collection_key}")
+        return result
