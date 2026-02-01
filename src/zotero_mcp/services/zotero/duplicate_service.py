@@ -607,7 +607,7 @@ class DuplicateDetectionService:
     async def _remove_duplicates(
         self,
         duplicate_groups: list[DuplicateGroup],
-        trash_collection: str = "06 - TRASHES",
+        trash_collection: str = "06_TRASHES",
     ) -> int:
         """
         Remove duplicate items from Zotero by moving them to trash collection.
