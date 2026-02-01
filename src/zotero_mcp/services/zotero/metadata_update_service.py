@@ -8,9 +8,9 @@ Crossref and OpenAlex APIs and updating items with missing information.
 import logging
 from typing import Any
 
-from zotero_mcp.services.zotero.metadata_service import MetadataService
-from zotero_mcp.services.zotero.item_service import ItemService
 from zotero_mcp.services.common.retry import async_retry_with_backoff
+from zotero_mcp.services.zotero.item_service import ItemService
+from zotero_mcp.services.zotero.metadata_service import MetadataService
 
 logger = logging.getLogger(__name__)
 
@@ -40,13 +40,14 @@ class MetadataUpdateService:
         self.metadata_service = metadata_service
 
     async def update_item_metadata(
-        self, item_key: str
+        self, item_key: str, dry_run: bool = False
     ) -> dict[str, Any]:
         """
         Update metadata for a single Zotero item.
 
         Args:
             item_key: Zotero item key
+            dry_run: If True, preview changes without applying them
 
         Returns:
             Dict with update result:
@@ -102,7 +103,7 @@ class MetadataUpdateService:
             )
 
             if not enhanced_metadata:
-                logger.info(f"  ✗ No enhanced metadata found")
+                logger.info("  ✗ No enhanced metadata found")
                 return {
                     "success": True,
                     "updated": False,
@@ -118,7 +119,7 @@ class MetadataUpdateService:
 
             # Check if anything changed
             if not self._has_changes(item_data, updated_data):
-                logger.info(f"  → No updates needed")
+                logger.info("  → No updates needed")
                 return {
                     "success": True,
                     "updated": False,
@@ -132,6 +133,18 @@ class MetadataUpdateService:
             # Prepare full item object for update - preserve version and other top-level fields
             updated_item = item.copy()
             updated_item["data"] = updated_data
+
+            if dry_run:
+                # Dry run mode - show what would be updated
+                logger.info(
+                    f"  [DRY RUN] Would update metadata (source: {enhanced_metadata.get('source')})"
+                )
+                return {
+                    "success": True,
+                    "updated": True,
+                    "message": f"[DRY RUN] Would update from {enhanced_metadata.get('source')}",
+                    "source": enhanced_metadata.get("source"),
+                }
 
             # Update the item
             await async_retry_with_backoff(
@@ -163,6 +176,7 @@ class MetadataUpdateService:
         collection_key: str | None = None,
         scan_limit: int = 100,
         treated_limit: int | None = None,
+        dry_run: bool = False,
     ) -> dict[str, Any]:
         """
         Update metadata for multiple items with batch scanning.
@@ -171,6 +185,7 @@ class MetadataUpdateService:
             collection_key: Optional collection key to limit updates
             scan_limit: Number of items to fetch per batch from API
             treated_limit: Maximum total number of items to process (excludes skipped)
+            dry_run: If True, preview changes without applying them
 
         Returns:
             Dict with statistics:
@@ -183,6 +198,9 @@ class MetadataUpdateService:
             f"Starting metadata update for multiple items "
             f"(batch: {scan_limit}, max: {treated_limit or 'all'})"
         )
+
+        if dry_run:
+            logger.info("DRY RUN MODE: No changes will be applied")
 
         updated = 0
         skipped = 0
@@ -229,7 +247,7 @@ class MetadataUpdateService:
 
                     # Process the item
                     total_processed += 1
-                    result = await self.update_item_metadata(item.key)
+                    result = await self.update_item_metadata(item.key, dry_run=dry_run)
 
                     if result["success"]:
                         if result["updated"]:
@@ -299,7 +317,7 @@ class MetadataUpdateService:
 
                         # Process the item
                         total_processed += 1
-                        result = await self.update_item_metadata(item.key)
+                        result = await self.update_item_metadata(item.key, dry_run=dry_run)
 
                         if result["success"]:
                             if result["updated"]:
