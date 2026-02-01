@@ -36,12 +36,16 @@ RETRY_DELAY = 1.0
 
 @dataclass
 class OpenAlexWork:
-    """Represents a work (article) from OpenAlex."""
+    """Represents a work (article) from OpenAlex.
+
+    Enhanced with additional fields from OpenAlex API.
+    """
 
     doi: str
     title: str
     authors: list[str]
     journal: str | None
+    journal_abbrev: str | None  # Abbreviated journal title
     year: int | None
     volume: str | None
     issue: str | None
@@ -50,6 +54,20 @@ class OpenAlexWork:
     url: str | None
     item_type: str
     raw_data: dict[str, Any]
+
+    # Additional fields
+    language: str | None
+    rights: str | None
+    short_title: str | None
+    series: str | None
+    edition: str | None
+    place: str | None
+
+    # Extra metadata
+    citation_count: int | None  # OpenAlex provides this directly
+    subjects: list[str]
+    funders: list[str]
+    pdf_url: str | None
 
     @classmethod
     def from_api_response(cls, data: dict[str, Any]) -> "OpenAlexWork":
@@ -71,11 +89,16 @@ class OpenAlexWork:
 
         # Extract journal from primary_location
         journal = None
+        journal_abbrev = None
         primary_location = data.get("primary_location", {})
         if primary_location:
             source = primary_location.get("source", {})
             if source:
                 journal = source.get("display_name")
+                # Extract abbreviated title if available
+                abbrevs = source.get("abbreviated_title", [])
+                if abbrevs and isinstance(abbrevs, list):
+                    journal_abbrev = abbrevs[0] if abbrevs else None
 
         # Extract year
         year = data.get("publication_year")
@@ -120,11 +143,53 @@ class OpenAlexWork:
         }
         item_type = type_mapping.get(openalex_type, "journalArticle")
 
+        # Extract additional fields
+        language = data.get("language")
+
+        # Extract citation count (OpenAlex provides this directly)
+        citation_count = data.get("cited_by_count")
+        if citation_count == 0:
+            citation_count = None  # Only store if > 0
+
+        # Extract concepts (subjects/keywords)
+        subjects = []
+        for concept in data.get("concepts", []):
+            if isinstance(concept, dict) and concept.get("score", 0) > 0.3:  # Filter by relevance
+                subjects.append(concept.get("display_name", ""))
+
+        # Extract funders from grants
+        funders = []
+        for grant in data.get("grants", []):
+            if isinstance(grant, dict):
+                funder = grant.get("funder")
+                if isinstance(funder, dict):
+                    funder_name = funder.get("display_name")
+                    if funder_name:
+                        funder_str = funder_name
+                        # Add award number if available
+                        award_id = grant.get("award_id")
+                        if award_id:
+                            funder_str += f" (Award: {award_id})"
+                        funders.append(funder_str)
+
+        # PDF URL - OpenAlex doesn't typically provide direct PDF links
+        pdf_url = None
+        locations = data.get("locations", [])
+        for location in locations:
+            if isinstance(location, dict):
+                source = location.get("source")
+                if isinstance(source, dict) and source.get("type") == "pdf":
+                    landing_url = location.get("landing_url") or location.get("pdf_url")
+                    if landing_url:
+                        pdf_url = landing_url
+                        break
+
         return cls(
             doi=doi,
             title=title,
             authors=authors,
             journal=journal,
+            journal_abbrev=journal_abbrev,
             year=year,
             volume=volume,
             issue=issue,
@@ -133,10 +198,20 @@ class OpenAlexWork:
             url=url,
             item_type=item_type,
             raw_data=data,
+            language=language,
+            rights=None,  # Not typically provided by OpenAlex
+            short_title=None,  # Not available
+            series=None,  # Not available for journal articles
+            edition=None,  # Not available
+            place=None,  # Not available
+            citation_count=citation_count,
+            subjects=subjects,
+            funders=funders,
+            pdf_url=pdf_url,
         )
 
     def to_zotero_item(self) -> dict[str, Any]:
-        """Convert to Zotero item template format."""
+        """Convert to Zotero item template format with enhanced fields."""
         creators: list[dict[str, str]] = []
         item = {
             "itemType": self.item_type,
@@ -177,6 +252,8 @@ class OpenAlexWork:
         # Add optional fields
         if self.journal:
             item["publicationTitle"] = self.journal
+        if self.journal_abbrev:
+            item["journalAbbreviation"] = self.journal_abbrev
         if self.year:
             item["date"] = str(self.year)
         if self.volume:
@@ -187,6 +264,27 @@ class OpenAlexWork:
             item["pages"] = self.pages
         if self.abstract:
             item["abstractNote"] = self.abstract
+
+        # Additional Zotero fields
+        if self.language:
+            item["language"] = self.language
+        if self.rights:
+            item["rights"] = self.rights
+        if self.series:
+            item["series"] = self.series
+
+        # Build "Extra" field for additional metadata
+        extra_parts = []
+        if self.citation_count is not None:
+            extra_parts.append(f"Citation Count: {self.citation_count}")
+        for subject in self.subjects:
+            extra_parts.append(f"Subject: {subject}")
+        for funder in self.funders:
+            extra_parts.append(f"Funder: {funder}")
+        if self.pdf_url:
+            extra_parts.append(f"Full-text PDF: {self.pdf_url}")
+        if extra_parts:
+            item["extra"] = "\n".join(extra_parts)
 
         return item
 

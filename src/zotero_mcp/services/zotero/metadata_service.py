@@ -29,12 +29,17 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class ArticleMetadata:
-    """Complete metadata for an academic article."""
+    """Complete metadata for an academic article.
 
+    Enhanced version with additional fields from Crossref/OpenAlex APIs.
+    """
+
+    # Core fields (existing)
     doi: str | None = None
     title: str = ""
     authors: list[str] = field(default_factory=list)
     journal: str | None = None
+    journal_abbrev: str | None = None  # Abbreviated journal title
     publisher: str | None = None
     year: int | None = None
     volume: str | None = None
@@ -46,6 +51,20 @@ class ArticleMetadata:
     item_type: str = "journalArticle"
     source: str = ""  # "crossref" or "openalex"
     raw_data: dict[str, Any] = field(default_factory=dict)
+
+    # Additional fields (new)
+    language: str | None = None  # Document language code (e.g., "en")
+    rights: str | None = None  # Copyright/license terms
+    short_title: str | None = None  # Short form of title
+    series: str | None = None  # Series name
+    edition: str | None = None  # Edition
+    place: str | None = None  # Place of publication
+
+    # Extra metadata (stored in Zotero's "Extra" field)
+    citation_count: int | None = None  # Number of citations/references
+    subjects: list[str] = field(default_factory=list)  # Subject categories/keywords
+    funders: list[str] = field(default_factory=list)  # Funding information
+    pdf_url: str | None = None  # Direct link to full-text PDF
 
     def to_zotero_item(self, collection_key: str | None = None) -> dict[str, Any]:
         """
@@ -98,6 +117,8 @@ class ArticleMetadata:
         # Add optional fields
         if self.journal:
             item["publicationTitle"] = self.journal
+        if self.journal_abbrev:
+            item["journalAbbreviation"] = self.journal_abbrev
         if self.year:
             item["date"] = str(self.year)
         if self.volume:
@@ -112,6 +133,33 @@ class ArticleMetadata:
             item["publisher"] = self.publisher
         if self.issn:
             item["ISSN"] = self.issn
+
+        # Additional Zotero fields
+        if self.language:
+            item["language"] = self.language
+        if self.rights:
+            item["rights"] = self.rights
+        if self.short_title:
+            item["shortTitle"] = self.short_title
+        if self.series:
+            item["series"] = self.series
+        if self.edition:
+            item["edition"] = self.edition
+        if self.place:
+            item["place"] = self.place
+
+        # Build "Extra" field for additional metadata
+        extra_parts = []
+        if self.citation_count is not None:
+            extra_parts.append(f"Citation Count: {self.citation_count}")
+        for subject in self.subjects:
+            extra_parts.append(f"Subject: {subject}")
+        for funder in self.funders:
+            extra_parts.append(f"Funder: {funder}")
+        if self.pdf_url:
+            extra_parts.append(f"Full-text PDF: {self.pdf_url}")
+        if extra_parts:
+            item["extra"] = "\n".join(extra_parts)
 
         # Add collection
         if collection_key:
@@ -260,12 +308,13 @@ class MetadataService:
         return doi.strip()
 
     def _crossref_work_to_metadata(self, work: CrossrefWork) -> ArticleMetadata:
-        """Convert CrossrefWork to ArticleMetadata."""
+        """Convert CrossrefWork to ArticleMetadata with enhanced fields."""
         return ArticleMetadata(
             doi=work.doi,
             title=work.title,
             authors=work.authors,
             journal=work.journal,
+            journal_abbrev=work.journal_abbrev,
             publisher=work.publisher,
             year=work.year,
             volume=work.volume,
@@ -277,15 +326,26 @@ class MetadataService:
             item_type=work.item_type,
             source="crossref",
             raw_data=work.raw_data,
+            language=work.language,
+            rights=work.rights,
+            short_title=work.short_title,
+            series=work.series,
+            edition=work.edition,
+            place=work.place,
+            citation_count=work.citation_count,
+            subjects=work.subjects,
+            funders=work.funders,
+            pdf_url=work.pdf_url,
         )
 
     def _openalex_work_to_metadata(self, work: OpenAlexWork) -> ArticleMetadata:
-        """Convert OpenAlexWork to ArticleMetadata."""
+        """Convert OpenAlexWork to ArticleMetadata with enhanced fields."""
         return ArticleMetadata(
             doi=work.doi,
             title=work.title,
             authors=work.authors,
             journal=work.journal,
+            journal_abbrev=work.journal_abbrev,
             year=work.year,
             volume=work.volume,
             issue=work.issue,
@@ -295,4 +355,14 @@ class MetadataService:
             item_type=work.item_type,
             source="openalex",
             raw_data=work.raw_data,
+            language=work.language,
+            rights=work.rights,
+            short_title=work.short_title,
+            series=work.series,
+            edition=work.edition,
+            place=work.place,
+            citation_count=work.citation_count,
+            subjects=work.subjects,
+            funders=work.funders,
+            pdf_url=work.pdf_url,
         )

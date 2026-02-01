@@ -371,12 +371,13 @@ class MetadataUpdateService:
         return None
 
     def _metadata_to_dict(self, metadata) -> dict[str, Any]:
-        """Convert ArticleMetadata to dict."""
+        """Convert ArticleMetadata to dict with enhanced fields."""
         return {
             "doi": metadata.doi,
             "title": metadata.title,
             "authors": metadata.authors,
             "journal": metadata.journal,
+            "journal_abbrev": metadata.journal_abbrev,
             "publisher": metadata.publisher,
             "year": metadata.year,
             "volume": metadata.volume,
@@ -387,6 +388,18 @@ class MetadataUpdateService:
             "issn": metadata.issn,
             "item_type": metadata.item_type,
             "source": metadata.source,
+            # Additional fields
+            "language": metadata.language,
+            "rights": metadata.rights,
+            "short_title": metadata.short_title,
+            "series": metadata.series,
+            "edition": metadata.edition,
+            "place": metadata.place,
+            # Extra metadata
+            "citation_count": metadata.citation_count,
+            "subjects": metadata.subjects,
+            "funders": metadata.funders,
+            "pdf_url": metadata.pdf_url,
         }
 
     def _build_updated_item_data(
@@ -396,6 +409,7 @@ class MetadataUpdateService:
         Build updated item data by merging current and enhanced metadata.
 
         Overwrites existing fields with API data (except title).
+        Includes enhanced fields from Crossref/OpenAlex APIs.
         """
         updated = current_data.copy()
 
@@ -413,6 +427,10 @@ class MetadataUpdateService:
         # Journal/Publication (overwrite with API data)
         if enhanced_metadata.get("journal"):
             updated["publicationTitle"] = enhanced_metadata["journal"]
+
+        # Journal abbreviation (overwrite with API data)
+        if enhanced_metadata.get("journal_abbrev"):
+            updated["journalAbbreviation"] = enhanced_metadata["journal_abbrev"]
 
         # Publisher (overwrite with API data)
         if enhanced_metadata.get("publisher"):
@@ -450,6 +468,56 @@ class MetadataUpdateService:
         if enhanced_metadata.get("issn"):
             updated["ISSN"] = enhanced_metadata["issn"]
 
+        # Additional Zotero fields
+        if enhanced_metadata.get("language"):
+            updated["language"] = enhanced_metadata["language"]
+
+        if enhanced_metadata.get("rights"):
+            updated["rights"] = enhanced_metadata["rights"]
+
+        if enhanced_metadata.get("short_title"):
+            updated["shortTitle"] = enhanced_metadata["short_title"]
+
+        if enhanced_metadata.get("series"):
+            updated["series"] = enhanced_metadata["series"]
+
+        if enhanced_metadata.get("edition"):
+            updated["edition"] = enhanced_metadata["edition"]
+
+        if enhanced_metadata.get("place"):
+            updated["place"] = enhanced_metadata["place"]
+
+        # Build "Extra" field for additional metadata
+        extra_parts = []
+
+        # Preserve existing Extra field content
+        existing_extra = updated.get("extra", "")
+        if existing_extra:
+            extra_parts.append(existing_extra)
+
+        # Add citation count
+        if enhanced_metadata.get("citation_count") is not None:
+            extra_parts.append(f"Citation Count: {enhanced_metadata['citation_count']}")
+
+        # Add subjects/keywords
+        for subject in enhanced_metadata.get("subjects", []):
+            extra_parts.append(f"Subject: {subject}")
+
+        # Add funders
+        for funder in enhanced_metadata.get("funders", []):
+            extra_parts.append(f"Funder: {funder}")
+
+        # Add PDF URL
+        if enhanced_metadata.get("pdf_url"):
+            extra_parts.append(f"Full-text PDF: {enhanced_metadata['pdf_url']}")
+
+        # Update Extra field
+        if extra_parts:
+            updated["extra"] = "\n".join(extra_parts)
+        elif "extra" in updated:
+            # Remove empty Extra field
+            del updated["extra"]
+
         # Item type (overwrite if current is generic)
         current_type = updated.get("itemType", "")
         enhanced_type = enhanced_metadata.get("item_type", "")
@@ -480,11 +548,13 @@ class MetadataUpdateService:
         self, current: dict[str, Any], updated: dict[str, Any]
     ) -> bool:
         """Check if updated data has any changes from current."""
-        # Compare key fields
+        # Compare key fields including enhanced fields
         key_fields = [
-            "DOI", "title", "creators", "publicationTitle",
+            "DOI", "title", "creators", "publicationTitle", "journalAbbreviation",
             "publisher", "date", "volume", "issue", "pages",
-            "abstractNote", "url", "ISSN", "itemType"
+            "abstractNote", "url", "ISSN", "itemType",
+            # Additional fields
+            "language", "rights", "shortTitle", "series", "edition", "place", "extra",
         ]
         for field in key_fields:
             if current.get(field) != updated.get(field):

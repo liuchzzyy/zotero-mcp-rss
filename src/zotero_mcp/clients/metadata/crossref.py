@@ -32,12 +32,16 @@ USER_AGENT = (
 
 @dataclass
 class CrossrefWork:
-    """Represents a work (article) from Crossref."""
+    """Represents a work (article) from Crossref.
+
+    Enhanced with additional fields from Crossref API.
+    """
 
     doi: str
     title: str
     authors: list[str]
     journal: str
+    journal_abbrev: str | None  # Abbreviated journal title
     year: int | None
     volume: str | None
     issue: str | None
@@ -48,6 +52,20 @@ class CrossrefWork:
     publisher: str | None
     item_type: str
     raw_data: dict[str, Any]
+
+    # Additional fields
+    language: str | None
+    rights: str | None
+    short_title: str | None
+    series: str | None
+    edition: str | None
+    place: str | None
+
+    # Extra metadata
+    citation_count: int | None
+    subjects: list[str]
+    funders: list[str]
+    pdf_url: str | None
 
     @classmethod
     def from_api_response(cls, data: dict[str, Any]) -> "CrossrefWork":
@@ -74,6 +92,10 @@ class CrossrefWork:
         # Extract journal/container title
         container_titles = data.get("container-title", [])
         journal = container_titles[0] if container_titles else ""
+
+        # Extract abbreviated journal title
+        short_titles = data.get("short-container-title", [])
+        journal_abbrev = short_titles[0] if short_titles else None
 
         # Extract year from published date
         year = None
@@ -121,11 +143,57 @@ class CrossrefWork:
         }
         item_type = type_mapping.get(crossref_type, "journalArticle")
 
+        # Extract additional fields
+        language = data.get("language")
+        series = data.get("series")
+
+        # Extract rights/license information
+        license_data = data.get("license", [])
+        rights = None
+        if license_data and isinstance(license_data, list):
+            rights_list = []
+            for lic in license_data:
+                if isinstance(lic, dict):
+                    lic_name = lic.get("content-version") or lic.get("start")
+                    if lic.get("URL"):
+                        rights_list.append(f"{lic_name}: {lic['URL']}")
+            if rights_list:
+                rights = "; ".join(rights_list)
+
+        # Extract subjects (keywords/categories)
+        subjects = data.get("subject", [])
+
+        # Extract funders
+        funders = []
+        for funder in data.get("funder", []):
+            if isinstance(funder, dict):
+                funder_name = funder.get("name")
+                if funder_name:
+                    funder_str = funder_name
+                    # Add award numbers if available
+                    awards = funder.get("award", [])
+                    if awards:
+                        award_str = ", ".join(str(a) for a in awards[:3])  # Limit to 3 awards
+                        funder_str += f" (Awards: {award_str})"
+                    funders.append(funder_str)
+
+        # Extract citation count (from references)
+        references = data.get("reference", [])
+        citation_count = len(references) if references else None
+
+        # Extract PDF link from link array
+        pdf_url = None
+        for link in data.get("link", []):
+            if isinstance(link, dict) and link.get("content-type") == "application/pdf":
+                pdf_url = link.get("URL")
+                break
+
         return cls(
             doi=doi,
             title=title,
             authors=authors,
             journal=journal,
+            journal_abbrev=journal_abbrev,
             year=year,
             volume=volume,
             issue=issue,
@@ -136,10 +204,20 @@ class CrossrefWork:
             publisher=publisher,
             item_type=item_type,
             raw_data=data,
+            language=language,
+            rights=rights,
+            short_title=None,  # Not available in Crossref
+            series=series,
+            edition=None,  # Not available for journal articles
+            place=None,  # Not typically in Crossref
+            citation_count=citation_count,
+            subjects=subjects,
+            funders=funders,
+            pdf_url=pdf_url,
         )
 
     def to_zotero_item(self) -> dict[str, Any]:
-        """Convert to Zotero item template format."""
+        """Convert to Zotero item template format with enhanced fields."""
         creators: list[dict[str, str]] = []
         item = {
             "itemType": self.item_type,
@@ -171,6 +249,8 @@ class CrossrefWork:
         # Add optional fields
         if self.journal:
             item["publicationTitle"] = self.journal
+        if self.journal_abbrev:
+            item["journalAbbreviation"] = self.journal_abbrev
         if self.year:
             item["date"] = str(self.year)
         if self.volume:
@@ -185,6 +265,27 @@ class CrossrefWork:
             item["publisher"] = self.publisher
         if self.issn:
             item["ISSN"] = self.issn[0]
+
+        # Additional Zotero fields
+        if self.language:
+            item["language"] = self.language
+        if self.rights:
+            item["rights"] = self.rights
+        if self.series:
+            item["series"] = self.series
+
+        # Build "Extra" field for additional metadata
+        extra_parts = []
+        if self.citation_count is not None:
+            extra_parts.append(f"Citation Count: {self.citation_count}")
+        for subject in self.subjects:
+            extra_parts.append(f"Subject: {subject}")
+        for funder in self.funders:
+            extra_parts.append(f"Funder: {funder}")
+        if self.pdf_url:
+            extra_parts.append(f"Full-text PDF: {self.pdf_url}")
+        if extra_parts:
+            item["extra"] = "\n".join(extra_parts)
 
         return item
 
