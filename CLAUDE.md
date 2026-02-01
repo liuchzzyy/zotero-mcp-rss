@@ -214,6 +214,12 @@ Output formatters (Markdown, JSON, BibTeX)
 - **Semantic search empty**: Run `zotero-mcp update-db` to initialize database
 - **API timeout**: Default is 45s; may need adjustment for slow networks
 - **Creator name errors**: Long author lists are auto-truncated to avoid HTTP 413
+- **Zotero API 429 rate limiting (pyzotero)**: pyzotero (v1.8.0) silently swallows HTTP 429 errors — it sets an internal backoff but does NOT raise an exception, returning malformed data instead. This causes `'int' object has no attribute 'get'` crashes in downstream code. The fix is:
+  1. **API client layer** (`clients/zotero/api_client.py`): `_check_api_result()` converts int status codes to `RuntimeError` so retry mechanisms can detect "429" and backoff
+  2. **Service layer** (`services/zotero/search_service.py`): defensive `isinstance(items, int)` checks return empty results
+  3. **Caller layer** (`services/common/zotero_item_creator.py`): `_safe_search()` wraps all search calls with try/except, catching any pyzotero edge cases and waiting 5s after 429 errors
+  4. **Rate limit spacing**: RSS/Gmail ingestion adds 1s delay between items (`asyncio.sleep(1.0)`) to stay under Zotero's ~10 req/s limit
+  - If RSS ingestion still hits 429, increase the delay or reduce `max_items`
 
 ## Additional Documentation
 
