@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class DuplicateGroup:
     """A group of duplicate items."""
+
     primary_key: str  # Key of item to keep
     duplicate_keys: list[str] = field(default_factory=list)  # Keys of items to delete
     match_reason: str = ""  # "doi", "title", or "url"
@@ -97,23 +98,25 @@ class DuplicateDetectionService:
                 # Convert to dict format for duplicate checking
                 batch_items = []
                 for item in items:
-                    batch_items.append({
-                        "key": item.key,
-                        "data": {
-                            "DOI": item.doi,
-                            "title": item.title,
-                            "url": item.url,
-                            "creators": [],
-                            "abstractNote": item.abstract,
-                            "publicationTitle": None,
-                            "date": item.date,
-                            "volume": None,
-                            "issue": None,
-                            "pages": None,
-                            "tags": [{"tag": tag} for tag in (item.tags or [])],
-                        },
-                        "children": [],
-                    })
+                    batch_items.append(
+                        {
+                            "key": item.key,
+                            "data": {
+                                "DOI": item.doi,
+                                "title": item.title,
+                                "url": item.url,
+                                "creators": [],
+                                "abstractNote": item.abstract,
+                                "publicationTitle": None,
+                                "date": item.date,
+                                "volume": None,
+                                "issue": None,
+                                "pages": None,
+                                "tags": [{"tag": tag} for tag in (item.tags or [])],
+                            },
+                            "children": [],
+                        }
+                    )
 
                 # Find duplicates in this batch (combined with previously found groups)
                 new_groups = await self._find_duplicate_groups(
@@ -126,7 +129,9 @@ class DuplicateDetectionService:
                 # Track cross-folder copies (items with identical metadata)
                 cross_folder_copies += new_groups["cross_folder_copies"]
 
-                new_duplicates = sum(len(g.duplicate_keys) for g in new_groups["groups"])
+                new_duplicates = sum(
+                    len(g.duplicate_keys) for g in new_groups["groups"]
+                )
                 total_duplicates_found += new_duplicates
 
                 logger.info(
@@ -170,23 +175,25 @@ class DuplicateDetectionService:
                     # Convert to dict format for duplicate checking
                     batch_items = []
                     for item in items:
-                        batch_items.append({
-                            "key": item.key,
-                            "data": {
-                                "DOI": item.doi,
-                                "title": item.title,
-                                "url": item.url,
-                                "creators": [],
-                                "abstractNote": item.abstract,
-                                "publicationTitle": None,
-                                "date": item.date,
-                                "volume": None,
-                                "issue": None,
-                                "pages": None,
-                                "tags": [{"tag": tag} for tag in (item.tags or [])],
-                            },
-                            "children": [],
-                        })
+                        batch_items.append(
+                            {
+                                "key": item.key,
+                                "data": {
+                                    "DOI": item.doi,
+                                    "title": item.title,
+                                    "url": item.url,
+                                    "creators": [],
+                                    "abstractNote": item.abstract,
+                                    "publicationTitle": None,
+                                    "date": item.date,
+                                    "volume": None,
+                                    "issue": None,
+                                    "pages": None,
+                                    "tags": [{"tag": tag} for tag in (item.tags or [])],
+                                },
+                                "children": [],
+                            }
+                        )
 
                     # Find duplicates in this batch
                     new_groups = await self._find_duplicate_groups(
@@ -199,7 +206,9 @@ class DuplicateDetectionService:
                     # Track cross-folder copies
                     cross_folder_copies += new_groups["cross_folder_copies"]
 
-                    new_duplicates = sum(len(g.duplicate_keys) for g in new_groups["groups"])
+                    new_duplicates = sum(
+                        len(g.duplicate_keys) for g in new_groups["groups"]
+                    )
                     total_duplicates_found += new_duplicates
 
                     logger.info(
@@ -216,7 +225,9 @@ class DuplicateDetectionService:
 
                 # Early exit if we've found enough duplicates
                 if total_duplicates_found >= treated_limit:
-                    logger.info(f"Reached treated_limit ({treated_limit} duplicates), stopping scan")
+                    logger.info(
+                        f"Reached treated_limit ({treated_limit} duplicates), stopping scan"
+                    )
                     break
 
         logger.info(
@@ -257,7 +268,9 @@ class DuplicateDetectionService:
         }
 
     async def _find_duplicate_groups(
-        self, items: list[dict[str, Any]], existing_groups: list[DuplicateGroup] | None = None
+        self,
+        items: list[dict[str, Any]],
+        existing_groups: list[DuplicateGroup] | None = None,
     ) -> dict[str, Any]:
         """
         Find groups of duplicate items.
@@ -508,14 +521,27 @@ class DuplicateDetectionService:
 
         # Fields to compare (excluding collections and version)
         comparable_fields = [
-            "DOI", "title", "url",
-            "creators", "abstractNote",
-            "publicationTitle", "publisher", "date",
-            "volume", "issue", "pages",
+            "DOI",
+            "title",
+            "url",
+            "creators",
+            "abstractNote",
+            "publicationTitle",
+            "publisher",
+            "date",
+            "volume",
+            "issue",
+            "pages",
             "tags",
-            "journalAbbreviation", "language", "rights",
-            "series", "edition", "place", "extra",
-            "ISSN", "itemType",
+            "journalAbbreviation",
+            "language",
+            "rights",
+            "series",
+            "edition",
+            "place",
+            "extra",
+            "ISSN",
+            "itemType",
         ]
 
         # Compare each item with the first
@@ -579,7 +605,9 @@ class DuplicateDetectionService:
         return list1 == list2
 
     async def _remove_duplicates(
-        self, duplicate_groups: list[DuplicateGroup], trash_collection: str = "06 - TRASHES"
+        self,
+        duplicate_groups: list[DuplicateGroup],
+        trash_collection: str = "06 - TRASHES",
     ) -> int:
         """
         Remove duplicate items from Zotero by moving them to trash collection.
@@ -597,7 +625,9 @@ class DuplicateDetectionService:
         # Find or create trash collection
         trash_coll = await self._get_or_create_trash_collection(trash_collection)
         if not trash_coll:
-            logger.error(f"Failed to find or create trash collection: {trash_collection}")
+            logger.error(
+                f"Failed to find or create trash collection: {trash_collection}"
+            )
             return 0
 
         trash_key = trash_coll.get("key", "")
@@ -619,7 +649,9 @@ class DuplicateDetectionService:
 
                     # Move item to trash collection
                     await async_retry_with_backoff(
-                        lambda k=dup_key, tk=trash_key: self._move_item_to_collection(k, tk),
+                        lambda k=dup_key, tk=trash_key: self._move_item_to_collection(
+                            k, tk
+                        ),
                         description=f"Move duplicate item {dup_key} to {trash_collection}",
                     )
                     logger.info(
@@ -833,7 +865,9 @@ class DuplicateDetectionService:
                                         "volume": None,
                                         "issue": None,
                                         "pages": None,
-                                        "tags": [{"tag": tag} for tag in (item.tags or [])],
+                                        "tags": [
+                                            {"tag": tag} for tag in (item.tags or [])
+                                        ],
                                     },
                                     "children": [],
                                 }
@@ -876,7 +910,8 @@ class DuplicateDetectionService:
                 # Fetch batch from API
                 items = await loop.run_in_executor(
                     None,
-                    lambda s=start, limit=scan_limit: self.item_service.api_client.client.top(
+                    lambda s=start,
+                    limit=scan_limit: self.item_service.api_client.client.top(
                         start=s, limit=limit
                     ),
                 )

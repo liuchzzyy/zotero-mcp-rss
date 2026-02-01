@@ -2,7 +2,6 @@
 
 from datetime import datetime
 import logging
-from typing import Any
 
 from zotero_mcp.models.ingestion import RSSItem
 from zotero_mcp.services.common.retry import async_retry_with_backoff
@@ -80,9 +79,7 @@ class ZoteroItemCreator:
             url=enhanced_url,
         )
         if duplicate_reason:
-            logger.info(
-                f"  ⊘ Duplicate ({duplicate_reason}): {enhanced_title[:50]}"
-            )
+            logger.info(f"  ⊘ Duplicate ({duplicate_reason}): {enhanced_title[:50]}")
             return None
 
         # Build item data with enhanced metadata
@@ -92,12 +89,13 @@ class ZoteroItemCreator:
 
         # Create item with retry
         try:
+
             def do_create():
                 result = self.data_service.create_items([item_data])
                 # Handle HTTP status codes returned by pyzotero
                 if isinstance(result, int):
                     if result == 429:
-                        raise RuntimeError(f"Rate limit exceeded (429)")
+                        raise RuntimeError("Rate limit exceeded (429)")
                     else:
                         raise RuntimeError(f"HTTP error {result}")
                 return result
@@ -146,9 +144,7 @@ class ZoteroItemCreator:
             )
             # Handle HTTP status codes returned as int
             if isinstance(existing_by_doi, int):
-                logger.warning(
-                    f"  → DOI search returned HTTP status {existing_by_doi}"
-                )
+                logger.warning(f"  → DOI search returned HTTP status {existing_by_doi}")
             elif existing_by_doi and len(existing_by_doi) > 0:
                 logger.debug(f"  → Found duplicate by DOI: {doi}")
                 return "doi"
@@ -162,9 +158,7 @@ class ZoteroItemCreator:
         )
         # Handle HTTP status codes returned as int
         if isinstance(existing_by_title, int):
-            logger.warning(
-                f"  → Title search returned HTTP status {existing_by_title}"
-            )
+            logger.warning(f"  → Title search returned HTTP status {existing_by_title}")
         elif existing_by_title and len(existing_by_title) > 0:
             # Check for exact title match (case-insensitive)
             for existing_item in existing_by_title:
@@ -183,9 +177,7 @@ class ZoteroItemCreator:
             )
             # Handle HTTP status codes returned as int
             if isinstance(existing_by_url, int):
-                logger.warning(
-                    f"  → URL search returned HTTP status {existing_by_url}"
-                )
+                logger.warning(f"  → URL search returned HTTP status {existing_by_url}")
             elif existing_by_url and len(existing_by_url) > 0:
                 logger.debug(f"  → Found duplicate by URL: {url}")
                 return "url"

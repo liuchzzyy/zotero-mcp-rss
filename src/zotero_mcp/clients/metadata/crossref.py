@@ -172,7 +172,9 @@ class CrossrefWork:
                     # Add award numbers if available
                     awards = funder.get("award", [])
                     if awards:
-                        award_str = ", ".join(str(a) for a in awards[:3])  # Limit to 3 awards
+                        award_str = ", ".join(
+                            str(a) for a in awards[:3]
+                        )  # Limit to 3 awards
                         funder_str += f" (Awards: {award_str})"
                     funders.append(funder_str)
 

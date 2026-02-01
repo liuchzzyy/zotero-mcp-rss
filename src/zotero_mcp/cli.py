@@ -773,18 +773,26 @@ def main():
                 print("\n=== Deduplication Results ===")
                 print(f"  Total scanned: {result['total_scanned']}")
                 print(f"  Duplicates found: {result['duplicates_found']}")
-                print(f"  Cross-folder copies (skipped): {result.get('cross_folder_copies', 0)}")
-                print(f"  Duplicates moved to '{args.trash_collection}': {result['duplicates_removed']}")
-                if result.get('dry_run'):
+                print(
+                    f"  Cross-folder copies (skipped): {result.get('cross_folder_copies', 0)}"
+                )
+                print(
+                    f"  Duplicates moved to '{args.trash_collection}': {result['duplicates_removed']}"
+                )
+                if result.get("dry_run"):
                     print("  Mode: DRY RUN (no items were moved)")
                 print(f"  Duplicate groups: {len(result.get('groups', []))}")
 
-                if result.get('groups'):
+                if result.get("groups"):
                     print("\n  Duplicate Groups:")
-                    for i, group in enumerate(result['groups'][:10], 1):
-                        print(f"    {i}. {group.match_reason}: {group.match_value[:50]}")
+                    for i, group in enumerate(result["groups"][:10], 1):
+                        print(
+                            f"    {i}. {group.match_reason}: {group.match_value[:50]}"
+                        )
                         print(f"       Keeping: {group.primary_key}")
-                        print(f"       Moving to trash: {len(group.duplicate_keys)} items")
+                        print(
+                            f"       Moving to trash: {len(group.duplicate_keys)} items"
+                        )
 
             except Exception as e:
                 print(f"Error: {e}")

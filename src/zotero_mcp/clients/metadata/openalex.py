@@ -157,7 +157,9 @@ class OpenAlexWork:
         # Extract concepts (subjects/keywords)
         subjects = []
         for concept in data.get("concepts", []):
-            if isinstance(concept, dict) and concept.get("score", 0) > 0.3:  # Filter by relevance
+            if (
+                isinstance(concept, dict) and concept.get("score", 0) > 0.3
+            ):  # Filter by relevance
                 subjects.append(concept.get("display_name", ""))
 
         # Extract funders from grants

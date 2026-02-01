@@ -207,7 +207,9 @@ class ZoteroSemanticSearch:
                 sys.stderr.write("Scanning local Zotero database for items...\n")
 
                 # Get items using the new client method
-                local_items = reader.get_items(limit=treated_limit, include_fulltext=False)
+                local_items = reader.get_items(
+                    limit=treated_limit, include_fulltext=False
+                )
                 candidate_count = len(local_items)
                 sys.stderr.write(f"Found {candidate_count} candidate items.\n")
 
@@ -305,7 +307,7 @@ class ZoteroSemanticSearch:
         except Exception as e:
             logger.error(f"Error reading from local database: {e}")
             logger.info("Falling back to API...")
-            return self._get_items_from_api(limit)
+            return self._get_items_from_api(scan_limit)
 
     def _get_items_from_api(
         self, scan_limit: int = 100, treated_limit: int | None = None

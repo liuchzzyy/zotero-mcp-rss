@@ -171,9 +171,7 @@ class ItemService:
         self, collection_key: str, limit: int = 100, start: int = 0
     ) -> list[SearchResultItem]:
         """Get items in a collection."""
-        items = await self.api_client.get_collection_items(
-            collection_key, limit, start
-        )
+        items = await self.api_client.get_collection_items(collection_key, limit, start)
         return [self._api_item_to_result(item) for item in items]
 
     async def find_collection_by_name(

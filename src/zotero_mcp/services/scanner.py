@@ -119,7 +119,9 @@ class GlobalScanner:
                             break  # No more items in this collection
 
                         total_scanned += len(items)
-                        logger.info(f"Fetched {len(items)} items from '{coll_name}' (offset: {offset})")
+                        logger.info(
+                            f"Fetched {len(items)} items from '{coll_name}' (offset: {offset})"
+                        )
 
                         # Find candidates in this batch
                         for item in items:

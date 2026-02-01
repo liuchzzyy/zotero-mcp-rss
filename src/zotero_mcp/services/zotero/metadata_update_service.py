@@ -317,7 +317,9 @@ class MetadataUpdateService:
 
                         # Process the item
                         total_processed += 1
-                        result = await self.update_item_metadata(item.key, dry_run=dry_run)
+                        result = await self.update_item_metadata(
+                            item.key, dry_run=dry_run
+                        )
 
                         if result["success"]:
                             if result["updated"]:
@@ -340,7 +342,9 @@ class MetadataUpdateService:
 
                 # Early exit if we've processed enough
                 if treated_limit and total_processed >= treated_limit:
-                    logger.info(f"Reached treated_limit ({treated_limit}), stopping scan")
+                    logger.info(
+                        f"Reached treated_limit ({treated_limit}), stopping scan"
+                    )
                     break
 
         logger.info(
@@ -550,29 +554,48 @@ class MetadataUpdateService:
         for author in authors:
             if ", " in author:
                 parts = author.split(", ", 1)
-                creators.append({
-                    "creatorType": "author",
-                    "lastName": parts[0],
-                    "firstName": parts[1] if len(parts) > 1 else "",
-                })
+                creators.append(
+                    {
+                        "creatorType": "author",
+                        "lastName": parts[0],
+                        "firstName": parts[1] if len(parts) > 1 else "",
+                    }
+                )
             else:
-                creators.append({
-                    "creatorType": "author",
-                    "name": author,
-                })
+                creators.append(
+                    {
+                        "creatorType": "author",
+                        "name": author,
+                    }
+                )
         return creators
 
-    def _has_changes(
-        self, current: dict[str, Any], updated: dict[str, Any]
-    ) -> bool:
+    def _has_changes(self, current: dict[str, Any], updated: dict[str, Any]) -> bool:
         """Check if updated data has any changes from current."""
         # Compare key fields including enhanced fields
         key_fields = [
-            "DOI", "title", "creators", "publicationTitle", "journalAbbreviation",
-            "publisher", "date", "volume", "issue", "pages",
-            "abstractNote", "url", "ISSN", "itemType",
+            "DOI",
+            "title",
+            "creators",
+            "publicationTitle",
+            "journalAbbreviation",
+            "publisher",
+            "date",
+            "volume",
+            "issue",
+            "pages",
+            "abstractNote",
+            "url",
+            "ISSN",
+            "itemType",
             # Additional fields
-            "language", "rights", "shortTitle", "series", "edition", "place", "extra",
+            "language",
+            "rights",
+            "shortTitle",
+            "series",
+            "edition",
+            "place",
+            "extra",
         ]
         for field in key_fields:
             if current.get(field) != updated.get(field):
