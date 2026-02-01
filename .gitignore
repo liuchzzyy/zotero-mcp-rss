@@ -1,4 +1,4 @@
-# Byte-compiled / optimized / DLL files
+﻿# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
@@ -43,15 +43,11 @@ Thumbs.db
 .python-version
 *.log
 
-# Test outputs (Chinese)
-AI分析结果/
-AI分析结果.md
-说明.md
-
 # Local state
 .sisyphus/
 chroma_db/
 pyzotero/
+.claude/
 
 # Git worktrees (isolated workspaces)
 worktrees/
