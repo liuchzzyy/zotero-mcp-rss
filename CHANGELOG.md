@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-02-02
+
+### 🚀 Enhancements
+
+#### Multi-Modal PDF Analysis
+- **PDF Content Extraction**: Extract text, images, and tables from PDFs using PyMuPDF (10x faster than pdfplumber)
+- **Intelligent LLM Selection**: Auto-select best LLM based on content (Claude CLI for images, DeepSeek for text-only)
+- **Image Analysis Support**: Vision-capable LLMs can analyze and reference figures, charts, and diagrams
+- **Table Extraction**: Automatic table detection and structured data extraction
+- **LLM Capability Registry**: Define and detect capabilities for different LLM providers (DeepSeek, Claude CLI, OpenAI, Gemini)
+- **Multi-Modal Templates**: Enhanced analysis templates with figure and table analysis sections
+- **Graceful Degradation**: Text-only LLMs receive informative placeholders when images are present
+- **Performance Optimization**: 10x faster PDF extraction with PyMuPDF compared to pdfplumber
+
+#### New Dependencies
+- **PyMuPDF (fitz)**: High-performance PDF library for fast content extraction
+- **PyMuPDF4LLM**: LLM-optimized markdown conversion preserving document structure
+- **Pillow**: Image processing for PDF page rendering
+
+### 🔧 Changed
+
+#### Enhanced Analysis Workflow
+- **Auto LLM Selection**: `llm_provider="auto"` now detects images and selects Claude CLI or DeepSeek accordingly
+- **Multi-Modal Parameter**: `include_multimodal` flag added to all analysis tools (default: True)
+- **Structured Notes**: Enhanced note templates support image references and table analysis
+- **CLI Improvements**: Added `--multimodal/--no-multimodal` flag to `scan` command
+
+### 📝 Documentation
+
+#### New Documentation
+- **Multi-Modal Guide**: Comprehensive guide for multi-modal PDF analysis (`docs/MULTIMODAL_ANALYSIS.md`)
+- **Implementation Plan**: Detailed plan document for multi-modal feature development
+- **Updated README**: Enhanced with multi-modal feature highlights and examples
+
+### ✅ Testing
+
+#### Comprehensive Test Coverage
+- **100+ New Tests**: Added extensive test coverage for multi-modal functionality
+- **Integration Tests**: End-to-end tests for multi-modal workflow
+- **Capability Tests**: LLM capability detection and validation
+- **Template Tests**: Multi-modal template formatting tests
+- **CLI Tests**: Command-line interface tests for new flags
+
 ## [2.4.0] - 2026-02-01
 
 ### 🚀 Enhancements
