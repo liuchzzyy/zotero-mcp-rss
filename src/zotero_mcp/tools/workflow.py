@@ -54,6 +54,7 @@ def register_workflow_tools(mcp: FastMCP) -> None:
                 - days: 最近天数（source="recent" 时）
                 - limit: 最大准备数量
                 - include_annotations: 是否包含 PDF 批注
+                - include_multimodal: 是否提取 PDF 图像/表格
                 - skip_existing_notes: 跳过已有笔记的条目
 
         Returns:
@@ -73,6 +74,7 @@ def register_workflow_tools(mcp: FastMCP) -> None:
                 days=params.days,
                 limit=params.limit,
                 include_annotations=params.include_annotations,
+                include_multimodal=params.include_multimodal,
                 skip_existing=params.skip_existing_notes,
             )
 
@@ -124,6 +126,7 @@ def register_workflow_tools(mcp: FastMCP) -> None:
                 - resume_workflow_id: 断点续传的工作流 ID
                 - skip_existing_notes: 跳过已有笔记的条目
                 - include_annotations: 包含 PDF 批注
+                - include_multimodal: 提取 PDF 图像/表格
                 - llm_provider: "deepseek" | "claude-cli" | "auto"
                 - llm_model: 模型名称（可选）
                 - dry_run: 仅预览，不创建笔记
@@ -158,6 +161,7 @@ def register_workflow_tools(mcp: FastMCP) -> None:
                 resume_workflow_id=params.resume_workflow_id,
                 skip_existing=params.skip_existing_notes,
                 include_annotations=params.include_annotations,
+                include_multimodal=params.include_multimodal,
                 llm_provider=params.llm_provider,
                 llm_model=params.llm_model,
                 template=params.template,
