@@ -176,8 +176,11 @@ class DuplicateDetectionService:
         offset = 0
 
         while total_duplicates_found + dups_found < treated_limit:
-            items = await self.item_service.get_collection_items(
-                coll_key, limit=scan_limit, start=offset
+            items = await async_retry_with_backoff(
+                lambda: self.item_service.get_collection_items(
+                    coll_key, limit=scan_limit, start=offset
+                ),
+                description=f"Scan collection {coll_key} (offset {offset})",
             )
             if not items:
                 break
