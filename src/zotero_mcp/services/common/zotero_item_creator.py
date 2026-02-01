@@ -68,8 +68,18 @@ class ZoteroItemCreator:
 
         # Create item with retry
         try:
+            def do_create():
+                result = self.data_service.create_items([item_data])
+                # Handle HTTP status codes returned by pyzotero
+                if isinstance(result, int):
+                    if result == 429:
+                        raise RuntimeError(f"Rate limit exceeded (429)")
+                    else:
+                        raise RuntimeError(f"HTTP error {result}")
+                return result
+
             result = await async_retry_with_backoff(
-                lambda: self.data_service.create_items([item_data]),
+                do_create,
                 description=f"Create item '{cleaned_title[:30]}'",
             )
 
@@ -134,7 +144,9 @@ class ZoteroItemCreator:
 
     def _is_successful_result(self, result: dict | int) -> bool:
         """Check if creation result indicates success."""
+        # Handle integer status codes (HTTP errors)
         if isinstance(result, int):
+            logger.debug(f"  ! Received status code: {result}")
             return False
         if not isinstance(result, dict):
             return False
@@ -143,8 +155,15 @@ class ZoteroItemCreator:
             len(result.get("successful", {})) > 0 or len(result.get("success", {})) > 0
         )
 
-    def _extract_item_key(self, result: dict) -> str | None:
+    def _extract_item_key(self, result: dict | int) -> str | None:
         """Extract item key from creation result."""
+        # Handle integer status codes (HTTP errors)
+        if isinstance(result, int):
+            logger.warning(f"  ! Cannot extract key from status code: {result}")
+            return None
+        if not isinstance(result, dict):
+            return None
+
         if "successful" in result and result["successful"]:
             return list(result["successful"].keys())[0]
         if "success" in result and result["success"]:
