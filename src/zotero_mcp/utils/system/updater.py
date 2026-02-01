@@ -434,4 +434,9 @@ def update_zotero_mcp(
 
 
 # Alias for compatibility
-check_for_updates = lambda: update_zotero_mcp(check_only=True)
+def check_for_updates() -> dict[str, Any]:
+    """Check for updates without installing.
+
+    This is a convenience wrapper that calls update_zotero_mcp with check_only=True.
+    """
+    return update_zotero_mcp(check_only=True)

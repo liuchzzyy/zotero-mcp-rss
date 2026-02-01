@@ -13,12 +13,6 @@ import re
 from fastmcp import Context, FastMCP
 from mcp.types import ToolAnnotations
 
-from zotero_mcp.models.zotero import (
-    CreateNoteInput,
-    GetAnnotationsInput,
-    GetNotesInput,
-    SearchNotesInput,
-)
 from zotero_mcp.models.common import (
     AnnotationItem,
     AnnotationsResponse,
@@ -26,6 +20,12 @@ from zotero_mcp.models.common import (
     NotesResponse,
     SearchResponse,
     SearchResultItem,
+)
+from zotero_mcp.models.zotero import (
+    CreateNoteInput,
+    GetAnnotationsInput,
+    GetNotesInput,
+    SearchNotesInput,
 )
 from zotero_mcp.services import get_data_service
 

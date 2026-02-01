@@ -5,6 +5,7 @@ Collection management tools for Zotero MCP.
 from fastmcp import Context, FastMCP
 from mcp.types import ToolAnnotations
 
+from zotero_mcp.models.common import BaseResponse
 from zotero_mcp.models.zotero import (
     CreateCollectionInput,
     CreateCollectionResponse,
@@ -12,7 +13,6 @@ from zotero_mcp.models.zotero import (
     MoveCollectionInput,
     RenameCollectionInput,
 )
-from zotero_mcp.models.common import BaseResponse
 from zotero_mcp.services.data_access import get_data_service
 
 

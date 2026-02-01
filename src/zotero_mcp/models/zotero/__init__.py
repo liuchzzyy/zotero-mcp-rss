@@ -1,6 +1,11 @@
 """Zotero item and annotation input models."""
 
-from .annotations import CreateNoteInput, GetAnnotationsInput, GetNotesInput, SearchNotesInput
+from .annotations import (
+    CreateNoteInput,
+    GetAnnotationsInput,
+    GetNotesInput,
+    SearchNotesInput,
+)
 from .collections import (
     CreateCollectionInput,
     CreateCollectionResponse,
