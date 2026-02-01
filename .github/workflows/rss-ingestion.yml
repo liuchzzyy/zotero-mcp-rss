@@ -20,7 +20,7 @@ on:
       max_items:
         description: 'Maximum articles to process'
         required: false
-        default: '100'
+        default: '150'
         type: choice
         options:
           - '50'

@@ -25,13 +25,13 @@ on:
       max_emails:
         description: 'Maximum emails to process'
         required: false
-        default: '100'
+        default: '150'
         type: choice
         options:
-          - '10'
-          - '25'
           - '50'
           - '100'
+          - '150'
+          - '200'
       dry_run:
         description: 'Preview mode - do not import or delete emails'
         required: false

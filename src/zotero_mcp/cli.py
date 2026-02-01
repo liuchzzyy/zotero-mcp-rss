@@ -314,8 +314,8 @@ def main():
     update_metadata_parser.add_argument(
         "--scan-limit",
         type=int,
-        default=100,
-        help="Number of items to fetch per batch from API (default: 100)",
+        default=500,
+        help="Number of items to fetch per batch from API (default: 500)",
     )
     update_metadata_parser.add_argument(
         "--treated-limit",
@@ -344,8 +344,8 @@ def main():
     dedup_parser.add_argument(
         "--treated-limit",
         type=int,
-        default=1000,
-        help="Maximum total number of items to scan (default: 1000)",
+        default=100,
+        help="Maximum total number of items to scan (default: 100)",
     )
     dedup_parser.add_argument(
         "--dry-run",
