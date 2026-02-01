@@ -13,7 +13,7 @@ from zotero_mcp.clients.zotero import (
     ZoteroItem,
 )
 from zotero_mcp.models.common import SearchResultItem
-from zotero_mcp.utils.helpers import format_creators
+from zotero_mcp.utils.formatting.helpers import format_creators
 
 logger = logging.getLogger(__name__)
 

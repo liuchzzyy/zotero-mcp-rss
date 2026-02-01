@@ -10,7 +10,7 @@ from zotero_mcp.services.common import PaperFilter, ZoteroItemCreator
 from zotero_mcp.services.data_access import get_data_service
 from zotero_mcp.services.rss.rss_fetcher import RSSFetcher
 from zotero_mcp.services.zotero.metadata_service import MetadataService
-from zotero_mcp.utils.helpers import clean_title as helper_clean_title
+from zotero_mcp.utils.formatting.helpers import clean_title as helper_clean_title
 
 if TYPE_CHECKING:
     pass

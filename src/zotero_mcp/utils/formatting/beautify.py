@@ -7,10 +7,19 @@ Supports configurable themes via environment variables.
 
 import re
 
-from zotero_mcp.utils.templates import get_note_theme_config
+from zotero_mcp.utils.data.templates import get_note_theme_config
 
 
 def beautify_ai_note(html: str) -> str:
+    """
+    Apply configured theme to AI-generated note HTML.
+
+    Args:
+        html: Raw HTML content from AI
+
+    Returns:
+        Beautified HTML with theme applied
+    """
     """
     Apply configured theme to AI-generated note HTML.
 
@@ -263,3 +272,7 @@ def _apply_theme_styles(html: str, theme: dict[str, str]) -> str:
     styled_html += html + "</div>"
 
     return styled_html
+
+
+# Alias for compatibility
+beautify_note = beautify_ai_note

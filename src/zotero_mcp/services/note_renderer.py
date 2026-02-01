@@ -17,8 +17,8 @@ from zotero_mcp.models.zotero import (
     QuoteBlock,
     TableBlock,
 )
-from zotero_mcp.utils.logging_config import get_logger
-from zotero_mcp.utils.templates import get_note_theme_config
+from zotero_mcp.utils.config.logging import get_logger
+from zotero_mcp.utils.data.templates import get_note_theme_config
 
 logger = get_logger(__name__)
 

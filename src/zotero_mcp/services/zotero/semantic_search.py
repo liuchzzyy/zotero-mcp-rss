@@ -22,8 +22,8 @@ from zotero_mcp.clients.zotero import (
     get_zotero_client,
 )
 from zotero_mcp.utils.config import get_config_path
-from zotero_mcp.utils.helpers import is_local_mode
-from zotero_mcp.utils.zotero_mapper import ZoteroMapper
+from zotero_mcp.utils.formatting.helpers import is_local_mode
+from zotero_mcp.utils.data.mapper import ZoteroMapper
 
 logger = logging.getLogger(__name__)
 

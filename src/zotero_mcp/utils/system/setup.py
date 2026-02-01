@@ -463,5 +463,9 @@ def main(cli_args=None):
         return 1
 
 
+# Alias for compatibility
+setup_zotero_mcp = main
+
+
 if __name__ == "__main__":
     sys.exit(main())

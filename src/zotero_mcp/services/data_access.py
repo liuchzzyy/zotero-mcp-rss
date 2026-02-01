@@ -22,7 +22,7 @@ from zotero_mcp.formatters import JSONFormatter, MarkdownFormatter
 from zotero_mcp.models.common import ResponseFormat, SearchResultItem
 from zotero_mcp.services.zotero.item_service import ItemService
 from zotero_mcp.services.zotero.search_service import SearchService
-from zotero_mcp.utils.helpers import is_local_mode
+from zotero_mcp.utils.formatting.helpers import is_local_mode
 
 logger = logging.getLogger(__name__)
 

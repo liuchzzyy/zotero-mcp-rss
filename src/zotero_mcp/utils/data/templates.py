@@ -7,7 +7,7 @@ or configuration files.
 
 from typing import Any
 
-from zotero_mcp.utils.config import load_config
+from zotero_mcp.utils.config import get_config as load_config
 
 # -------------------- Default Templates --------------------
 

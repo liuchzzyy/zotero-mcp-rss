@@ -30,7 +30,7 @@ from zotero_mcp.models.zotero import (
     GetMetadataInput,
 )
 from zotero_mcp.services import get_data_service
-from zotero_mcp.utils.helpers import format_creators
+from zotero_mcp.utils.formatting.helpers import format_creators
 
 
 def register_item_tools(mcp: FastMCP) -> None:

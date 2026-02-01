@@ -15,8 +15,8 @@ from zotero_mcp.clients.zotero import (
 )
 from zotero_mcp.formatters import BibTeXFormatter
 from zotero_mcp.models.common import SearchResultItem
-from zotero_mcp.utils.cache import ResponseCache
-from zotero_mcp.utils.helpers import format_creators
+from zotero_mcp.utils.async_helpers.cache import ResponseCache
+from zotero_mcp.utils.formatting.helpers import format_creators
 
 logger = logging.getLogger(__name__)
 

@@ -111,3 +111,7 @@ def cached_tool(ttl_seconds: int | None = None):
         return wrapper
 
     return decorator
+
+
+# Alias for compatibility
+tool_cache = _global_cache

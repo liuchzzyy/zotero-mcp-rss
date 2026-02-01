@@ -5,7 +5,7 @@ BibTeX formatter for Zotero MCP responses.
 import re
 from typing import Any
 
-from zotero_mcp.utils.helpers import clean_html
+from zotero_mcp.utils.formatting.helpers import clean_html
 
 from .base import BaseFormatter
 

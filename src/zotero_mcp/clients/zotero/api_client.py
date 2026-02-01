@@ -13,11 +13,11 @@ from typing import Any, Literal
 
 from pyzotero import zotero
 
-from zotero_mcp.utils.errors import (
+from zotero_mcp.utils.system.errors import (
     ConfigurationError,
     NotFoundError,
 )
-from zotero_mcp.utils.helpers import is_local_mode
+from zotero_mcp.utils.formatting.helpers import is_local_mode
 
 
 @dataclass

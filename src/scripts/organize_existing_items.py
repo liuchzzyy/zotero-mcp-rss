@@ -31,7 +31,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from zotero_mcp.services.analysis_status import AnalysisStatusService
 from zotero_mcp.services.data_access import get_data_service
 from zotero_mcp.services.workflow import WorkflowService
-from zotero_mcp.utils.helpers import check_has_pdf
+from zotero_mcp.utils.formatting.helpers import check_has_pdf
 
 # Configure logging
 logging.basicConfig(

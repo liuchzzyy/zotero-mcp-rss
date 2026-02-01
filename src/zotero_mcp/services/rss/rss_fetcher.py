@@ -10,7 +10,7 @@ from xml.etree import ElementTree as ET
 import feedparser
 
 from zotero_mcp.models.ingestion import RSSFeed, RSSItem
-from zotero_mcp.utils.helpers import DOI_PATTERN
+from zotero_mcp.utils.formatting.helpers import DOI_PATTERN
 
 logger = logging.getLogger(__name__)
 

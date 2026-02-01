@@ -431,3 +431,7 @@ def update_zotero_mcp(
         result["message"] = f"Update failed: {str(e)}"
 
     return result
+
+
+# Alias for compatibility
+check_for_updates = lambda: update_zotero_mcp(check_only=True)

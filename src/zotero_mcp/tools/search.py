@@ -21,7 +21,7 @@ from zotero_mcp.models.search import (
     SemanticSearchInput,
 )
 from zotero_mcp.services import get_data_service
-from zotero_mcp.utils.cache import cached_tool
+from zotero_mcp.utils.async_helpers.cache import cached_tool
 
 
 def register_search_tools(mcp: FastMCP) -> None:

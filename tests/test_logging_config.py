@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from zotero_mcp.utils.logging_config import (
+from zotero_mcp.utils.config.logging import (
     LOG_DIR,
     LOG_RETENTION_DAYS,
     PerformanceMonitor,
@@ -202,7 +202,7 @@ def test_performance_monitor():
 def test_cleanup_old_logs(tmp_path):
     """Test old log cleanup functionality."""
     # Use temporary directory for testing
-    with patch("zotero_mcp.utils.logging_config.LOG_DIR", tmp_path):
+    with patch("zotero_mcp.utils.config.logging.LOG_DIR", tmp_path):
         # Create some test log files
         (tmp_path / "zotero-mcp-2024-01-01.log").touch()
         (tmp_path / "zotero-mcp-2024-01-02.log").touch()

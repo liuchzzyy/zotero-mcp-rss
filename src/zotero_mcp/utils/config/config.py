@@ -432,3 +432,7 @@ def get_rss_config() -> dict[str, Any]:
         "days_back": int(env.get("RSS_DAYS_BACK", os.getenv("RSS_DAYS_BACK", "15"))),
         "prompt": env.get("RSS_PROMPT", os.getenv("RSS_PROMPT", "")),
     }
+
+
+# Alias for compatibility
+get_config = load_config

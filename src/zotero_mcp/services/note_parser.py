@@ -22,7 +22,7 @@ from zotero_mcp.models.zotero import (
     QuoteBlock,
     TableBlock,
 )
-from zotero_mcp.utils.logging_config import get_logger
+from zotero_mcp.utils.config.logging import get_logger
 
 logger = get_logger(__name__)
 

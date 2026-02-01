@@ -5,7 +5,7 @@ import logging
 
 from zotero_mcp.models.ingestion import RSSItem
 from zotero_mcp.services.common.retry import async_retry_with_backoff
-from zotero_mcp.utils.helpers import clean_title
+from zotero_mcp.utils.formatting.helpers import clean_title
 
 logger = logging.getLogger(__name__)
 

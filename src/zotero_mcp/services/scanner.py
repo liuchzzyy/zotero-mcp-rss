@@ -12,7 +12,7 @@ from typing import Any
 
 from zotero_mcp.services.data_access import get_data_service
 from zotero_mcp.services.workflow import get_workflow_service
-from zotero_mcp.utils.batch_loader import BatchLoader
+from zotero_mcp.utils.async_helpers.batch_loader import BatchLoader
 
 logger = logging.getLogger(__name__)
 

@@ -15,7 +15,7 @@ import logging
 import os
 from typing import Any
 
-from zotero_mcp.utils.templates import get_analysis_template
+from zotero_mcp.utils.data.templates import get_analysis_template
 
 logger = logging.getLogger(__name__)
 

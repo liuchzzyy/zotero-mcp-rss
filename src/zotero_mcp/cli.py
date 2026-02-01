@@ -10,7 +10,7 @@ import sys
 
 from zotero_mcp.server import mcp
 from zotero_mcp.utils.config import load_config
-from zotero_mcp.utils.logging_config import (
+from zotero_mcp.utils.config.logging import (
     initialize_logging,
 )
 
@@ -347,7 +347,7 @@ def main():
         sys.exit(0)
 
     elif args.command == "setup":
-        from zotero_mcp.utils.setup import main as setup_main
+        from zotero_mcp.utils.system.setup import main as setup_main
 
         sys.exit(setup_main(args))
 
@@ -429,7 +429,7 @@ def main():
             sys.exit(1)
 
     elif args.command == "update":
-        from zotero_mcp.utils.updater import update_zotero_mcp
+        from zotero_mcp.utils.system.updater import update_zotero_mcp
 
         update_zotero_mcp(
             check_only=args.check_only, force=args.force, method=args.method

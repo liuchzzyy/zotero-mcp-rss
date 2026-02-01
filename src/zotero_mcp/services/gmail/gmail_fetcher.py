@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup, Tag
 
 from zotero_mcp.clients.gmail import GmailClient
 from zotero_mcp.models.ingestion import EmailItem, EmailMessage, RSSItem
-from zotero_mcp.utils.helpers import DOI_PATTERN, clean_title
+from zotero_mcp.utils.formatting.helpers import DOI_PATTERN, clean_title
 
 logger = logging.getLogger(__name__)
 

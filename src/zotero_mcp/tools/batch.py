@@ -12,7 +12,7 @@ from zotero_mcp.models.workflow import (
 )
 from zotero_mcp.models.common import ItemDetailResponse
 from zotero_mcp.services import get_data_service
-from zotero_mcp.utils.helpers import format_creators
+from zotero_mcp.utils.formatting.helpers import format_creators
 
 
 def register_batch_tools(mcp: FastMCP) -> None:
