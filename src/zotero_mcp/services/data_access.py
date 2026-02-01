@@ -21,6 +21,7 @@ from zotero_mcp.clients.zotero import (
 from zotero_mcp.formatters import JSONFormatter, MarkdownFormatter
 from zotero_mcp.models.common import ResponseFormat, SearchResultItem
 from zotero_mcp.services.zotero.item_service import ItemService
+from zotero_mcp.services.zotero.metadata_service import MetadataService
 from zotero_mcp.services.zotero.search_service import SearchService
 from zotero_mcp.utils.formatting.helpers import is_local_mode
 
@@ -66,6 +67,7 @@ class DataAccessService:
         # Initialize sub-services (lazy loading clients)
         self._item_service: ItemService | None = None
         self._search_service: SearchService | None = None
+        self._metadata_service: MetadataService | None = None
 
         # Validate configuration
         self._validate_config()
@@ -125,6 +127,13 @@ class DataAccessService:
                 local_client=self.local_client,
             )
         return self._search_service
+
+    @property
+    def metadata_service(self) -> MetadataService:
+        """Get MetadataService instance."""
+        if self._metadata_service is None:
+            self._metadata_service = MetadataService()
+        return self._metadata_service
 
     def get_formatter(
         self, response_format: ResponseFormat

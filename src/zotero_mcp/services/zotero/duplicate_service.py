@@ -340,13 +340,13 @@ class DuplicateDetectionService:
             "Please specify a collection_key for better results."
         )
         try:
-            # Try to get items from top collections
-            # This is a simplified approach
-            from zotero_mcp.clients.zotero import ZoteroClient
-
-            client = ZoteroClient()
-            # Try to get some items with a high limit
-            items = client.client.top(limit=1000)
+            # Use API client to get top-level items
+            import asyncio
+            loop = asyncio.get_event_loop()
+            items = await loop.run_in_executor(
+                None,
+                lambda: self.item_service.api_client.client.top(limit=1000)
+            )
             return items if items else []
         except Exception as e:
             logger.error(f"Error getting all items: {e}")
