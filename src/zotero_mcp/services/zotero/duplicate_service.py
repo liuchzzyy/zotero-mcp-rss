@@ -5,13 +5,13 @@ This service scans the Zotero library for duplicate items based on
 DOI, title, and URL matching with configurable priority.
 """
 
-import logging
 from collections import defaultdict
 from dataclasses import dataclass, field
+import logging
 from typing import Any
 
-from zotero_mcp.services.zotero.item_service import ItemService
 from zotero_mcp.services.common.retry import async_retry_with_backoff
+from zotero_mcp.services.zotero.item_service import ItemService
 from zotero_mcp.utils.formatting.helpers import clean_title
 
 logger = logging.getLogger(__name__)
@@ -52,6 +52,7 @@ class DuplicateDetectionService:
         scan_limit: int = 500,
         treated_limit: int = 1000,
         dry_run: bool = False,
+        trash_collection: str = "06 - TRASHES",
     ) -> dict[str, Any]:
         """
         Find and remove duplicate items.
@@ -61,6 +62,7 @@ class DuplicateDetectionService:
             scan_limit: Number of items to fetch per batch from API (default: 500)
             treated_limit: Maximum total number of items to scan (default: 1000)
             dry_run: If True, don't actually delete items
+            trash_collection: Name of collection to move duplicates to (default: "06 - TRASHES")
 
         Returns:
             Dict with statistics:
@@ -239,7 +241,9 @@ class DuplicateDetectionService:
             }
 
         # Remove duplicates
-        duplicates_removed = await self._remove_duplicates(duplicate_groups)
+        duplicates_removed = await self._remove_duplicates(
+            duplicate_groups, trash_collection=trash_collection
+        )
 
         logger.info(f"Removed {duplicates_removed} duplicate items")
 
@@ -294,7 +298,7 @@ class DuplicateDetectionService:
         title_groups = defaultdict(list)
         processed_keys = set(existing_primary_keys) | existing_duplicate_keys
 
-        for doi, items_list in doi_groups.items():
+        for _doi, items_list in doi_groups.items():
             if len(items_list) > 1:
                 # Already have DOI match, mark as processed
                 for item in items_list:
@@ -314,7 +318,7 @@ class DuplicateDetectionService:
         # Group by URL (lowest priority) - for items without DOI/title match
         url_groups = defaultdict(list)
 
-        for title, items_list in title_groups.items():
+        for _title, items_list in title_groups.items():
             if len(items_list) > 1:
                 for item in items_list:
                     processed_keys.add(item.get("key", ""))
@@ -519,9 +523,9 @@ class DuplicateDetectionService:
             item_data = item.get("data", {})
 
             # Check each comparable field
-            for field in comparable_fields:
-                first_value = first_item_data.get(field)
-                item_value = item_data.get(field)
+            for comparable_field in comparable_fields:
+                first_value = first_item_data.get(comparable_field)
+                item_value = item_data.get(comparable_field)
 
                 # Special handling for creators and tags (lists)
                 if field in ["creators", "tags"]:
@@ -575,35 +579,125 @@ class DuplicateDetectionService:
         return list1 == list2
 
     async def _remove_duplicates(
-        self, duplicate_groups: list[DuplicateGroup]
+        self, duplicate_groups: list[DuplicateGroup], trash_collection: str = "06 - TRASHES"
     ) -> int:
         """
-        Remove duplicate items from Zotero.
+        Remove duplicate items from Zotero by moving them to trash collection.
+
+        Instead of deleting, this method moves duplicate items to a specified
+        trash collection for manual review.
 
         Args:
             duplicate_groups: List of duplicate groups
+            trash_collection: Name of collection to move duplicates to
 
         Returns:
-            Number of items removed
+            Number of items moved to trash collection
         """
-        removed_count = 0
+        # Find or create trash collection
+        trash_coll = await self._get_or_create_trash_collection(trash_collection)
+        if not trash_coll:
+            logger.error(f"Failed to find or create trash collection: {trash_collection}")
+            return 0
+
+        trash_key = trash_coll.get("key", "")
+        moved_count = 0
 
         for group in duplicate_groups:
             for dup_key in group.duplicate_keys:
                 try:
+                    # Move item to trash collection
                     await async_retry_with_backoff(
-                        lambda k=dup_key: self.item_service.delete_item(k),
-                        description=f"Delete duplicate item {dup_key}",
+                        lambda k=dup_key, tk=trash_key: self._move_item_to_collection(k, tk),
+                        description=f"Move duplicate item {dup_key} to {trash_collection}",
                     )
                     logger.info(
-                        f"  ✓ Deleted duplicate {dup_key} "
+                        f"  ✓ Moved duplicate {dup_key} to '{trash_collection}' "
                         f"(matched by {group.match_reason})"
                     )
-                    removed_count += 1
+                    moved_count += 1
                 except Exception as e:
-                    logger.error(f"  ✗ Failed to delete {dup_key}: {e}")
+                    logger.error(f"  ✗ Failed to move {dup_key}: {e}")
 
-        return removed_count
+        return moved_count
+
+    async def _get_or_create_trash_collection(
+        self, collection_name: str
+    ) -> dict[str, Any] | None:
+        """
+        Find or create a trash collection.
+
+        Args:
+            collection_name: Name of the trash collection
+
+        Returns:
+            Collection dict with key, or None if failed
+        """
+        # Try to find existing collection
+        collections = await self.item_service.find_collection_by_name(
+            collection_name, exact_match=True
+        )
+
+        if collections:
+            logger.info(f"Using existing trash collection: {collection_name}")
+            return collections[0]
+
+        # Create new collection
+        logger.info(f"Creating new trash collection: {collection_name}")
+        try:
+            result = await self.item_service.create_collection(collection_name)
+            # Extract collection key from result
+            if isinstance(result, dict) and "success" in result:
+                # Create collection returns success dict, need to find the collection
+                collections = await self.item_service.find_collection_by_name(
+                    collection_name, exact_match=True
+                )
+                if collections:
+                    return collections[0]
+            return result
+        except Exception as e:
+            logger.error(f"Failed to create trash collection: {e}")
+            return None
+
+    async def _move_item_to_collection(
+        self, item_key: str, target_collection_key: str
+    ) -> dict[str, Any]:
+        """
+        Move an item to a target collection.
+
+        This method:
+        1. Gets the item's current collections
+        2. Removes it from all current collections
+        3. Adds it to the target collection
+
+        Args:
+            item_key: Key of the item to move
+            target_collection_key: Key of the target collection
+
+        Returns:
+            Result of the add operation
+        """
+        # Get item data to find current collections
+        item = await self.item_service.api_client.get_item(item_key)
+        collections = item.get("data", {}).get("collections", [])
+
+        # Remove from all current collections
+        for collection_key in collections:
+            try:
+                await self.item_service.remove_item_from_collection(
+                    collection_key, item_key
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to remove {item_key} from collection {collection_key}: {e}"
+                )
+
+        # Add to target collection
+        result = await self.item_service.add_item_to_collection(
+            target_collection_key, item_key
+        )
+
+        return result
 
     async def _get_items_to_scan(
         self,
@@ -760,8 +854,8 @@ class DuplicateDetectionService:
                 # Fetch batch from API
                 items = await loop.run_in_executor(
                     None,
-                    lambda s=start, l=scan_limit: self.item_service.api_client.client.top(
-                        start=s, limit=l
+                    lambda s=start, limit=scan_limit: self.item_service.api_client.client.top(
+                        start=s, limit=limit
                     ),
                 )
 

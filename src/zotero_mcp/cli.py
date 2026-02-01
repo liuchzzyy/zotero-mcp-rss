@@ -352,6 +352,11 @@ def main():
         action="store_true",
         help="Preview duplicates without deleting",
     )
+    dedup_parser.add_argument(
+        "--trash-collection",
+        default="06 - TRASHES",
+        help="Name of collection to move duplicates to (default: '06 - TRASHES')",
+    )
 
     # Version command
     subparsers.add_parser("version", help="Print version information")
@@ -691,7 +696,9 @@ def main():
         import asyncio
 
         from zotero_mcp.services.data_access import DataAccessService
-        from zotero_mcp.services.zotero.metadata_update_service import MetadataUpdateService
+        from zotero_mcp.services.zotero.metadata_update_service import (
+            MetadataUpdateService,
+        )
 
         async def update_metadata():
             data_service = DataAccessService()
@@ -704,7 +711,7 @@ def main():
                 if args.item_key:
                     # Update single item
                     result = await update_service.update_item_metadata(args.item_key)
-                    print(f"\n=== Update Result ===")
+                    print("\n=== Update Result ===")
                     print(f"  Success: {result['success']}")
                     print(f"  Updated: {result['updated']}")
                     print(f"  Message: {result['message']}")
@@ -716,7 +723,7 @@ def main():
                         scan_limit=args.scan_limit,
                         treated_limit=args.treated_limit,
                     )
-                    print(f"\n=== Metadata Update Results ===")
+                    print("\n=== Metadata Update Results ===")
                     print(f"  Total processed: {result['total']}")
                     print(f"  Updated: {result['updated']}")
                     print(f"  Skipped: {result['skipped']}")
@@ -733,7 +740,9 @@ def main():
         import asyncio
 
         from zotero_mcp.services.data_access import DataAccessService
-        from zotero_mcp.services.zotero.duplicate_service import DuplicateDetectionService
+        from zotero_mcp.services.zotero.duplicate_service import (
+            DuplicateDetectionService,
+        )
 
         async def deduplicate():
             data_service = DataAccessService()
@@ -747,22 +756,23 @@ def main():
                     scan_limit=args.scan_limit,
                     treated_limit=args.treated_limit,
                     dry_run=args.dry_run,
+                    trash_collection=args.trash_collection,
                 )
-                print(f"\n=== Deduplication Results ===")
+                print("\n=== Deduplication Results ===")
                 print(f"  Total scanned: {result['total_scanned']}")
                 print(f"  Duplicates found: {result['duplicates_found']}")
                 print(f"  Cross-folder copies (skipped): {result.get('cross_folder_copies', 0)}")
-                print(f"  Duplicates removed: {result['duplicates_removed']}")
+                print(f"  Duplicates moved to '{args.trash_collection}': {result['duplicates_removed']}")
                 if result.get('dry_run'):
-                    print(f"  Mode: DRY RUN (no items were deleted)")
+                    print("  Mode: DRY RUN (no items were moved)")
                 print(f"  Duplicate groups: {len(result.get('groups', []))}")
 
                 if result.get('groups'):
-                    print(f"\n  Duplicate Groups:")
+                    print("\n  Duplicate Groups:")
                     for i, group in enumerate(result['groups'][:10], 1):
                         print(f"    {i}. {group.match_reason}: {group.match_value[:50]}")
                         print(f"       Keeping: {group.primary_key}")
-                        print(f"       Deleting: {len(group.duplicate_keys)} items")
+                        print(f"       Moving to trash: {len(group.duplicate_keys)} items")
 
             except Exception as e:
                 print(f"Error: {e}")

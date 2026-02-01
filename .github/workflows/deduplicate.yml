@@ -29,7 +29,7 @@ on:
           - '200'
           - '500'
       dry_run:
-        description: 'Preview mode - do not delete duplicates'
+        description: 'Preview mode - do not move duplicates to trash'
         required: false
         default: false
         type: boolean
@@ -50,7 +50,7 @@ env:
 
 jobs:
   deduplicate:
-    name: Remove Duplicate Items
+    name: Move Duplicate Items to Trash
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -86,6 +86,7 @@ jobs:
           ARGS=""
           ARGS="$ARGS --scan-limit ${{ github.event.inputs.scan_limit || '500' }}"
           ARGS="$ARGS --treated-limit ${{ github.event.inputs.treated_limit || '1000' }}"
+          ARGS="$ARGS --trash-collection '06 - TRASHES'"
 
           if [ -n "${{ github.event.inputs.collection }}" ]; then
             ARGS="$ARGS --collection ${{ github.event.inputs.collection }}"
