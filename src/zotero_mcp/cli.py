@@ -284,6 +284,38 @@ def main():
         help="Collection to scan first (default: 00_INBOXS)",
     )
 
+    # Update metadata command
+    update_metadata_parser = subparsers.add_parser(
+        "update-metadata", help="Update item metadata from external APIs"
+    )
+    update_metadata_parser.add_argument(
+        "--collection",
+        help="Limit to specific collection (by key)",
+    )
+    update_metadata_parser.add_argument(
+        "--limit",
+        type=int,
+        help="Maximum number of items to process",
+    )
+    update_metadata_parser.add_argument(
+        "--item-key",
+        help="Update a specific item by key",
+    )
+
+    # Deduplicate command
+    dedup_parser = subparsers.add_parser(
+        "deduplicate", help="Find and remove duplicate items"
+    )
+    dedup_parser.add_argument(
+        "--collection",
+        help="Limit to specific collection (by key)",
+    )
+    dedup_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview duplicates without deleting",
+    )
+
     # Version command
     subparsers.add_parser("version", help="Print version information")
 
@@ -614,6 +646,88 @@ def main():
         except Exception as e:
             print(f"Error: {e}")
             sys.exit(1)
+
+    elif args.command == "update-metadata":
+        load_config()
+        import asyncio
+
+        from zotero_mcp.services.data_access import DataAccessService
+        from zotero_mcp.services.zotero.metadata_update_service import MetadataUpdateService
+
+        async def update_metadata():
+            data_service = DataAccessService()
+            metadata_service = data_service.metadata_service
+            item_service = data_service.item_service
+
+            update_service = MetadataUpdateService(item_service, metadata_service)
+
+            try:
+                if args.item_key:
+                    # Update single item
+                    result = await update_service.update_item_metadata(args.item_key)
+                    print(f"\n=== Update Result ===")
+                    print(f"  Success: {result['success']}")
+                    print(f"  Updated: {result['updated']}")
+                    print(f"  Message: {result['message']}")
+                    print(f"  Source: {result['source']}")
+                else:
+                    # Update multiple items
+                    result = await update_service.update_all_items(
+                        collection_key=args.collection,
+                        limit=args.limit,
+                    )
+                    print(f"\n=== Metadata Update Results ===")
+                    print(f"  Total processed: {result['total']}")
+                    print(f"  Updated: {result['updated']}")
+                    print(f"  Skipped: {result['skipped']}")
+                    print(f"  Failed: {result['failed']}")
+
+                await data_service.close()
+            except Exception as e:
+                print(f"Error: {e}")
+                sys.exit(1)
+
+        asyncio.run(update_metadata())
+
+    elif args.command == "deduplicate":
+        load_config()
+        import asyncio
+
+        from zotero_mcp.services.data_access import DataAccessService
+        from zotero_mcp.services.zotero.duplicate_service import DuplicateDetectionService
+
+        async def deduplicate():
+            data_service = DataAccessService()
+            item_service = data_service.item_service
+
+            dedup_service = DuplicateDetectionService(item_service)
+
+            try:
+                result = await dedup_service.find_and_remove_duplicates(
+                    collection_key=args.collection,
+                    dry_run=args.dry_run,
+                )
+                print(f"\n=== Deduplication Results ===")
+                print(f"  Total scanned: {result['total_scanned']}")
+                print(f"  Duplicates found: {result['duplicates_found']}")
+                print(f"  Duplicates removed: {result['duplicates_removed']}")
+                if result.get('dry_run'):
+                    print(f"  Mode: DRY RUN (no items were deleted)")
+                print(f"  Duplicate groups: {len(result.get('groups', []))}")
+
+                if result.get('groups'):
+                    print(f"\n  Duplicate Groups:")
+                    for i, group in enumerate(result['groups'][:10], 1):
+                        print(f"    {i}. {group.match_reason}: {group.match_value[:50]}")
+                        print(f"       Keeping: {group.primary_key}")
+                        print(f"       Deleting: {len(group.duplicate_keys)} items")
+
+                await data_service.close()
+            except Exception as e:
+                print(f"Error: {e}")
+                sys.exit(1)
+
+        asyncio.run(deduplicate())
 
     elif args.command == "serve":
         load_config()
