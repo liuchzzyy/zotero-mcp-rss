@@ -497,8 +497,12 @@ class WorkflowService:
             )
 
     def _should_skip_item(
-        self, item: Any, existing_notes: list, skip_existing: bool,
-        delete_old_notes: bool, start_time: float
+        self,
+        item: Any,
+        existing_notes: list,
+        skip_existing: bool,
+        delete_old_notes: bool,
+        start_time: float,
     ) -> ItemAnalysisResult | None:
         """Check if item should be skipped. Returns skip result or None."""
         if skip_existing and not delete_old_notes and existing_notes:
@@ -534,8 +538,13 @@ class WorkflowService:
         return None
 
     async def _call_llm_analysis(
-        self, item: Any, llm_client: Any, metadata: dict,
-        fulltext: str, annotations: list, template: str
+        self,
+        item: Any,
+        llm_client: Any,
+        metadata: dict,
+        fulltext: str,
+        annotations: list,
+        template: str,
     ) -> str | None:
         """Call LLM to analyze paper."""
         return await llm_client.analyze_paper(
@@ -574,7 +583,9 @@ class WorkflowService:
                 logger.info(f"Generated structured note with {len(blocks)} blocks")
                 return html_note
             except Exception as e:
-                logger.warning(f"Structured parsing failed: {e}, falling back to Markdown")
+                logger.warning(
+                    f"Structured parsing failed: {e}, falling back to Markdown"
+                )
 
         # Fallback to markdown
         journal = metadata.get("data", {}).get("publicationTitle") or "未知"
@@ -591,7 +602,9 @@ class WorkflowService:
         )
         return beautify_ai_note(markdown_to_html(basic_info))
 
-    async def _save_note(self, item: Any, html_note: str, llm_client: Any) -> str | None:
+    async def _save_note(
+        self, item: Any, html_note: str, llm_client: Any
+    ) -> str | None:
         """Save note to item and return note key."""
         # Generate tags: AI分析 + LLM provider name
         provider_map = {
@@ -601,7 +614,8 @@ class WorkflowService:
         }
         provider_name = provider_map.get(
             llm_client.provider,
-            "Claude" if llm_client.provider == "claude-cli"
+            "Claude"
+            if llm_client.provider == "claude-cli"
             else llm_client.provider.capitalize(),
         )
         note_tags = ["AI分析", provider_name]
