@@ -220,6 +220,15 @@ class DataAccessService:
         """Get all collections."""
         return await self.item_service.get_collections()
 
+    async def get_sorted_collections(self) -> list[dict[str, Any]]:
+        """
+        Get all collections sorted by name (00_INBOXS, 01_*, 02_*, etc.).
+
+        Returns:
+            List of collections sorted alphabetically by name
+        """
+        return await self.item_service.get_sorted_collections()
+
     async def create_collection(
         self, name: str, parent_key: str | None = None
     ) -> dict[str, Any]:
@@ -243,9 +252,12 @@ class DataAccessService:
         self,
         collection_key: str,
         limit: int = 100,
+        start: int = 0,
     ) -> list[SearchResultItem]:
         """Get items in a collection."""
-        return await self.item_service.get_collection_items(collection_key, limit)
+        return await self.item_service.get_collection_items(
+            collection_key, limit, start
+        )
 
     # -------------------- Tag Operations --------------------
 

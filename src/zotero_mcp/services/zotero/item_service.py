@@ -122,6 +122,28 @@ class ItemService:
         self._cache.set("get_collections", {"key": cache_key}, collections)
         return collections
 
+    async def get_sorted_collections(self) -> list[dict[str, Any]]:
+        """
+        Get all collections sorted by name (00_INBOXS, 01_*, 02_*, etc.).
+
+        Returns:
+            List of collections sorted alphabetically by name
+        """
+        all_collections = await self.get_collections()
+
+        # Sort by collection name
+        sorted_collections = sorted(
+            all_collections,
+            key=lambda coll: coll.get("data", {}).get("name", "").lower(),
+        )
+
+        logger.debug(
+            f"Sorted {len(sorted_collections)} collections by name: "
+            f"{[c.get('data', {}).get('name', '') for c in sorted_collections[:5]]}..."
+        )
+
+        return sorted_collections
+
     async def create_collection(
         self, name: str, parent_key: str | None = None
     ) -> dict[str, Any]:
