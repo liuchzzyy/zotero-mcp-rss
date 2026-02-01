@@ -122,7 +122,7 @@ class GmailService:
         Returns:
             GmailProcessResult with statistics
         """
-        from zotero_mcp.services.metadata import MetadataService
+        from zotero_mcp.services.zotero.metadata_service import MetadataService
 
         result = GmailProcessResult()
 

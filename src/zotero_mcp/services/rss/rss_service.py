@@ -8,7 +8,7 @@ import logging
 from zotero_mcp.models.rss import RSSItem, RSSProcessResult
 from zotero_mcp.services.common import PaperFilter, ZoteroItemCreator
 from zotero_mcp.services.data_access import get_data_service
-from zotero_mcp.services.metadata import MetadataService
+from zotero_mcp.services.zotero.metadata_service import MetadataService
 from zotero_mcp.services.rss.rss_fetcher import RSSFetcher
 from zotero_mcp.utils.helpers import clean_title as helper_clean_title
 

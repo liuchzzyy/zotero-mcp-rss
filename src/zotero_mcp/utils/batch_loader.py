@@ -6,7 +6,7 @@ import asyncio
 import logging
 from typing import Any, cast
 
-from zotero_mcp.services.item import ItemService
+from zotero_mcp.services.zotero.item_service import ItemService
 
 logger = logging.getLogger(__name__)
 

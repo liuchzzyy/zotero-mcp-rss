@@ -6,7 +6,7 @@ Centralizes logic for determining if a Zotero item has been analyzed by AI.
 
 import logging
 
-from zotero_mcp.services.item import ItemService
+from zotero_mcp.services.zotero.item_service import ItemService
 
 logger = logging.getLogger(__name__)
 
