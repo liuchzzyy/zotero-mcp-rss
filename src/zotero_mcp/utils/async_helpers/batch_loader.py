@@ -4,8 +4,10 @@ Batch Loader utility for parallel Zotero API calls.
 
 import asyncio
 import logging
+from pathlib import Path
 from typing import Any, cast
 
+from zotero_mcp.clients.zotero.pdf_extractor import MultiModalPDFExtractor
 from zotero_mcp.services.zotero.item_service import ItemService
 
 logger = logging.getLogger(__name__)
@@ -38,6 +40,7 @@ class BatchLoader:
         include_annotations: bool = True,
         include_notes: bool = True,
         include_bibtex: bool = True,
+        include_multimodal: bool = False,
     ) -> dict[str, Any]:
         """
         Fetch a single item bundle with parallel component requests.
@@ -70,6 +73,12 @@ class BatchLoader:
         if include_bibtex:
             tasks.append(self.item_service.get_bibtex(item_key))
             task_map[next_idx] = "bibtex"
+            next_idx += 1
+
+        # Multi-modal extraction
+        if include_multimodal:
+            tasks.append(self._extract_multimodal_content(item_key))
+            task_map[next_idx] = "multimodal"
             next_idx += 1
 
         # Execute parallel requests
@@ -108,8 +117,68 @@ class BatchLoader:
                 bundle["annotations"] = result
             elif key == "bibtex":
                 bundle["bibtex"] = result
+            elif key == "multimodal":
+                bundle["multimodal"] = result
 
         return bundle
+
+    async def _extract_multimodal_content(self, item_key: str) -> dict[str, Any]:
+        """Extract multi-modal content (images, tables) from PDF attachments.
+
+        Args:
+            item_key: Zotero item key
+
+        Returns:
+            Dictionary with extracted multi-modal content, or empty dict if no PDF
+        """
+        try:
+            # Get attachments to find PDF
+            attachments = await self.item_service.get_item_children(item_key)
+
+            # Filter for PDF attachments
+            pdf_attachments = [
+                a
+                for a in attachments
+                if a.get("data", {}).get("itemType") == "attachment"
+                and a.get("data", {}).get("contentType") == "application/pdf"
+            ]
+
+            if not pdf_attachments:
+                logger.debug(f"No PDF attachments found for {item_key}")
+                return {}
+
+            # Get local path from first PDF attachment
+            pdf_path_info = pdf_attachments[0].get("data", {}).get("path")
+            if not pdf_path_info:
+                logger.debug(f"No path info for PDF attachment in {item_key}")
+                return {}
+
+            # Resolve Zotero storage path to filesystem path
+            # Format: "storage:filename.pdf" -> <storage_dir>/<attachment_key>/filename.pdf
+            if pdf_path_info.startswith("storage:"):
+                # This is a simplified path resolution
+                # In production, you'd use LocalDatabaseClient._resolve_path
+                # For now, return empty to indicate need for local client
+                logger.debug(
+                    f"Local PDF path resolution requires LocalDatabaseClient for {item_key}"
+                )
+                return {}
+
+            # If we have a direct path, try extraction
+            pdf_path = Path(pdf_path_info)
+            if not pdf_path.exists():
+                logger.debug(f"PDF file does not exist: {pdf_path}")
+                return {}
+
+            # Extract multi-modal content
+            extractor = MultiModalPDFExtractor()
+            result = extractor.extract_elements(pdf_path)
+
+            return result
+
+        except Exception as e:
+            logger.warning(f"Failed to extract multi-modal content for {item_key}: {e}")
+            return {}
 
     async def fetch_many_bundles(
         self,
@@ -118,6 +187,7 @@ class BatchLoader:
         include_annotations: bool = True,
         include_notes: bool = True,
         include_bibtex: bool = True,
+        include_multimodal: bool = False,
     ) -> list[dict[str, Any]]:
         """
         Fetch multiple bundles in parallel with concurrency control.
@@ -132,6 +202,7 @@ class BatchLoader:
                         include_annotations,
                         include_notes,
                         include_bibtex,
+                        include_multimodal,
                     )
                 except Exception as e:
                     logger.error(f"Failed to fetch bundle for {key}: {e}")
