@@ -19,7 +19,10 @@ import shutil
 import tempfile
 from typing import Any
 
-from zotero_mcp.utils.data.templates import get_analysis_template
+from zotero_mcp.utils.data.templates import (
+    format_multimodal_section,
+    get_analysis_template,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +140,9 @@ class CLILLMClient:
                 images_section += f"### Image {i} (Page {page_num})\n"
                 if img.get("format") == "base64":
                     # For Claude CLI, embed base64 as markdown image
-                    images_section += f"![Image](data:image/png;base64,{img['content']})\n"
+                    images_section += (
+                        f"![Image](data:image/png;base64,{img['content']})\n"
+                    )
                 images_section += f"*Figure {i}*\n\n"
 
         # Build prompt content for the file
@@ -176,6 +181,40 @@ class CLILLMClient:
         else:
             # Use default template from configuration
             analysis_template = get_analysis_template()
+
+            # Prepare multi-modal sections if template supports them
+            multimodal_section = ""
+            figure_analysis_section = "### 🖼️ 图片/图表分析\n\n本文档无图片。\n\n"
+            table_analysis_section = "### 📋 表格数据分析\n\n本文档无表格。\n\n"
+
+            # Check if template expects multi-modal sections
+            if (
+                "{multimodal_section}" in analysis_template
+                or "{figure_analysis_section}" in analysis_template
+            ):
+                # Extract tables from images (tables are embedded in images list)
+                tables = [img for img in (images or []) if img.get("type") == "table"]
+                figures = [img for img in (images or []) if img.get("type") != "table"]
+
+                # Format multi-modal content section
+                multimodal_section = format_multimodal_section(figures, tables)
+
+                # Format figure analysis placeholder
+                if figures:
+                    figure_analysis_section = (
+                        "### 🖼️ 图片/图表分析\n\n"
+                        f"本文档包含 {len(figures)} 个图片。"
+                        f"请分析每个图片的内容、作用和关键信息。\n\n"
+                    )
+
+                # Format table analysis placeholder
+                if tables:
+                    table_analysis_section = (
+                        "### 📋 表格数据分析\n\n"
+                        f"本文档包含 {len(tables)} 个表格。"
+                        f"请分析每个表格的数据、趋势和关键结论。\n\n"
+                    )
+
             file_content = analysis_template.format(
                 title=title or "未知",
                 authors=authors or "未知",
@@ -185,6 +224,9 @@ class CLILLMClient:
                 fulltext=fulltext[:50000],
                 annotations_section=annotations_section,
                 images_section=images_section,
+                multimodal_section=multimodal_section,
+                figure_analysis_section=figure_analysis_section,
+                table_analysis_section=table_analysis_section,
             )
 
         # Write to temporary file and run CLI
