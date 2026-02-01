@@ -58,6 +58,7 @@ class WorkflowService:
         days: int = 7,
         limit: int = 20,
         include_annotations: bool = True,
+        include_multimodal: bool = True,
         skip_existing: bool = True,
     ) -> PrepareAnalysisResponse:
         """
@@ -110,6 +111,7 @@ class WorkflowService:
                 keys_to_fetch,
                 include_fulltext=True,
                 include_annotations=include_annotations,
+                include_multimodal=include_multimodal,
                 include_bibtex=False,
             )
 
@@ -125,6 +127,9 @@ class WorkflowService:
                 metadata = bundle["metadata"]
                 data = metadata.get("data", {})
 
+                # Extract multi-modal content (only if include_multimodal is True)
+                multimodal = bundle.get("multimodal", {}) if include_multimodal else {}
+
                 # Build AnalysisItem
                 try:
                     analysis_item = AnalysisItem(
@@ -136,6 +141,8 @@ class WorkflowService:
                         doi=data.get("DOI"),
                         pdf_content=bundle.get("fulltext") or "PDF 内容不可用",
                         annotations=bundle.get("annotations", []),
+                        images=multimodal.get("images", []),
+                        tables=multimodal.get("tables", []),
                         metadata={
                             "item_type": data.get("itemType"),
                             "abstract": data.get("abstractNote"),
@@ -166,6 +173,7 @@ class WorkflowService:
         resume_workflow_id: str | None = None,
         skip_existing: bool = True,
         include_annotations: bool = True,
+        include_multimodal: bool = True,
         llm_provider: str = "auto",
         llm_model: str | None = None,
         template: str | None = None,
@@ -186,6 +194,7 @@ class WorkflowService:
             resume_workflow_id: Workflow ID to resume
             skip_existing: Skip items with existing notes
             include_annotations: Include PDF annotations
+            include_multimodal: Include PDF images/tables
             llm_provider: LLM provider to use
             llm_model: Model name (optional)
             template: Custom analysis template
@@ -249,6 +258,7 @@ class WorkflowService:
                     "llm_provider": llm_provider,
                     "llm_model": llm_model,
                     "include_annotations": include_annotations,
+                    "include_multimodal": include_multimodal,
                 },
             )
 
@@ -269,6 +279,38 @@ class WorkflowService:
                 status="completed",
                 can_resume=False,
             )
+
+        # Auto-select LLM provider if needed
+        if llm_provider == "auto":
+            # Fetch a sample bundle to check for images
+            # Only fetch if include_multimodal is True
+            if include_multimodal and remaining_keys:
+                sample_key = remaining_keys[0]
+                try:
+                    sample_bundles = await self.batch_loader.fetch_many_bundles(
+                        [sample_key],
+                        include_fulltext=False,
+                        include_annotations=False,
+                        include_multimodal=True,
+                        include_bibtex=False,
+                    )
+                    if sample_bundles:
+                        sample_multimodal = sample_bundles[0].get("multimodal", {})
+                        has_images = bool(sample_multimodal.get("images"))
+                        # Auto-select: prefer multi-modal if images available
+                        llm_provider = "claude-cli" if has_images else "deepseek"
+                        logger.info(
+                            f"Auto-selected LLM provider: {llm_provider} "
+                            f"(has_images={has_images})"
+                        )
+                except Exception as e:
+                    logger.warning(f"Failed to check for images during auto-select: {e}")
+                    # Fall back to default
+                    llm_provider = "deepseek"
+            else:
+                # No multi-modal or no items, use text-only LLM
+                llm_provider = "deepseek"
+                logger.info(f"Auto-selected LLM provider: {llm_provider} (text-only)")
 
         # Initialize LLM client
         try:
@@ -299,6 +341,7 @@ class WorkflowService:
                 chunk_keys,
                 include_fulltext=True,
                 include_annotations=include_annotations,
+                include_multimodal=include_multimodal,
                 include_bibtex=False,
             )
             bundle_map = {b["metadata"]["key"]: b for b in bundles}
@@ -343,6 +386,7 @@ class WorkflowService:
                     dry_run=dry_run,
                     delete_old_notes=delete_old_notes,
                     move_to_collection=move_to_collection,
+                    include_multimodal=include_multimodal,
                 )
 
                 results.append(result)
@@ -408,6 +452,7 @@ class WorkflowService:
         delete_old_notes: bool = False,
         move_to_collection: str | None = None,
         use_structured: bool = True,
+        include_multimodal: bool = True,
     ) -> ItemAnalysisResult:
         """Analyze a single item using pre-fetched bundle.
 
@@ -420,6 +465,7 @@ class WorkflowService:
             dry_run: Preview only, no changes.
             delete_old_notes: Delete all existing notes before creating new one.
             move_to_collection: Collection name to move item to after analysis.
+            include_multimodal: Whether to include multi-modal content (images/tables).
         """
         start_time = time.time()
 
@@ -432,11 +478,19 @@ class WorkflowService:
                 return skip_result
 
             # 2. Extract context
-            context = self._extract_bundle_context(bundle)
+            context = self._extract_bundle_context(bundle, include_multimodal)
             if error_result := self._validate_context(item, context, start_time):
                 return error_result
 
-            # 3. Call LLM
+            # 3. Prepare images based on LLM capability
+            from zotero_mcp.clients.llm.capabilities import get_provider_capability
+
+            capability = get_provider_capability(llm_client.provider)
+            images_to_send = None
+            if capability.can_handle_images() and context.get("images"):
+                images_to_send = context["images"]
+
+            # 4. Call LLM
             if use_structured and template is None:
                 template = DEFAULT_ANALYSIS_TEMPLATE_JSON
             elif template is None:
@@ -448,6 +502,7 @@ class WorkflowService:
                 fulltext=context["fulltext"],
                 annotations=context["annotations"],
                 template=template,
+                images=images_to_send,
             )
             if not analysis_content:
                 return ItemAnalysisResult(
@@ -458,7 +513,7 @@ class WorkflowService:
                     processing_time=time.time() - start_time,
                 )
 
-            # 4. Save note (if not dry run)
+            # 5. Save note (if not dry run)
             note_key = None
             if not dry_run:
                 if delete_old_notes:
@@ -516,12 +571,27 @@ class WorkflowService:
             )
         return None
 
-    def _extract_bundle_context(self, bundle: dict[str, Any]) -> dict[str, Any]:
+    def _extract_bundle_context(
+        self,
+        bundle: dict[str, Any],
+        include_multimodal: bool = True,
+    ) -> dict[str, Any]:
         """Extract relevant context from bundle."""
-        return {
+        context = {
             "fulltext": bundle.get("fulltext"),
             "annotations": bundle.get("annotations", []),
         }
+
+        # Add multi-modal content if requested
+        if include_multimodal:
+            multimodal = bundle.get("multimodal", {})
+            context["images"] = multimodal.get("images", [])
+            context["tables"] = multimodal.get("tables", [])
+        else:
+            context["images"] = []
+            context["tables"] = []
+
+        return context
 
     def _validate_context(
         self, item: Any, context: dict[str, Any], start_time: float
@@ -545,6 +615,7 @@ class WorkflowService:
         fulltext: str,
         annotations: list,
         template: str,
+        images: list | None = None,
     ) -> str | None:
         """Call LLM to analyze paper."""
         return await llm_client.analyze_paper(
@@ -555,6 +626,7 @@ class WorkflowService:
             doi=item.doi,
             fulltext=fulltext,
             annotations=annotations,
+            images=images,
             template=template,
         )
 

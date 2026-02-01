@@ -48,6 +48,10 @@ class PrepareAnalysisInput(BaseInput):
         default=True,
         description="Whether to include PDF annotations",
     )
+    include_multimodal: bool = Field(
+        default=True,
+        description="Whether to extract and include PDF images/tables",
+    )
     skip_existing_notes: bool = Field(
         default=True,
         description="Skip items that already have analysis notes",
@@ -96,6 +100,10 @@ class BatchAnalyzeInput(BaseInput):
     include_annotations: bool = Field(
         default=True,
         description="Whether to include PDF annotations in analysis",
+    )
+    include_multimodal: bool = Field(
+        default=True,
+        description="Whether to extract and include PDF images/tables",
     )
     llm_provider: Literal["deepseek", "claude-cli", "auto"] = Field(
         default="auto",
@@ -152,6 +160,12 @@ class AnalysisItem(BaseModel):
     pdf_content: str | None = Field(default=None, description="Extracted PDF full text")
     annotations: list[dict[str, Any]] = Field(
         default_factory=list, description="PDF annotations"
+    )
+    images: list[dict[str, Any]] = Field(
+        default_factory=list, description="PDF images (base64)"
+    )
+    tables: list[dict[str, Any]] = Field(
+        default_factory=list, description="PDF tables"
     )
     metadata: dict[str, Any] = Field(
         default_factory=dict, description="Additional metadata"
