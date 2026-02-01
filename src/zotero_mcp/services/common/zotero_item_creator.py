@@ -2,6 +2,7 @@
 
 from datetime import datetime
 import logging
+from typing import Any
 
 from zotero_mcp.models.ingestion import RSSItem
 from zotero_mcp.services.common.retry import async_retry_with_backoff
@@ -49,22 +50,45 @@ class ZoteroItemCreator:
         """
         cleaned_title = clean_title(item.title)
 
-        # Check for duplicates
-        duplicate_key = await self._check_duplicates(item, cleaned_title)
-        if duplicate_key:
-            logger.info(f"  ⊘ Duplicate: {cleaned_title[:50]}")
-            return None
-
-        # Lookup DOI if not available
+        # Lookup DOI if not available (this also enhances title/URL metadata)
         doi = item.doi
+        enhanced_title = cleaned_title
+        enhanced_url = item.link
+
         if not doi:
             logger.info(f"  ? Looking up DOI for: {cleaned_title[:50]}")
-            doi = await self.metadata_service.lookup_doi(cleaned_title, item.author)
-            if doi:
-                logger.info(f"  + Found DOI: {doi}")
+            doi_result = await self.metadata_service.lookup_doi(
+                cleaned_title, item.author, return_metadata=True
+            )
+            if doi_result:
+                if isinstance(doi_result, dict):
+                    doi = doi_result.get("doi")
+                    # Use enhanced metadata if available
+                    enhanced_title = clean_title(doi_result.get("title", cleaned_title))
+                    enhanced_url = doi_result.get("url", item.link)
+                    logger.info(f"  + Found DOI: {doi}")
+                    logger.debug(f"    Enhanced title: {enhanced_title[:50]}")
+                    logger.debug(f"    Enhanced URL: {enhanced_url}")
+                else:
+                    doi = doi_result
+                    logger.info(f"  + Found DOI: {doi}")
 
-        # Build item data
-        item_data = self._build_item_data(item, cleaned_title, doi, collection_key)
+        # Check for duplicates using enhanced metadata (priority: DOI > title > URL)
+        duplicate_reason = await self._check_duplicates_with_priority(
+            doi=doi,
+            title=enhanced_title,
+            url=enhanced_url,
+        )
+        if duplicate_reason:
+            logger.info(
+                f"  ⊘ Duplicate ({duplicate_reason}): {enhanced_title[:50]}"
+            )
+            return None
+
+        # Build item data with enhanced metadata
+        item_data = self._build_item_data(
+            item, enhanced_title, doi, collection_key, enhanced_url
+        )
 
         # Create item with retry
         try:
@@ -80,23 +104,86 @@ class ZoteroItemCreator:
 
             result = await async_retry_with_backoff(
                 do_create,
-                description=f"Create item '{cleaned_title[:30]}'",
+                description=f"Create item '{enhanced_title[:30]}'",
             )
 
             if self._is_successful_result(result):
                 item_key = self._extract_item_key(result)
-                logger.info(f"  ✓ Created: {cleaned_title[:50]} (key: {item_key})")
+                logger.info(f"  ✓ Created: {enhanced_title[:50]} (key: {item_key})")
                 return item_key
             else:
-                logger.warning(f"  ✗ Failed to create: {cleaned_title[:50]}")
+                logger.warning(f"  ✗ Failed to create: {enhanced_title[:50]}")
                 return None
 
         except Exception as e:
-            logger.error(f"  ✗ Error creating item '{cleaned_title[:50]}': {e}")
+            logger.error(f"  ✗ Error creating item '{enhanced_title[:50]}': {e}")
             return None
 
+    async def _check_duplicates_with_priority(
+        self,
+        doi: str | None,
+        title: str,
+        url: str,
+    ) -> str | None:
+        """
+        Check if item already exists with priority: DOI > title > URL.
+
+        Args:
+            doi: DOI from metadata lookup
+            title: Enhanced title from metadata lookup
+            url: Enhanced URL from metadata lookup
+
+        Returns:
+            Match type ("doi", "title", "url") if duplicate found, None otherwise
+        """
+        # Priority 1: Check by DOI (most reliable)
+        if doi:
+            existing_by_doi = await async_retry_with_backoff(
+                lambda: self.data_service.search_items(
+                    query=doi, limit=1, qmode="everything"
+                ),
+                description=f"Search DOI '{doi[:30]}'",
+            )
+            if existing_by_doi and len(existing_by_doi) > 0:
+                logger.debug(f"  → Found duplicate by DOI: {doi}")
+                return "doi"
+
+        # Priority 2: Check by title (case-insensitive exact match)
+        existing_by_title = await async_retry_with_backoff(
+            lambda: self.data_service.search_items(
+                query=title, qmode="titleCreatorYear", limit=5
+            ),
+            description=f"Search title '{title[:30]}'",
+        )
+        if existing_by_title and len(existing_by_title) > 0:
+            # Check for exact title match (case-insensitive)
+            for existing_item in existing_by_title:
+                if existing_item.title and existing_item.title.lower() == title.lower():
+                    logger.debug(f"  → Found duplicate by title: {title}")
+                    return "title"
+
+        # Priority 3: Check by URL (least reliable, may change)
+        # Only check URL if it's a valid URL (not empty)
+        if url:
+            existing_by_url = await async_retry_with_backoff(
+                lambda: self.data_service.search_items(
+                    query=url, limit=1, qmode="everything"
+                ),
+                description=f"Search URL '{url[:30]}'",
+            )
+            if existing_by_url and len(existing_by_url) > 0:
+                logger.debug(f"  → Found duplicate by URL: {url}")
+                return "url"
+
+        return None
+
     async def _check_duplicates(self, item: RSSItem, cleaned_title: str) -> str | None:
-        """Check if item already exists by URL or title."""
+        """
+        Check if item already exists by URL or title.
+
+        DEPRECATED: Use _check_duplicates_with_priority instead.
+        This method is kept for backward compatibility.
+        """
         # Check by URL
         existing_by_url = await async_retry_with_backoff(
             lambda: self.data_service.search_items(
@@ -122,13 +209,18 @@ class ZoteroItemCreator:
         return None
 
     def _build_item_data(
-        self, item: RSSItem, cleaned_title: str, doi: str | None, collection_key: str
+        self,
+        item: RSSItem,
+        cleaned_title: str,
+        doi: str | None,
+        collection_key: str,
+        enhanced_url: str | None = None,
     ) -> dict:
         """Build Zotero item data dict."""
         item_data = {
             "itemType": "journalArticle",
             "title": cleaned_title,
-            "url": item.link,
+            "url": enhanced_url or item.link,
             "publicationTitle": item.source_title,
             "date": item.pub_date.strftime("%Y-%m-%d") if item.pub_date else "",
             "accessDate": datetime.now().strftime("%Y-%m-%d"),

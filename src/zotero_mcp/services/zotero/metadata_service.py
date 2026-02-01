@@ -146,7 +146,9 @@ class MetadataService:
         await self.crossref_client.close()
         await self.openalex_client.close()
 
-    async def lookup_doi(self, title: str, author: str | None = None) -> str | None:
+    async def lookup_doi(
+        self, title: str, author: str | None = None, return_metadata: bool = False
+    ) -> str | dict[str, Any] | None:
         """
         Lookup DOI for a given title and author.
 
@@ -158,20 +160,34 @@ class MetadataService:
         Args:
             title: Article title
             author: Optional author name
+            return_metadata: If True, return dict with doi, title, url; otherwise just DOI
 
         Returns:
-            DOI string or None if not found
+            - If return_metadata=False: DOI string or None
+            - If return_metadata=True: Dict with 'doi', 'title', 'url' or None
         """
         # Try Crossref first with lenient threshold
         work = await self.crossref_client.find_best_match(title, threshold=0.6)
         if work and work.doi:
             logger.debug(f"  ✓ DOI found via Crossref: {work.doi}")
+            if return_metadata:
+                return {
+                    "doi": work.doi,
+                    "title": work.title,
+                    "url": work.url,
+                }
             return work.doi
 
         # Fallback to OpenAlex with lenient threshold
         work = await self.openalex_client.find_best_match(title, threshold=0.6)
         if work and work.doi:
             logger.debug(f"  ✓ DOI found via OpenAlex: {work.doi}")
+            if return_metadata:
+                return {
+                    "doi": work.doi,
+                    "title": work.title,
+                    "url": work.url,
+                }
             return work.doi
 
         logger.debug(f"  ✗ No DOI found for title: {title[:50]}...")
