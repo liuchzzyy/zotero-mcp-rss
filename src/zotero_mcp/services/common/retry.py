@@ -1,8 +1,8 @@
 """Generic retry utility with exponential backoff."""
 
 import asyncio
+from collections.abc import Awaitable, Callable
 import logging
-from collections.abc import Callable
 from typing import TypeVar
 
 T = TypeVar("T")
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 async def async_retry_with_backoff(
-    func: Callable[[], T],
+    func: Callable[[], Awaitable[T]],
     *,
     max_retries: int = 3,
     base_delay: float = 2.0,
@@ -44,7 +44,14 @@ async def async_retry_with_backoff(
             # Check if error is retryable
             is_retryable = any(
                 keyword in error_msg
-                for keyword in ["timed out", "timeout", "503", "429", "connection", "temporary"]
+                for keyword in [
+                    "timed out",
+                    "timeout",
+                    "503",
+                    "429",
+                    "connection",
+                    "temporary",
+                ]
             )
 
             if not is_retryable or attempt == max_retries - 1:

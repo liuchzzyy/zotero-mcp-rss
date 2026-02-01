@@ -336,7 +336,9 @@ class TestPaperFilterCLI:
     @patch.dict("os.environ", {"RSS_PROMPT": "I study zinc batteries"})
     @patch("zotero_mcp.clients.cli_llm.shutil.which", return_value="/usr/bin/claude")
     @patch("asyncio.create_subprocess_exec")
-    async def test_filter_with_cli_basic_flow(self, mock_exec, mock_which, paper_filter):
+    async def test_filter_with_cli_basic_flow(
+        self, mock_exec, mock_which, paper_filter
+    ):
         """Test basic filter_with_cli flow with mocked CLI."""
         items = [
             _make_item("Zinc battery research", "About zinc batteries"),

@@ -1,9 +1,9 @@
 """RSS feed fetching and parsing module."""
 
 import asyncio
+from datetime import datetime
 import logging
 import time
-from datetime import datetime
 from typing import Any
 from xml.etree import ElementTree as ET
 

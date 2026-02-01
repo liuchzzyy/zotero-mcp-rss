@@ -13,7 +13,6 @@ import asyncio
 import logging
 
 from zotero_mcp.models.gmail import EmailItem, GmailProcessResult
-from zotero_mcp.models.rss import RSSItem
 from zotero_mcp.services.common import PaperFilter, ZoteroItemCreator
 from zotero_mcp.services.data_access import get_data_service
 from zotero_mcp.services.gmail.gmail_fetcher import GmailFetcher
@@ -173,9 +172,11 @@ class GmailService:
         try:
             if llm_provider == "claude-cli":
                 logger.info("Using Claude CLI for Gmail filtering")
-                relevant, irrelevant, keywords = await self.paper_filter.filter_with_cli(
-                    rss_items
-                )
+                (
+                    relevant,
+                    irrelevant,
+                    keywords,
+                ) = await self.paper_filter.filter_with_cli(rss_items)
             else:
                 (
                     relevant,

@@ -1,11 +1,11 @@
 """Common Zotero item creation logic for RSS and Gmail workflows."""
 
-import logging
 from datetime import datetime
+import logging
 
 from zotero_mcp.models.rss import RSSItem
 from zotero_mcp.services.common.retry import async_retry_with_backoff
-from zotero_mcp.utils.helpers import DOI_PATTERN, clean_title
+from zotero_mcp.utils.helpers import clean_title
 
 logger = logging.getLogger(__name__)
 
@@ -85,9 +85,7 @@ class ZoteroItemCreator:
             logger.error(f"  ✗ Error creating item '{cleaned_title[:50]}': {e}")
             return None
 
-    async def _check_duplicates(
-        self, item: RSSItem, cleaned_title: str
-    ) -> str | None:
+    async def _check_duplicates(self, item: RSSItem, cleaned_title: str) -> str | None:
         """Check if item already exists by URL or title."""
         # Check by URL
         existing_by_url = await async_retry_with_backoff(
@@ -141,7 +139,9 @@ class ZoteroItemCreator:
         if not isinstance(result, dict):
             return False
 
-        return len(result.get("successful", {})) > 0 or len(result.get("success", {})) > 0
+        return (
+            len(result.get("successful", {})) > 0 or len(result.get("success", {})) > 0
+        )
 
     def _extract_item_key(self, result: dict) -> str | None:
         """Extract item key from creation result."""

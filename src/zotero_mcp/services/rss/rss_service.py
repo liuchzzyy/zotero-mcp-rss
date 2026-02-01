@@ -2,18 +2,18 @@
 
 import asyncio
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING
 import logging
+from typing import TYPE_CHECKING
 
-from zotero_mcp.models.rss import RSSItem, RSSProcessResult
+from zotero_mcp.models.rss import RSSProcessResult
 from zotero_mcp.services.common import PaperFilter, ZoteroItemCreator
 from zotero_mcp.services.data_access import get_data_service
-from zotero_mcp.services.zotero.metadata_service import MetadataService
 from zotero_mcp.services.rss.rss_fetcher import RSSFetcher
+from zotero_mcp.services.zotero.metadata_service import MetadataService
 from zotero_mcp.utils.helpers import clean_title as helper_clean_title
 
 if TYPE_CHECKING:
-    from zotero_mcp.services.data_access import DataAccessService
+    pass
 
 logger = logging.getLogger(__name__)
 

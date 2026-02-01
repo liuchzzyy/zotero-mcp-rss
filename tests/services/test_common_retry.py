@@ -1,6 +1,7 @@
 """Test retry utility."""
 
 import pytest
+
 from zotero_mcp.services.common.retry import async_retry_with_backoff
 
 
@@ -28,6 +29,7 @@ async def test_retry_success_on_second_attempt():
 @pytest.mark.asyncio
 async def test_retry_fails_after_max_attempts():
     """Test that retry gives up after max attempts."""
+
     async def always_fail_function():
         raise ValueError("Permanent failure")
 

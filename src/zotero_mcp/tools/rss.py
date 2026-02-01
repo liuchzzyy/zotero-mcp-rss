@@ -2,11 +2,10 @@ from fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
 from zotero_mcp.models.rss import RSSFeed
-from zotero_mcp.services.rss import RSSService
+from zotero_mcp.services.rss.rss_fetcher import RSSFetcher
 
-# Initialize the service globally or inside the register function
-# For now, global is fine as it's stateless-ish
-rss_service = RSSService()
+# Initialize the fetcher globally
+rss_fetcher = RSSFetcher()
 
 
 class RSSFeedRequest(BaseModel):
@@ -41,7 +40,7 @@ def register_rss_tools(mcp: FastMCP) -> None:
             url: The URL of the RSS feed.
         """
         try:
-            feed = await rss_service.fetch_feed(url)
+            feed = await rss_fetcher.fetch_feed(url)
             if not feed:
                 return RSSResponse(success=False, error="Failed to fetch or parse feed")
 
@@ -57,7 +56,7 @@ def register_rss_tools(mcp: FastMCP) -> None:
             path: Absolute path to the OPML file.
         """
         try:
-            feeds = await rss_service.fetch_feeds_from_opml(path)
+            feeds = await rss_fetcher.fetch_feeds_from_opml(path)
             return MultiRSSResponse(success=True, count=len(feeds), feeds=feeds)
         except Exception as e:
             return MultiRSSResponse(success=False, count=0, error=str(e))

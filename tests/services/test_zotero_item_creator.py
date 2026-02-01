@@ -1,6 +1,7 @@
 """Test ZoteroItemCreator."""
 
 import pytest
+
 from zotero_mcp.models.rss import RSSItem
 from zotero_mcp.services.common.zotero_item_creator import (
     ZoteroItemCreator,
@@ -9,7 +10,9 @@ from zotero_mcp.services.common.zotero_item_creator import (
 
 
 @pytest.mark.asyncio
-async def test_create_zotero_item_with_minimal_data(mock_data_service, mock_metadata_service):
+async def test_create_zotero_item_with_minimal_data(
+    mock_data_service, mock_metadata_service
+):
     """Test creating item with minimal required fields."""
     from unittest.mock import AsyncMock
 

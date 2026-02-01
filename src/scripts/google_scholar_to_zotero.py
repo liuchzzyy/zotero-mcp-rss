@@ -29,10 +29,11 @@ from typing import TypedDict
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from zotero_mcp.clients.gmail import GmailClient
+from zotero_mcp.services.common import PaperFilter
 from zotero_mcp.services.data_access import get_data_service
 from zotero_mcp.services.gmail import GmailService
-from zotero_mcp.services.metadata import MetadataService
-from zotero_mcp.services.common import PaperFilter
+from zotero_mcp.services.gmail.gmail_fetcher import GmailFetcher
+from zotero_mcp.services.zotero.metadata_service import MetadataService
 
 # Configure logging
 logging.basicConfig(
@@ -196,7 +197,7 @@ async def filter_and_import_articles(
 
         try:
             # Get message headers
-            headers = await gmail_service.gmail_client.get_message_headers(msg_id)
+            headers = await gmail_service.fetcher.gmail_client.get_message_headers(msg_id)
             subject = headers.get("Subject", "(no subject)")
             date = headers.get("Date", "(no date)")
 
@@ -204,14 +205,14 @@ async def filter_and_import_articles(
             logger.info(f"  Date: {date}")
 
             # Get message body
-            html_body, _ = await gmail_service.gmail_client.get_message_body(msg_id)
+            html_body, _ = await gmail_service.fetcher.gmail_client.get_message_body(msg_id)
 
             if not html_body:
                 logger.warning("  ⚠️  No HTML content found, skipping")
                 continue
 
             # Extract items from email
-            email_items = gmail_service.parse_html_table(
+            email_items = gmail_service.fetcher.parse_html_table(
                 html_body, email_id=msg_id, email_subject=subject
             )
 
@@ -226,10 +227,12 @@ async def filter_and_import_articles(
                 filtered_items = []
                 for item in email_items:
                     # Convert EmailItem to RSSItem format for filtering
-                    rss_item = gmail_service._email_item_to_rss_item(item)
+                    rss_item = gmail_service.fetcher.email_item_to_rss_item(item)
 
                     # Filter using keywords
-                    relevant, irrelevant = paper_filter.filter_items([rss_item], keywords)
+                    relevant, irrelevant = paper_filter.filter_items(
+                        [rss_item], keywords
+                    )
 
                     if relevant:
                         filtered_items.append(item)

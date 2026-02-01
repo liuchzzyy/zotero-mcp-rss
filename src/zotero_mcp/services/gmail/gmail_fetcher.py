@@ -1,6 +1,5 @@
 """Gmail email fetching and parsing module."""
 
-import asyncio
 from datetime import datetime
 import logging
 
