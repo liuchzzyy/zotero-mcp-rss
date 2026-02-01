@@ -210,50 +210,33 @@ def parse_tags(tags: list[dict[str, str]]) -> list[str]:
     return [tag.get("tag", "") for tag in tags if tag.get("tag")]
 
 
-async def check_has_pdf(data_service, item_key: str) -> bool:
-    """
-    Check if an item has at least one PDF attachment.
-
-    Args:
-        data_service: DataAccessService instance
-        item_key: Zotero item key
-
-    Returns:
-        True if item has PDF attachment, False otherwise
-    """
+async def _check_has_child_type(
+    data_service, item_key: str, item_type: str, content_type: str | None = None
+) -> bool:
+    """Check if an item has a child of a specific type."""
     try:
         children = await data_service.get_item_children(item_key)
         for child in children:
             child_data = child.get("data", {})
-            if child_data.get("itemType") == "attachment":
-                content_type = child_data.get("contentType", "")
-                if content_type == "application/pdf":
-                    return True
-        return False
-    except Exception:
-        return False
-
-
-async def check_has_notes(data_service, item_key: str) -> bool:
-    """
-    Check if an item has at least one note.
-
-    Args:
-        data_service: DataAccessService instance
-        item_key: Zotero item key
-
-    Returns:
-        True if item has notes, False otherwise
-    """
-    try:
-        children = await data_service.get_item_children(item_key)
-        for child in children:
-            child_data = child.get("data", {})
-            if child_data.get("itemType") == "note":
+            if child_data.get("itemType") != item_type:
+                continue
+            if content_type is None or child_data.get("contentType") == content_type:
                 return True
         return False
     except Exception:
         return False
+
+
+async def check_has_pdf(data_service, item_key: str) -> bool:
+    """Check if an item has at least one PDF attachment."""
+    return await _check_has_child_type(
+        data_service, item_key, "attachment", "application/pdf"
+    )
+
+
+async def check_has_notes(data_service, item_key: str) -> bool:
+    """Check if an item has at least one note."""
+    return await _check_has_child_type(data_service, item_key, "note")
 
 
 async def check_has_tag(data_service, item_key: str, tag: str) -> bool:

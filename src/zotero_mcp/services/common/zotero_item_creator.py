@@ -187,37 +187,6 @@ class ZoteroItemCreator:
 
         return None
 
-    async def _check_duplicates(self, item: RSSItem, cleaned_title: str) -> str | None:
-        """
-        Check if item already exists by URL or title.
-
-        DEPRECATED: Use _check_duplicates_with_priority instead.
-        This method is kept for backward compatibility.
-        """
-        # Check by URL
-        existing_by_url = await async_retry_with_backoff(
-            lambda: self.data_service.search_items(
-                query=item.link, limit=1, qmode="everything"
-            ),
-            description=f"Search URL '{cleaned_title[:30]}'",
-        )
-        if existing_by_url and len(existing_by_url) > 0:
-            return "url"
-
-        # Check by title
-        existing_by_title = await async_retry_with_backoff(
-            lambda: self.data_service.search_items(
-                query=cleaned_title, qmode="titleCreatorYear", limit=1
-            ),
-            description=f"Search title '{cleaned_title[:30]}'",
-        )
-        if existing_by_title and len(existing_by_title) > 0:
-            found_title = existing_by_title[0].title
-            if found_title.lower() == cleaned_title.lower():
-                return "title"
-
-        return None
-
     def _build_item_data(
         self,
         item: RSSItem,

@@ -16,26 +16,69 @@ logger = logging.getLogger(__name__)
 
 AI_METADATA_TAG = "AI元数据"
 
+# Mapping from enhanced metadata keys to Zotero item data keys
+_METADATA_FIELD_MAP = {
+    "doi": "DOI",
+    "journal": "publicationTitle",
+    "journal_abbrev": "journalAbbreviation",
+    "publisher": "publisher",
+    "volume": "volume",
+    "issue": "issue",
+    "pages": "pages",
+    "abstract": "abstractNote",
+    "issn": "ISSN",
+    "language": "language",
+    "rights": "rights",
+    "short_title": "shortTitle",
+    "series": "series",
+    "edition": "edition",
+    "place": "place",
+}
+
+# Key fields to check for changes between current and updated data
+_KEY_FIELDS = [
+    "DOI",
+    "title",
+    "creators",
+    "publicationTitle",
+    "journalAbbreviation",
+    "publisher",
+    "date",
+    "volume",
+    "issue",
+    "pages",
+    "abstractNote",
+    "url",
+    "ISSN",
+    "itemType",
+    "language",
+    "rights",
+    "shortTitle",
+    "series",
+    "edition",
+    "place",
+    "extra",
+]
+
+
+def _extract_tag_names(tags: list) -> list[str]:
+    """Extract tag names from either dict or string format."""
+    if not tags:
+        return []
+    if isinstance(tags[0], dict):
+        return [t.get("tag", "") for t in tags]
+    return tags
+
 
 class MetadataUpdateService:
     """
     Service for updating Zotero item metadata from external APIs.
 
-    Features:
-    - Fetches complete metadata from Crossref/OpenAlex
-    - Updates items with missing information
-    - Adds 'AI元数据' tag on successful updates
-    - Priority: DOI > title > URL for metadata lookup
+    Fetches complete metadata from Crossref/OpenAlex, updates items with
+    missing information, and adds 'AI元数据' tag on successful updates.
     """
 
     def __init__(self, item_service: ItemService, metadata_service: MetadataService):
-        """
-        Initialize MetadataUpdateService.
-
-        Args:
-            item_service: ItemService for Zotero item operations
-            metadata_service: MetadataService for API lookups
-        """
         self.item_service = item_service
         self.metadata_service = metadata_service
 
@@ -50,14 +93,9 @@ class MetadataUpdateService:
             dry_run: If True, preview changes without applying them
 
         Returns:
-            Dict with update result:
-                - success: bool
-                - updated: bool (whether metadata was changed)
-                - message: str
-                - source: str ("crossref" or "openalex" or "none")
+            Dict with update result (success, updated, message, source)
         """
         try:
-            # Get current item data
             item = await self.item_service.get_item(item_key)
             if not item:
                 return {
@@ -68,21 +106,11 @@ class MetadataUpdateService:
                 }
 
             item_data = item.get("data", {})
-            current_doi = item_data.get("DOI", "")
-            current_title = item_data.get("title", "")
-            current_url = item_data.get("url", "")
 
-            # Check if item already has AI元数据 tag (previously updated successfully)
-            existing_tags = item_data.get("tags", [])
-            if isinstance(existing_tags[0], dict) if existing_tags else False:
-                # Tags are in dict format: [{"tag": "name"}, ...]
-                tag_list = [t.get("tag", "") for t in existing_tags]
-            else:
-                # Tags are in string format: ["tag1", "tag2"]
-                tag_list = existing_tags
-
-            if AI_METADATA_TAG in tag_list:
-                logger.info(f"  ⊘ Skipping - already has '{AI_METADATA_TAG}' tag")
+            # Check if already processed
+            tag_names = _extract_tag_names(item_data.get("tags", []))
+            if AI_METADATA_TAG in tag_names:
+                logger.info(f"  Skipping - already has '{AI_METADATA_TAG}' tag")
                 return {
                     "success": True,
                     "updated": False,
@@ -90,20 +118,21 @@ class MetadataUpdateService:
                     "source": "cached",
                 }
 
+            current_title = item_data.get("title", "")
             logger.info(
                 f"Updating metadata for item: {current_title[:50]} "
-                f"(DOI: {current_doi or 'N/A'})"
+                f"(DOI: {item_data.get('DOI') or 'N/A'})"
             )
 
-            # Try to fetch enhanced metadata (priority: DOI > title > URL)
+            # Fetch enhanced metadata (priority: DOI > title)
             enhanced_metadata = await self._fetch_enhanced_metadata(
-                doi=current_doi,
+                doi=item_data.get("DOI", ""),
                 title=current_title,
-                url=current_url,
+                url=item_data.get("url", ""),
             )
 
             if not enhanced_metadata:
-                logger.info("  ✗ No enhanced metadata found")
+                logger.info("  No enhanced metadata found")
                 return {
                     "success": True,
                     "updated": False,
@@ -112,14 +141,11 @@ class MetadataUpdateService:
                 }
 
             # Build updated item data
-            updated_data = self._build_updated_item_data(
-                current_data=item_data,
-                enhanced_metadata=enhanced_metadata,
-            )
+            updated_data = self._build_updated_item_data(item_data, enhanced_metadata)
 
             # Check if anything changed
             if not self._has_changes(item_data, updated_data):
-                logger.info("  → No updates needed")
+                logger.info("  No updates needed")
                 return {
                     "success": True,
                     "updated": False,
@@ -130,40 +156,36 @@ class MetadataUpdateService:
             # Add AI metadata tag
             updated_data = self._add_ai_metadata_tag(updated_data)
 
-            # Prepare full item object for update - preserve version and other top-level fields
+            # Prepare full item object for update
             updated_item = item.copy()
             updated_item["data"] = updated_data
 
             if dry_run:
-                # Dry run mode - show what would be updated
-                logger.info(
-                    f"  [DRY RUN] Would update metadata (source: {enhanced_metadata.get('source')})"
-                )
+                source = enhanced_metadata.get("source")
+                logger.info(f"  [DRY RUN] Would update metadata (source: {source})")
                 return {
                     "success": True,
                     "updated": True,
-                    "message": f"[DRY RUN] Would update from {enhanced_metadata.get('source')}",
-                    "source": enhanced_metadata.get("source"),
+                    "message": f"[DRY RUN] Would update from {source}",
+                    "source": source,
                 }
 
-            # Update the item
             await async_retry_with_backoff(
                 lambda: self.item_service.update_item(updated_item),
                 description=f"Update item {item_key}",
             )
 
-            logger.info(
-                f"  ✓ Updated metadata (source: {enhanced_metadata.get('source')})"
-            )
+            source = enhanced_metadata.get("source")
+            logger.info(f"  Updated metadata (source: {source})")
             return {
                 "success": True,
                 "updated": True,
-                "message": f"Updated from {enhanced_metadata.get('source')}",
-                "source": enhanced_metadata.get("source"),
+                "message": f"Updated from {source}",
+                "source": source,
             }
 
         except Exception as e:
-            logger.error(f"  ✗ Error updating item {item_key}: {e}")
+            logger.error(f"  Error updating item {item_key}: {e}")
             return {
                 "success": False,
                 "updated": False,
@@ -184,168 +206,54 @@ class MetadataUpdateService:
         Args:
             collection_key: Optional collection key to limit updates
             scan_limit: Number of items to fetch per batch from API
-            treated_limit: Maximum total number of items to process (excludes skipped)
+            treated_limit: Maximum items to process (excludes skipped)
             dry_run: If True, preview changes without applying them
 
         Returns:
-            Dict with statistics:
-                - total: int (total items scanned)
-                - updated: int (items successfully updated)
-                - skipped: int (items with no updates needed)
-                - failed: int (items that failed to update)
+            Dict with statistics (total, updated, skipped, failed)
         """
         logger.info(
-            f"Starting metadata update for multiple items "
+            f"Starting metadata update "
             f"(batch: {scan_limit}, max: {treated_limit or 'all'})"
         )
-
         if dry_run:
             logger.info("DRY RUN MODE: No changes will be applied")
 
         updated = 0
         skipped = 0
         failed = 0
-        total_processed = 0  # Only counts items that were actually processed
+        total_processed = 0
         total_scanned = 0
 
         if collection_key:
-            # Single collection mode
-            logger.info(f"Scanning collection: {collection_key}")
-            offset = 0
-
-            while True:
-                # Check if we've processed enough items
-                if treated_limit and total_processed >= treated_limit:
-                    break
-
-                # Fetch batch from API
-                items = await self.item_service.get_collection_items(
-                    collection_key, limit=scan_limit, start=offset
-                )
-
-                if not items:
-                    break  # No more items
-
-                total_scanned += len(items)
-
-                # Process each item
-                for item in items:
-                    # Check if we've processed enough items
-                    if treated_limit and total_processed >= treated_limit:
-                        break
-
-                    # Quick check: skip if already has AI元数据 tag
-                    existing_tags = item.tags or []
-                    tag_list = [
-                        t.get("tag", "") if isinstance(t, dict) else t
-                        for t in existing_tags
-                    ]
-
-                    if AI_METADATA_TAG in tag_list:
-                        skipped += 1
-                        continue
-
-                    # Process the item
-                    total_processed += 1
-                    result = await self.update_item_metadata(item.key, dry_run=dry_run)
-
-                    if result["success"]:
-                        if result["updated"]:
-                            updated += 1
-                        else:
-                            skipped += 1
-                    else:
-                        failed += 1
-
-                # If we got fewer items than scan_limit, we've exhausted the collection
-                if len(items) < scan_limit:
-                    break
-
-                offset += scan_limit
-
-                logger.info(
-                    f"  Progress: {total_processed} processed, {updated} updated, "
-                    f"{skipped} skipped (scanned: {total_scanned})"
-                )
+            collection_keys = [collection_key]
         else:
-            # Scan all collections in order
             logger.info("Scanning all collections in name order...")
             collections = await self.item_service.get_sorted_collections()
+            collection_keys = [coll["key"] for coll in collections]
 
-            for coll in collections:
-                # Check if we've processed enough items
-                if treated_limit and total_processed >= treated_limit:
-                    break
+        for coll_key in collection_keys:
+            if treated_limit and total_processed >= treated_limit:
+                logger.info(f"Reached treated_limit ({treated_limit}), stopping scan")
+                break
 
-                coll_key = coll["key"]
-                coll_name = coll.get("data", {}).get("name", "")
-                logger.info(f"Scanning collection: {coll_name}")
+            scanned, proc, upd, skip, fail = await self._process_collection(
+                coll_key=coll_key,
+                scan_limit=scan_limit,
+                treated_limit=treated_limit,
+                total_processed=total_processed,
+                dry_run=dry_run,
+            )
+            total_scanned += scanned
+            total_processed += proc
+            updated += upd
+            skipped += skip
+            failed += fail
 
-                # Keep fetching batches from this collection
-                offset = 0
-                while True:
-                    # Check if we've processed enough items
-                    if treated_limit and total_processed >= treated_limit:
-                        break
-
-                    # Fetch batch from API
-                    items = await self.item_service.get_collection_items(
-                        coll_key, limit=scan_limit, start=offset
-                    )
-
-                    if not items:
-                        break  # No more items in this collection
-
-                    total_scanned += len(items)
-
-                    # Process each item
-                    for item in items:
-                        # Check if we've processed enough items
-                        if treated_limit and total_processed >= treated_limit:
-                            break
-
-                        # Quick check: skip if already has AI元数据 tag
-                        existing_tags = item.tags or []
-                        tag_list = [
-                            t.get("tag", "") if isinstance(t, dict) else t
-                            for t in existing_tags
-                        ]
-
-                        if AI_METADATA_TAG in tag_list:
-                            skipped += 1
-                            continue
-
-                        # Process the item
-                        total_processed += 1
-                        result = await self.update_item_metadata(
-                            item.key, dry_run=dry_run
-                        )
-
-                        if result["success"]:
-                            if result["updated"]:
-                                updated += 1
-                            else:
-                                skipped += 1
-                        else:
-                            failed += 1
-
-                    # If we got fewer items than scan_limit, we've exhausted this collection
-                    if len(items) < scan_limit:
-                        break
-
-                    offset += scan_limit
-
-                logger.info(
-                    f"  Collection '{coll_name}': {total_processed} processed, "
-                    f"{updated} updated, {skipped} skipped"
-                )
-
-                # Early exit if we've processed enough
-                if treated_limit and total_processed >= treated_limit:
-                    logger.info(
-                        f"Reached treated_limit ({treated_limit}), stopping scan"
-                    )
-                    break
+            logger.info(
+                f"  Progress: {total_processed} processed, {updated} updated, "
+                f"{skipped} skipped (scanned: {total_scanned})"
+            )
 
         logger.info(
             f"Metadata update complete: {updated} updated, "
@@ -359,36 +267,82 @@ class MetadataUpdateService:
             "failed": failed,
         }
 
+    async def _process_collection(
+        self,
+        coll_key: str,
+        scan_limit: int,
+        treated_limit: int | None,
+        total_processed: int,
+        dry_run: bool,
+    ) -> tuple[int, int, int, int, int]:
+        """
+        Process a single collection for metadata updates.
+
+        Returns:
+            Tuple of (scanned, processed, updated, skipped, failed)
+        """
+        scanned = 0
+        processed = 0
+        updated = 0
+        skipped = 0
+        failed = 0
+        offset = 0
+
+        while True:
+            if treated_limit and total_processed + processed >= treated_limit:
+                break
+
+            items = await self.item_service.get_collection_items(
+                coll_key, limit=scan_limit, start=offset
+            )
+            if not items:
+                break
+
+            scanned += len(items)
+
+            for item in items:
+                if treated_limit and total_processed + processed >= treated_limit:
+                    break
+
+                # Quick check: skip if already has AI元数据 tag
+                tag_names = _extract_tag_names(item.tags or [])
+                if AI_METADATA_TAG in tag_names:
+                    skipped += 1
+                    continue
+
+                processed += 1
+                result = await self.update_item_metadata(item.key, dry_run=dry_run)
+
+                if result["success"]:
+                    if result["updated"]:
+                        updated += 1
+                    else:
+                        skipped += 1
+                else:
+                    failed += 1
+
+            if len(items) < scan_limit:
+                break
+
+            offset += scan_limit
+
+        return scanned, processed, updated, skipped, failed
+
     async def _fetch_enhanced_metadata(
         self, doi: str, title: str, url: str
     ) -> dict[str, Any] | None:
-        """
-        Fetch enhanced metadata from APIs with priority: DOI > title > URL.
-
-        Args:
-            doi: Item DOI
-            title: Item title
-            url: Item URL
-
-        Returns:
-            Enhanced metadata dict or None
-        """
-        # Priority 1: Lookup by DOI
+        """Fetch enhanced metadata from APIs with priority: DOI > title."""
         if doi:
-            logger.debug(f"  → Looking up by DOI: {doi}")
+            logger.debug(f"  Looking up by DOI: {doi}")
             metadata = await self.metadata_service.get_metadata_by_doi(doi)
             if metadata:
                 return self._metadata_to_dict(metadata)
 
-        # Priority 2: Lookup by title
         if title:
-            logger.debug(f"  → Looking up by title: {title[:50]}")
+            logger.debug(f"  Looking up by title: {title[:50]}")
             metadata = await self.metadata_service.lookup_metadata(title)
             if metadata:
                 return self._metadata_to_dict(metadata)
-
-        # Priority 3: Could lookup by URL (not implemented yet)
-        # URL matching is less reliable, skip for now
 
         return None
 
@@ -410,14 +364,12 @@ class MetadataUpdateService:
             "issn": metadata.issn,
             "item_type": metadata.item_type,
             "source": metadata.source,
-            # Additional fields
             "language": metadata.language,
             "rights": metadata.rights,
             "short_title": metadata.short_title,
             "series": metadata.series,
             "edition": metadata.edition,
             "place": metadata.place,
-            # Extra metadata
             "citation_count": metadata.citation_count,
             "subjects": metadata.subjects,
             "funders": metadata.funders,
@@ -431,119 +383,53 @@ class MetadataUpdateService:
         Build updated item data by merging current and enhanced metadata.
 
         Overwrites existing fields with API data (except title).
-        Includes enhanced fields from Crossref/OpenAlex APIs.
         """
         updated = current_data.copy()
 
-        # DOI (always overwrite with API data)
-        if enhanced_metadata.get("doi"):
-            updated["DOI"] = enhanced_metadata["doi"]
-
-        # Title (keep current, don't overwrite)
-        # Users may have custom titles, so we preserve them
+        # Apply simple field mappings (overwrite with API data)
+        for meta_key, zotero_key in _METADATA_FIELD_MAP.items():
+            if enhanced_metadata.get(meta_key):
+                updated[zotero_key] = enhanced_metadata[meta_key]
 
         # Authors (overwrite with API data)
         if enhanced_metadata.get("authors"):
             updated["creators"] = self._convert_authors(enhanced_metadata["authors"])
 
-        # Journal/Publication (overwrite with API data)
-        if enhanced_metadata.get("journal"):
-            updated["publicationTitle"] = enhanced_metadata["journal"]
-
-        # Journal abbreviation (overwrite with API data)
-        if enhanced_metadata.get("journal_abbrev"):
-            updated["journalAbbreviation"] = enhanced_metadata["journal_abbrev"]
-
-        # Publisher (overwrite with API data)
-        if enhanced_metadata.get("publisher"):
-            updated["publisher"] = enhanced_metadata["publisher"]
-
         # Date/Year (overwrite with API data)
         if enhanced_metadata.get("year"):
             updated["date"] = str(enhanced_metadata["year"])
 
-        # Volume (overwrite with API data)
-        if enhanced_metadata.get("volume"):
-            updated["volume"] = enhanced_metadata["volume"]
-
-        # Issue (overwrite with API data)
-        if enhanced_metadata.get("issue"):
-            updated["issue"] = enhanced_metadata["issue"]
-
-        # Pages (overwrite with API data)
-        if enhanced_metadata.get("pages"):
-            updated["pages"] = enhanced_metadata["pages"]
-
-        # Abstract (overwrite with API data)
-        if enhanced_metadata.get("abstract"):
-            updated["abstractNote"] = enhanced_metadata["abstract"]
-
-        # URL (use enhanced URL if better)
+        # URL (prefer DOI URLs over other URLs)
         if enhanced_metadata.get("url"):
             enhanced_url = enhanced_metadata["url"]
             current_url = updated.get("url", "")
-            # Prefer DOI URLs over other URLs
             if not current_url or "doi.org" in enhanced_url:
                 updated["url"] = enhanced_url
 
-        # ISSN (overwrite with API data)
-        if enhanced_metadata.get("issn"):
-            updated["ISSN"] = enhanced_metadata["issn"]
-
-        # Additional Zotero fields
-        if enhanced_metadata.get("language"):
-            updated["language"] = enhanced_metadata["language"]
-
-        if enhanced_metadata.get("rights"):
-            updated["rights"] = enhanced_metadata["rights"]
-
-        if enhanced_metadata.get("short_title"):
-            updated["shortTitle"] = enhanced_metadata["short_title"]
-
-        if enhanced_metadata.get("series"):
-            updated["series"] = enhanced_metadata["series"]
-
-        if enhanced_metadata.get("edition"):
-            updated["edition"] = enhanced_metadata["edition"]
-
-        if enhanced_metadata.get("place"):
-            updated["place"] = enhanced_metadata["place"]
-
         # Build "Extra" field for additional metadata
         extra_parts = []
-
-        # Preserve existing Extra field content
         existing_extra = updated.get("extra", "")
         if existing_extra:
             extra_parts.append(existing_extra)
 
-        # Add citation count
         if enhanced_metadata.get("citation_count") is not None:
             extra_parts.append(f"Citation Count: {enhanced_metadata['citation_count']}")
-
-        # Add subjects/keywords
         for subject in enhanced_metadata.get("subjects", []):
             extra_parts.append(f"Subject: {subject}")
-
-        # Add funders
         for funder in enhanced_metadata.get("funders", []):
             extra_parts.append(f"Funder: {funder}")
-
-        # Add PDF URL
         if enhanced_metadata.get("pdf_url"):
             extra_parts.append(f"Full-text PDF: {enhanced_metadata['pdf_url']}")
 
-        # Update Extra field
         if extra_parts:
             updated["extra"] = "\n".join(extra_parts)
         elif "extra" in updated:
-            # Remove empty Extra field
             del updated["extra"]
 
         # Item type (overwrite if current is generic)
         current_type = updated.get("itemType", "")
         enhanced_type = enhanced_metadata.get("item_type", "")
-        if current_type in ["", "document"] and enhanced_type:
+        if current_type in ("", "document") and enhanced_type:
             updated["itemType"] = enhanced_type
 
         return updated
@@ -562,187 +448,28 @@ class MetadataUpdateService:
                     }
                 )
             else:
-                creators.append(
-                    {
-                        "creatorType": "author",
-                        "name": author,
-                    }
-                )
+                creators.append({"creatorType": "author", "name": author})
         return creators
 
     def _has_changes(self, current: dict[str, Any], updated: dict[str, Any]) -> bool:
         """Check if updated data has any changes from current."""
-        # Compare key fields including enhanced fields
-        key_fields = [
-            "DOI",
-            "title",
-            "creators",
-            "publicationTitle",
-            "journalAbbreviation",
-            "publisher",
-            "date",
-            "volume",
-            "issue",
-            "pages",
-            "abstractNote",
-            "url",
-            "ISSN",
-            "itemType",
-            # Additional fields
-            "language",
-            "rights",
-            "shortTitle",
-            "series",
-            "edition",
-            "place",
-            "extra",
-        ]
-        for field in key_fields:
-            if current.get(field) != updated.get(field):
-                return True
-        return False
+        return any(
+            current.get(field_name) != updated.get(field_name)
+            for field_name in _KEY_FIELDS
+        )
 
     def _add_ai_metadata_tag(self, item_data: dict[str, Any]) -> dict[str, Any]:
         """Add AI元数据 tag to item."""
         updated = item_data.copy()
-
-        # Get existing tags - always convert to dict format [{"tag": "name"}, ...]
         existing_tags = updated.get("tags", [])
-        if isinstance(existing_tags[0], dict) if existing_tags else False:
-            # Tags are already in dict format
-            tag_list = [t.get("tag", "") for t in existing_tags]
-        else:
-            # Tags are in string format - convert to dict format
+
+        # Normalize to dict format [{"tag": "name"}, ...]
+        if existing_tags and isinstance(existing_tags[0], str):
             existing_tags = [{"tag": tag} for tag in existing_tags]
-            tag_list = existing_tags
 
-        # Add AI元数据 tag if not present
-        if AI_METADATA_TAG not in tag_list:
+        tag_names = {t.get("tag", "") for t in existing_tags}
+        if AI_METADATA_TAG not in tag_names:
             existing_tags.append({"tag": AI_METADATA_TAG})
-            updated["tags"] = existing_tags
 
+        updated["tags"] = existing_tags
         return updated
-
-    async def _get_all_items(
-        self, scan_limit: int = 100, treated_limit: int | None = None
-    ) -> list[dict[str, Any]]:
-        """Get all items from the library with batch scanning in collection order."""
-        logger.info(
-            f"Fetching items from all collections in order (batch: {scan_limit}, max: {treated_limit or 'all'})"
-        )
-
-        all_items = []
-        seen_keys = set()
-
-        # Get collections sorted by name
-        collections = await self.item_service.get_sorted_collections()
-
-        for coll in collections:
-            # Check if we've reached the treated_limit
-            if treated_limit and len(all_items) >= treated_limit:
-                break
-
-            coll_key = coll["key"]
-            coll_name = coll.get("data", {}).get("name", "")
-            logger.info(f"Scanning collection: {coll_name}")
-
-            # Keep fetching batches from this collection until treated_limit or exhausted
-            offset = 0
-            collection_count = 0
-            while True:
-                # Check if we've reached the treated_limit
-                if treated_limit and len(all_items) >= treated_limit:
-                    break
-
-                # Fetch batch from API
-                items = await self.item_service.get_collection_items(
-                    coll_key, limit=scan_limit, start=offset
-                )
-
-                if not items:
-                    break  # No more items in this collection
-
-                # Filter duplicates and convert to dict
-                for item in items:
-                    if item.key not in seen_keys:
-                        seen_keys.add(item.key)
-                        collection_count += 1
-                        all_items.append(
-                            {
-                                "key": item.key,
-                                "data": {
-                                    "title": item.title,
-                                    "DOI": item.doi,
-                                    "url": item.url,
-                                },
-                            }
-                        )
-
-                        # Check if we've reached the treated_limit
-                        if treated_limit and len(all_items) >= treated_limit:
-                            break
-
-                # If we got fewer items than scan_limit, we've exhausted this collection
-                if len(items) < scan_limit:
-                    break
-
-                offset += scan_limit
-
-            logger.info(f"  Collection '{coll_name}': {collection_count} items")
-
-        logger.info(f"Retrieved {len(all_items)} items from all collections")
-        return all_items
-
-    async def _get_collection_items_batch(
-        self,
-        collection_key: str,
-        scan_limit: int = 100,
-        treated_limit: int | None = None,
-    ) -> list[dict[str, Any]]:
-        """Get items from a collection with batch scanning."""
-        all_items = []
-        offset = 0
-        seen_keys = set()
-
-        while True:
-            # Check if we've reached the treated_limit
-            if treated_limit and len(all_items) >= treated_limit:
-                break
-
-            # Fetch batch from API
-            items = await self.item_service.get_collection_items(
-                collection_key, limit=scan_limit, start=offset
-            )
-
-            if not items:
-                break  # No more items
-
-            # Filter duplicates and convert to dict
-            for item in items:
-                if item.key not in seen_keys:
-                    seen_keys.add(item.key)
-                    all_items.append(
-                        {
-                            "key": item.key,
-                            "data": {
-                                "title": item.title,
-                                "DOI": item.doi,
-                                "url": item.url,
-                            },
-                        }
-                    )
-
-                    # Check if we've reached the treated_limit
-                    if treated_limit and len(all_items) >= treated_limit:
-                        break
-
-            # If we got fewer items than scan_limit, we've exhausted the collection
-            if len(items) < scan_limit:
-                break
-
-            offset += scan_limit
-
-        logger.info(
-            f"Retrieved {len(all_items)} items from collection in batches of {scan_limit}"
-        )
-        return all_items

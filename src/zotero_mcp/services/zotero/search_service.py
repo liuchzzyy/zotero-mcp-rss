@@ -164,7 +164,7 @@ class SearchService:
             item_type=data.get("itemType", "unknown"),
             abstract=data.get("abstractNote"),
             doi=data.get("DOI"),
-            tags=tags if tags else [],
+            tags=tags or [],
         )
 
     def _zotero_item_to_result(self, item: ZoteroItem) -> SearchResultItem:
@@ -177,5 +177,5 @@ class SearchService:
             item_type=item.item_type or "unknown",
             abstract=item.abstract,
             doi=item.doi,
-            tags=item.tags if item.tags else [],
+            tags=item.tags or [],
         )

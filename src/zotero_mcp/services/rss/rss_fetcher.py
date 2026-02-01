@@ -100,9 +100,7 @@ class RSSFetcher:
                 # Extract simple content
                 summary = self._get_entry_value(entry, "summary")
                 description = self._get_entry_value(entry, "description")
-                content_val = (
-                    summary if summary else (description if description else "")
-                )
+                content_val = summary or description or ""
 
                 # Extract link, id, author
                 title_val = self._get_entry_value(entry, "title", "No Title")

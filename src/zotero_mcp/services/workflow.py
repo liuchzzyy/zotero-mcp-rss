@@ -502,59 +502,35 @@ class WorkflowService:
                                 )
 
                 # 4b. Generate HTML
+                html_note = None
                 if use_structured:
-                    # Use structured parser and renderer
                     try:
                         parser = get_structured_note_parser()
                         renderer = get_structured_note_renderer()
-
-                        # Parse LLM output into blocks
                         blocks = parser.parse(analysis_content)
-
-                        # Render blocks into HTML
                         html_note = renderer.render(blocks, title=item.title)
-
                         logger.info(
                             f"Generated structured note with {len(blocks)} blocks"
                         )
-
                     except Exception as e:
                         logger.warning(
                             f"Structured parsing failed: {e}, falling back to Markdown"
                         )
-                        # Fallback to traditional markdown approach
-                        basic_info = f"""# AI分析 - {item.title}
 
-## 论文基本信息
-
-- **标题**: {item.title}
-- **作者**: {item.authors or "未知"}
-- **期刊**: {metadata.get("data", {}).get("publicationTitle") or "未知"}
-- **发表日期**: {item.date or "未知"}
-- **DOI**: {item.doi or "未知"}
-
----
-
-{analysis_content}
-"""
-                        html_note = markdown_to_html(basic_info)
-                        html_note = beautify_ai_note(html_note)
-                else:
-                    # Traditional markdown approach
-                    basic_info = f"""# AI分析 - {item.title}
-
-## 论文基本信息
-
-- **标题**: {item.title}
-- **作者**: {item.authors or "未知"}
-- **期刊**: {metadata.get("data", {}).get("publicationTitle") or "未知"}
-- **发表日期**: {item.date or "未知"}
-- **DOI**: {item.doi or "未知"}
-
----
-
-{analysis_content}
-"""
+                # Fallback to markdown if structured parsing failed or not used
+                if html_note is None:
+                    journal = metadata.get("data", {}).get("publicationTitle") or "未知"
+                    basic_info = (
+                        f"# AI分析 - {item.title}\n\n"
+                        f"## 论文基本信息\n\n"
+                        f"- **标题**: {item.title}\n"
+                        f"- **作者**: {item.authors or '未知'}\n"
+                        f"- **期刊**: {journal}\n"
+                        f"- **发表日期**: {item.date or '未知'}\n"
+                        f"- **DOI**: {item.doi or '未知'}\n\n"
+                        f"---\n\n"
+                        f"{analysis_content}\n"
+                    )
                     html_note = markdown_to_html(basic_info)
                     html_note = beautify_ai_note(html_note)
 
