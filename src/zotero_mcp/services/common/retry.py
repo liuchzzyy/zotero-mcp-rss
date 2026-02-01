@@ -48,9 +48,12 @@ async def async_retry_with_backoff(
                     "timed out",
                     "timeout",
                     "503",
-                    "429",
+                    "502",
+                    "504",
+                    "429",  # Rate limit
                     "connection",
                     "temporary",
+                    "reset",  # Connection reset
                 ]
             )
 

@@ -144,7 +144,12 @@ class ZoteroItemCreator:
                 ),
                 description=f"Search DOI '{doi[:30]}'",
             )
-            if existing_by_doi and len(existing_by_doi) > 0:
+            # Handle HTTP status codes returned as int
+            if isinstance(existing_by_doi, int):
+                logger.warning(
+                    f"  → DOI search returned HTTP status {existing_by_doi}"
+                )
+            elif existing_by_doi and len(existing_by_doi) > 0:
                 logger.debug(f"  → Found duplicate by DOI: {doi}")
                 return "doi"
 
@@ -155,7 +160,12 @@ class ZoteroItemCreator:
             ),
             description=f"Search title '{title[:30]}'",
         )
-        if existing_by_title and len(existing_by_title) > 0:
+        # Handle HTTP status codes returned as int
+        if isinstance(existing_by_title, int):
+            logger.warning(
+                f"  → Title search returned HTTP status {existing_by_title}"
+            )
+        elif existing_by_title and len(existing_by_title) > 0:
             # Check for exact title match (case-insensitive)
             for existing_item in existing_by_title:
                 if existing_item.title and existing_item.title.lower() == title.lower():
@@ -171,7 +181,12 @@ class ZoteroItemCreator:
                 ),
                 description=f"Search URL '{url[:30]}'",
             )
-            if existing_by_url and len(existing_by_url) > 0:
+            # Handle HTTP status codes returned as int
+            if isinstance(existing_by_url, int):
+                logger.warning(
+                    f"  → URL search returned HTTP status {existing_by_url}"
+                )
+            elif existing_by_url and len(existing_by_url) > 0:
                 logger.debug(f"  → Found duplicate by URL: {url}")
                 return "url"
 

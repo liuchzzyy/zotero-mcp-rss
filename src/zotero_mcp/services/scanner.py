@@ -49,13 +49,18 @@ class GlobalScanner:
             return False
 
         # Check for PDF attachment
-        children = await self.data_service.get_item_children(item.key)
-        has_pdf = any(
-            child.get("data", {}).get("contentType") == "application/pdf"
-            for child in children
-        )
-
-        return has_pdf
+        try:
+            children = await self.data_service.get_item_children(item.key)
+            has_pdf = any(
+                child.get("data", {}).get("contentType") == "application/pdf"
+                for child in children
+            )
+            return has_pdf
+        except Exception as e:
+            # Handle 400 error: "/children can only be called on PDF, EPUB, and snapshot attachments"
+            # If we can't get children, the item likely doesn't have a PDF attachment
+            logger.debug(f"  ⊘ Skipping {item.key}: cannot fetch children ({e})")
+            return False
 
     async def scan_and_process(
         self,
