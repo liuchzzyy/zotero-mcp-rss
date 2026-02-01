@@ -256,79 +256,79 @@ def _make_item(title: str, description: str | None = None) -> RSSItem:
     )
 
 
-class TestPaperFilterCLI:
-    """Tests for PaperFilter.filter_with_cli and related methods."""
+class TestRSSFilterCLI:
+    """Tests for RSSFilter.filter_with_cli and related methods."""
 
     @pytest.fixture
-    def paper_filter(self):
+    def rss_filter(self):
         return PaperFilter()
 
-    def test_build_papers_text(self, paper_filter):
+    def test_build_papers_text(self, rss_filter):
         """Test that _build_papers_text formats papers correctly."""
         items = [
             _make_item("Paper A", "Abstract A"),
             _make_item("Paper B", None),
             _make_item("Paper C", "Abstract C"),
         ]
-        text = paper_filter._build_papers_text(items)
+        text = rss_filter._build_papers_text(items)
         assert "### [0] Paper A" in text
         assert "Abstract A" in text
         assert "### [1] Paper B" in text
         assert "### [2] Paper C" in text
 
-    def test_build_papers_text_truncates_long_abstract(self, paper_filter):
+    def test_build_papers_text_truncates_long_abstract(self, rss_filter):
         """Test that long abstracts are truncated to 500 chars."""
         long_abstract = "x" * 600
         items = [_make_item("Long Paper", long_abstract)]
-        text = paper_filter._build_papers_text(items)
+        text = rss_filter._build_papers_text(items)
         assert "..." in text
         # Should contain truncated version, not full 600 chars
         assert "x" * 501 not in text
 
-    def test_parse_cli_filter_output_valid_json(self, paper_filter):
+    def test_parse_cli_filter_output_valid_json(self, rss_filter):
         """Test parsing valid JSON output."""
         output = '{"relevant": [0, 2, 4]}'
-        result = paper_filter._parse_cli_filter_output(output, batch_size=5)
+        result = rss_filter._parse_cli_filter_output(output, batch_size=5)
         assert result == {0, 2, 4}
 
-    def test_parse_cli_filter_output_markdown_block(self, paper_filter):
+    def test_parse_cli_filter_output_markdown_block(self, rss_filter):
         """Test parsing JSON inside markdown code block."""
         output = 'Some text\n```json\n{"relevant": [1, 3]}\n```\nMore text'
-        result = paper_filter._parse_cli_filter_output(output, batch_size=5)
+        result = rss_filter._parse_cli_filter_output(output, batch_size=5)
         assert result == {1, 3}
 
-    def test_parse_cli_filter_output_embedded_json(self, paper_filter):
+    def test_parse_cli_filter_output_embedded_json(self, rss_filter):
         """Test parsing JSON embedded in other text."""
         output = 'Based on analysis, {"relevant": [0, 5]} are related.'
-        result = paper_filter._parse_cli_filter_output(output, batch_size=10)
+        result = rss_filter._parse_cli_filter_output(output, batch_size=10)
         assert result == {0, 5}
 
-    def test_parse_cli_filter_output_empty_relevant(self, paper_filter):
+    def test_parse_cli_filter_output_empty_relevant(self, rss_filter):
         """Test parsing empty relevant list."""
         output = '{"relevant": []}'
-        result = paper_filter._parse_cli_filter_output(output, batch_size=5)
+        result = rss_filter._parse_cli_filter_output(output, batch_size=5)
         assert result == set()
 
-    def test_parse_cli_filter_output_invalid(self, paper_filter):
+    def test_parse_cli_filter_output_invalid(self, rss_filter):
         """Test graceful handling of unparseable output."""
         output = "Sorry, I cannot process this request."
-        result = paper_filter._parse_cli_filter_output(output, batch_size=5)
+        result = rss_filter._parse_cli_filter_output(output, batch_size=5)
         assert result == set()
 
-    def test_validate_indices_filters_out_of_range(self, paper_filter):
+    def test_validate_indices_filters_out_of_range(self, rss_filter):
         """Test that out-of-range indices are filtered."""
-        result = paper_filter._validate_indices([0, 2, 10, -1, 4], batch_size=5)
+        result = rss_filter._validate_indices([0, 2, 10, -1, 4], batch_size=5)
         assert result == {0, 2, 4}
 
-    def test_validate_indices_handles_non_int(self, paper_filter):
+    def test_validate_indices_handles_non_int(self, rss_filter):
         """Test that non-integer values are handled gracefully."""
-        result = paper_filter._validate_indices([0, "abc", 2, None], batch_size=5)
+        result = rss_filter._validate_indices([0, "abc", 2, None], batch_size=5)
         assert result == {0, 2}
 
     @patch.dict("os.environ", {"RSS_PROMPT": "I study batteries"})
-    async def test_filter_with_cli_empty_items(self, paper_filter):
+    async def test_filter_with_cli_empty_items(self, rss_filter):
         """Test filter_with_cli with empty item list."""
-        relevant, irrelevant, keywords = await paper_filter.filter_with_cli([])
+        relevant, irrelevant, keywords = await rss_filter.filter_with_cli([])
         assert relevant == []
         assert irrelevant == []
         assert keywords == []
@@ -336,9 +336,7 @@ class TestPaperFilterCLI:
     @patch.dict("os.environ", {"RSS_PROMPT": "I study zinc batteries"})
     @patch("zotero_mcp.clients.llm.cli.shutil.which", return_value="/usr/bin/claude")
     @patch("asyncio.create_subprocess_exec")
-    async def test_filter_with_cli_basic_flow(
-        self, mock_exec, mock_which, paper_filter
-    ):
+    async def test_filter_with_cli_basic_flow(self, mock_exec, mock_which, rss_filter):
         """Test basic filter_with_cli flow with mocked CLI."""
         items = [
             _make_item("Zinc battery research", "About zinc batteries"),
@@ -363,7 +361,7 @@ class TestPaperFilterCLI:
         mock_process.wait = AsyncMock(return_value=0)
         mock_exec.return_value = mock_process
 
-        relevant, irrelevant, keywords = await paper_filter.filter_with_cli(items)
+        relevant, irrelevant, keywords = await rss_filter.filter_with_cli(items)
 
         assert len(relevant) == 2
         assert relevant[0].title == "Zinc battery research"
@@ -375,10 +373,10 @@ class TestPaperFilterCLI:
     @patch.dict("os.environ", {"RSS_PROMPT": "I study batteries"})
     @patch("zotero_mcp.clients.llm.cli.shutil.which", return_value="/usr/bin/claude")
     @patch("asyncio.create_subprocess_exec")
-    async def test_filter_with_cli_batching(self, mock_exec, mock_which, paper_filter):
+    async def test_filter_with_cli_batching(self, mock_exec, mock_which, rss_filter):
         """Test that items are split into batches when exceeding BATCH_SIZE."""
         # Override batch size for testing
-        paper_filter.BATCH_SIZE = 2
+        rss_filter.BATCH_SIZE = 2
 
         items = [_make_item(f"Paper {i}", f"Abstract {i}") for i in range(5)]
 
@@ -416,7 +414,7 @@ class TestPaperFilterCLI:
 
         mock_exec.side_effect = lambda *args, **kwargs: make_mock_process()
 
-        relevant, irrelevant, _ = await paper_filter.filter_with_cli(items)
+        relevant, irrelevant, _ = await rss_filter.filter_with_cli(items)
 
         # Papers 0, 3, 4 should be relevant
         assert len(relevant) == 3
@@ -427,11 +425,11 @@ class TestPaperFilterCLI:
 
     @patch.dict("os.environ", {"RSS_PROMPT": "I study batteries"})
     @patch("zotero_mcp.clients.llm.cli.shutil.which", return_value=None)
-    async def test_filter_with_cli_error_handling(self, mock_which, paper_filter):
+    async def test_filter_with_cli_error_handling(self, mock_which, rss_filter):
         """Test that CLI errors are handled gracefully."""
         items = [_make_item("Paper A"), _make_item("Paper B")]
 
         # CLI not found → should return all as irrelevant
-        relevant, irrelevant, _ = await paper_filter.filter_with_cli(items)
+        relevant, irrelevant, _ = await rss_filter.filter_with_cli(items)
         assert len(relevant) == 0
         assert len(irrelevant) == 2

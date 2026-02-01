@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance for Claude Code (claude.ai/code) when working with this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
@@ -15,6 +15,16 @@ Zotero MCP is a Model Context Protocol (MCP) server that connects AI assistants 
 uv sync --all-groups                 # Install all dependencies
 uv run zotero-mcp serve             # Run MCP server
 uv run zotero-mcp setup             # Configure Zotero MCP
+
+# Semantic Search
+uv run zotero-mcp update-db         # Update semantic search database (fast, metadata-only)
+uv run zotero-mcp update-db --fulltext  # Update with full-text extraction
+uv run zotero-mcp db-status         # Check database status
+
+# RSS & Gmail
+uv run zotero-mcp rss fetch         # Fetch RSS feeds
+uv run zotero-mcp gmail process     # Process Gmail alerts
+uv run zotero-mcp scan              # Scan library for unprocessed papers
 
 # Testing
 uv run pytest                       # Run all tests
@@ -108,6 +118,12 @@ Output formatters (Markdown, JSON, BibTeX)
 6. **Config Priority**: Environment vars > `~/.config/zotero-mcp/config.json` > defaults
 7. **Absolute Imports**: Always use absolute imports (`from zotero_mcp.services import ...`)
 
+### Data Flow Patterns
+
+- **Tools → Services → Clients**: Tools delegate to Services, which coordinate multiple Clients
+- **Backend Selection**: `DataAccessService` auto-selects Local DB (fast reads) vs Zotero API (writes/fallback)
+- **Workflow Checkpointing**: `WorkflowService` uses `CheckpointService` for resume-capable batch operations
+
 ## Code Style
 
 - **Linter/Formatter**: Ruff
@@ -132,9 +148,17 @@ Output formatters (Markdown, JSON, BibTeX)
 **Lint errors**: Run `uv run ruff check --fix`
 **Debug mode**: Set `DEBUG=true` in `.env` or environment
 
+### Common Gotchas
+
+- **Zotero local API**: Requires Zotero 7+ desktop running with "Allow other applications to communicate" enabled
+- **Semantic search empty**: Run `zotero-mcp update-db` to initialize database
+- **API timeout**: Default is 45s; may need adjustment for slow networks
+- **Creator name errors**: Long author lists are auto-truncated to avoid HTTP 413
+
 ## Additional Documentation
 
 - `README.md` - User-facing documentation
-- `CHANGELOG.md` - Version history
-- `CONTRIBUTING.md` - Contribution guidelines
+- `CONTRIBUTING.md` - Contribution guidelines (Conventional Commits, PR workflow)
 - `.env.example` - Configuration template with detailed comments
+- `docs/GITHUB_ACTIONS_GUIDE.md` - Workflow automation guide
+- `docs/GMAIL-SETUP.md` - Gmail OAuth2 setup
