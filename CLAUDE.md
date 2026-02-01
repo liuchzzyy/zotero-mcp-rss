@@ -30,26 +30,83 @@ uv run ty check                     # Type check
 
 ## Architecture
 
-Layered architecture with strict separation of concerns:
+Layered architecture with strict separation of concerns, organized by domain:
 
-- **Entry** (`server.py`, `cli.py`) - FastMCP initialization, CLI commands
-- **Tools** (`tools/`) - Thin MCP tool wrappers (`@mcp.tool`) that delegate to Services
-- **Services** (`services/`) - Business logic layer
-  - `DataAccessService` - Central facade for backends (Local DB / Zotero API)
+### Entry Layer
+- `server.py` - FastMCP server initialization
+- `cli.py` - Command-line interface
+
+### Tools Layer (`tools/`)
+Thin MCP tool wrappers (`@mcp.tool`) that delegate to Services:
+- `annotations.py` - PDF annotation and note tools
+- `batch.py` - Batch operation tools
+- `collections.py` - Collection management tools
+- `database.py` - Semantic search database tools
+- `items.py` - Item CRUD tools
+- `rss.py` - RSS feed tools
+- `search.py` - Search tools (keyword, tag, advanced, semantic)
+- `workflow.py` - Batch analysis workflow tools
+
+### Services Layer (`services/`)
+Business logic organized by domain:
+
+**Domain Services:**
+- `zotero/` - Core Zotero operations
+  - `ItemService` - CRUD operations, collections, tags
+  - `MetadataService` - DOI lookup via Crossref/OpenAlex
+  - `SearchService` - Search and semantic search
   - `SemanticSearch` - ChromaDB vector search
-  - `WorkflowService` - Batch analysis with checkpoint/resume
-  - `RSSService` / `GmailService` - Feed and email processing
-- **Clients** (`clients/`) - Low-level external service interfaces (Zotero API, ChromaDB, LLMs)
-- **Models** (`models/`) - Pydantic models for type-safe data exchange
-- **Formatters** (`formatters/`) - Output formatters (Markdown, JSON, BibTeX)
-- **Utils** (`utils/`) - Shared utilities (config, logging, templates)
+- `rss/` - RSS feed processing
+  - `RSSFetcher` - Fetch and parse RSS feeds
+  - `RSSService` - Orchestrate fetch → filter → import pipeline
+- `gmail/` - Gmail email processing
+  - `GmailFetcher` - Fetch emails and parse HTML
+  - `GmailService` - Orchestrate fetch → filter → import → delete pipeline
+- `workflow.py` - Batch analysis with checkpoint/resume
+- `data_access.py` - Central facade for backends (Local DB / Zotero API)
+
+**Common Services:**
+- `common/ai_filter.py` - AI-powered keyword filtering
+- `common/zotero_item_creator.py` - Unified item creation logic
+- `common/retry.py` - Retry with exponential backoff
+
+### Clients Layer (`clients/`)
+External service clients organized by domain:
+- `zotero/` - Zotero API, local DB, Better BibTeX
+- `database/` - ChromaDB vector database
+- `metadata/` - Crossref, OpenAlex APIs
+- `llm/` - LLM providers (DeepSeek, OpenAI, Gemini, Claude CLI)
+- `gmail/` - Gmail API
+
+### Models Layer (`models/`)
+Pydantic models organized by domain:
+- `common/` - Shared base models (BaseInput, BaseResponse, SearchResponse, etc.)
+- `zotero/` - Item/collection/annotation input models
+- `workflow/` - Batch operation and analysis models
+- `search/` - Search query models
+- `ingestion/` - RSS/Gmail ingestion models
+- `database/` - Semantic search models
+
+### Utils Layer (`utils/`)
+Utility functions organized by purpose:
+- `config/` - Configuration and logging
+- `data/` - Data mapping and templates
+- `formatting/` - Text formatting and helpers
+- `async_helpers/` - Async operations and caching
+- `system/` - System utilities and errors
+
+### Formatters Layer (`formatters/`)
+Output formatters (Markdown, JSON, BibTeX)
 
 ### Key Patterns
 
-1. **Service Layer First**: Always use `DataAccessService` instead of calling clients directly
-2. **Async Everywhere**: All I/O must be async (`async/await`)
-3. **Type Safety**: Use Pydantic models for all complex data structures
-4. **Config Priority**: Environment vars > `~/.config/zotero-mcp/config.json` > defaults
+1. **Layered Architecture**: Entry → Tools → Services → Clients
+2. **Domain Organization**: Each layer organized by domain/purpose
+3. **Service Layer First**: Always use services, never call clients directly from tools
+4. **Async Everywhere**: All I/O must be async (`async/await`)
+5. **Type Safety**: Use Pydantic models for all complex data structures
+6. **Config Priority**: Environment vars > `~/.config/zotero-mcp/config.json` > defaults
+7. **Absolute Imports**: Always use absolute imports (`from zotero_mcp.services import ...`)
 
 ## Code Style
 

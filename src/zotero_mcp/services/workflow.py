@@ -21,18 +21,18 @@ from zotero_mcp.services.data_access import get_data_service
 from zotero_mcp.services.note_parser import get_structured_note_parser
 from zotero_mcp.services.note_renderer import get_structured_note_renderer
 from zotero_mcp.utils.async_helpers.batch_loader import BatchLoader
-from zotero_mcp.utils.formatting.beautify import beautify_ai_note
-from zotero_mcp.utils.formatting.helpers import format_creators
 from zotero_mcp.utils.config.logging import (
     get_logger,
     log_task_end,
     log_task_start,
 )
-from zotero_mcp.utils.formatting.markdown import markdown_to_html
 from zotero_mcp.utils.data.templates import (
     DEFAULT_ANALYSIS_TEMPLATE_JSON,
     get_analysis_questions,
 )
+from zotero_mcp.utils.formatting.beautify import beautify_ai_note
+from zotero_mcp.utils.formatting.helpers import format_creators
+from zotero_mcp.utils.formatting.markdown import markdown_to_html
 
 logger = get_logger(__name__)
 

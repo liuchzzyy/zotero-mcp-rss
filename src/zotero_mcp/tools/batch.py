@@ -5,12 +5,12 @@ Batch operation tools for Zotero MCP.
 from fastmcp import Context, FastMCP
 from mcp.types import ToolAnnotations
 
+from zotero_mcp.models.common import ItemDetailResponse
 from zotero_mcp.models.workflow import (
     BatchGetMetadataInput,
     BatchGetMetadataResponse,
     BatchItemResult,
 )
-from zotero_mcp.models.common import ItemDetailResponse
 from zotero_mcp.services import get_data_service
 from zotero_mcp.utils.formatting.helpers import format_creators
 
