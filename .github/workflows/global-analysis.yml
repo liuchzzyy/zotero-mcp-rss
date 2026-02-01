@@ -17,6 +17,8 @@ on:
           - '20'
           - '50'
           - '100'
+          - '500'
+          - '1000'
       target_collection:
         description: 'Target collection for processed items'
         required: false

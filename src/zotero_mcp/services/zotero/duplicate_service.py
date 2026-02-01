@@ -49,6 +49,7 @@ class DuplicateDetectionService:
     async def find_and_remove_duplicates(
         self,
         collection_key: str | None = None,
+        limit: int = 1000,
         dry_run: bool = False,
     ) -> dict[str, Any]:
         """
@@ -56,6 +57,7 @@ class DuplicateDetectionService:
 
         Args:
             collection_key: Optional collection key to limit scan
+            limit: Maximum number of items to scan (default: 1000)
             dry_run: If True, don't actually delete items
 
         Returns:
@@ -68,7 +70,7 @@ class DuplicateDetectionService:
         logger.info("Starting duplicate detection...")
 
         # Get all items
-        items = await self._get_items_to_scan(collection_key)
+        items = await self._get_items_to_scan(collection_key, limit)
         logger.info(f"Scanning {len(items)} items for duplicates...")
 
         # Find duplicate groups
@@ -312,26 +314,50 @@ class DuplicateDetectionService:
         return removed_count
 
     async def _get_items_to_scan(
-        self, collection_key: str | None = None
+        self, collection_key: str | None = None, limit: int = 1000
     ) -> list[dict[str, Any]]:
         """
         Get items to scan for duplicates.
 
         Args:
             collection_key: Optional collection key to limit scan
+            limit: Maximum number of items to retrieve
 
         Returns:
             List of item dicts
         """
         if collection_key:
             # Get items from specific collection
-            return await self.item_service.get_collection_items(collection_key)
+            items = await self.item_service.get_collection_items(
+                collection_key, limit=limit
+            )
+            # Convert SearchResultItem to dict format expected by duplicate detection
+            return [
+                {
+                    "key": item.key,
+                    "data": {
+                        "DOI": item.doi,
+                        "title": item.title,
+                        "url": item.url,
+                        "creators": [],
+                        "abstractNote": item.abstractNote,
+                        "publicationTitle": item.publicationTitle,
+                        "date": item.date,
+                        "volume": item.volume,
+                        "issue": item.issue,
+                        "pages": item.pages,
+                        "tags": [{"tag": tag} for tag in (item.tags or [])],
+                    },
+                    "children": [],
+                }
+                for item in items
+            ]
         else:
             # Get all items from library
             # This is a simplified version - should implement pagination
-            return await self._get_all_items()
+            return await self._get_all_items(limit)
 
-    async def _get_all_items(self) -> list[dict[str, Any]]:
+    async def _get_all_items(self, limit: int = 1000) -> list[dict[str, Any]]:
         """Get all items from the library."""
         # TODO: Implement proper pagination
         # For now, use empty list - user should specify collection
@@ -345,7 +371,7 @@ class DuplicateDetectionService:
             loop = asyncio.get_event_loop()
             items = await loop.run_in_executor(
                 None,
-                lambda: self.item_service.api_client.client.top(limit=1000)
+                lambda: self.item_service.api_client.client.top(limit=limit)
             )
             return items if items else []
         except Exception as e:
