@@ -311,6 +311,12 @@ def main():
         help="Limit to specific collection (by key)",
     )
     dedup_parser.add_argument(
+        "--limit",
+        type=int,
+        default=1000,
+        help="Maximum number of items to scan (default: 1000)",
+    )
+    dedup_parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Preview duplicates without deleting",
@@ -704,6 +710,7 @@ def main():
             try:
                 result = await dedup_service.find_and_remove_duplicates(
                     collection_key=args.collection,
+                    limit=args.limit,
                     dry_run=args.dry_run,
                 )
                 print(f"\n=== Deduplication Results ===")

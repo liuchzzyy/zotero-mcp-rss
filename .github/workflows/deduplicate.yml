@@ -7,6 +7,15 @@ on:
 
   workflow_dispatch:
     inputs:
+      scan_limit:
+        description: 'Maximum number of items to scan'
+        required: false
+        default: '1000'
+        type: choice
+        options:
+          - '100'
+          - '500'
+          - '1000'
       dry_run:
         description: 'Preview mode - do not delete duplicates'
         required: false
@@ -63,6 +72,8 @@ jobs:
           echo "========================================"
 
           ARGS=""
+          ARGS="$ARGS --limit ${{ github.event.inputs.scan_limit || '1000' }}"
+
           if [ -n "${{ github.event.inputs.collection }}" ]; then
             ARGS="$ARGS --collection ${{ github.event.inputs.collection }}"
           fi
@@ -100,6 +111,7 @@ jobs:
           echo "## Deduplication Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Run Number**: ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Scan Limit**: ${{ github.event.inputs.scan_limit || '1000' }} items" >> $GITHUB_STEP_SUMMARY
           echo "- **Collection**: ${{ github.event.inputs.collection || 'All' }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Dry Run**: ${{ github.event.inputs.dry_run || 'false' }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
