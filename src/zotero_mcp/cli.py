@@ -197,7 +197,7 @@ def main():
         "fetch", help="Fetch and import RSS feeds"
     )
     rss_fetch_parser.add_argument(
-        "--opml", default="RSS/RSS_official.opml", help="Path to OPML file"
+        "--opml", default="src/RSS/RSS_official.opml", help="Path to OPML file"
     )
     rss_fetch_parser.add_argument(
         "--prompt",
@@ -515,8 +515,8 @@ def main():
 
             # Apply env var defaults for CLI args not explicitly provided
             rss_config = get_rss_config()
-            if args.opml == "RSS/RSS_official.opml":
-                args.opml = rss_config.get("opml_path", "RSS/RSS_official.opml")
+            if args.opml == "src/RSS/RSS_official.opml":
+                args.opml = rss_config.get("opml_path", "src/RSS/RSS_official.opml")
                 print(f"Using RSS_OPML_PATH: {args.opml}")
             if args.collection == "00_INBOXS":
                 config_collection = rss_config.get("collection", "00_INBOXS")

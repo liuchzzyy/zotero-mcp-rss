@@ -424,7 +424,7 @@ def get_rss_config() -> dict[str, Any]:
 
     return {
         "opml_path": env.get(
-            "RSS_OPML_PATH", os.getenv("RSS_OPML_PATH", "RSS/RSS_official.opml")
+            "RSS_OPML_PATH", os.getenv("RSS_OPML_PATH", "src/RSS/RSS_official.opml")
         ),
         "collection": env.get(
             "RSS_COLLECTION", os.getenv("RSS_COLLECTION", "00_INBOXS")

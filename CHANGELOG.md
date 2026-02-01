@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### RSS Feed Integration
 - **Automated RSS Fetching**: New `fetch-rss` GitHub Actions job scheduled daily at 5:00 AM CST.
-- **OPML Support**: Ability to import feeds from OPML files (`RSS/RSS_official.opml`).
+- **OPML Support**: Ability to import feeds from OPML files (`src/RSS/RSS_official.opml`).
 - **Auto-Import**: Automatically imports new articles (last 7 days) to Zotero staging collection.
 - **Deduplication**: Prevents duplicate imports based on article URL.
 - **New Tools**:

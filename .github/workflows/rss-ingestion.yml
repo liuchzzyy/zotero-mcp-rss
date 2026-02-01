@@ -10,7 +10,7 @@ on:
       opml_path:
         description: 'Path to OPML file with RSS feeds'
         required: false
-        default: 'RSS/RSS_official.opml'
+        default: 'src/RSS/RSS_official.opml'
         type: string
       collection_name:
         description: 'Target Zotero collection name (priority: 00_INBOXS > others)'
@@ -90,7 +90,7 @@ jobs:
           echo "Starting RSS ingestion at $(date)"
           echo "========================================"
 
-          ARGS="--opml ${{ github.event.inputs.opml_path || 'RSS/RSS_official.opml' }}"
+          ARGS="--opml ${{ github.event.inputs.opml_path || 'src/RSS/RSS_official.opml' }}"
           ARGS="$ARGS --collection ${{ github.event.inputs.collection_name || '00_INBOXS' }}"
           ARGS="$ARGS --days ${{ github.event.inputs.days || '15' }}"
 
@@ -143,7 +143,7 @@ jobs:
           echo "## RSS Ingestion Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Run Number**: ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **OPML Path**: ${{ github.event.inputs.opml_path || 'RSS/RSS_official.opml' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **OPML Path**: ${{ github.event.inputs.opml_path || 'src/RSS/RSS_official.opml' }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Collection**: ${{ github.event.inputs.collection_name || '00_INBOXS' }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Days Back**: ${{ github.event.inputs.days || '15' }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Dry Run**: ${{ github.event.inputs.dry_run || 'false' }}" >> $GITHUB_STEP_SUMMARY
