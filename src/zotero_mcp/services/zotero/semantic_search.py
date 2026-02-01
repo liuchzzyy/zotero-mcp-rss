@@ -628,7 +628,7 @@ async def update_database(
         None,
         lambda: searcher.update_database(
             force_full_rebuild=force_rebuild,
-            limit=limit,
+            treated_limit=limit,
             extract_fulltext=include_fulltext,
         ),
     )
