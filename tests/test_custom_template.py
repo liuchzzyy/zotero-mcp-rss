@@ -73,6 +73,7 @@ async def test_workflow_service_propagates_template():
 
     mock_llm_client = MagicMock()
     mock_llm_client.analyze_paper = AsyncMock(return_value="# Note")
+    mock_llm_client.provider = "deepseek"  # Required for capability checks
 
     with (
         patch(
