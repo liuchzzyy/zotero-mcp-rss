@@ -751,6 +751,7 @@ def main():
                 print(f"\n=== Deduplication Results ===")
                 print(f"  Total scanned: {result['total_scanned']}")
                 print(f"  Duplicates found: {result['duplicates_found']}")
+                print(f"  Cross-folder copies (skipped): {result.get('cross_folder_copies', 0)}")
                 print(f"  Duplicates removed: {result['duplicates_removed']}")
                 if result.get('dry_run'):
                     print(f"  Mode: DRY RUN (no items were deleted)")

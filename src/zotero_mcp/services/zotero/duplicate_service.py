@@ -65,8 +65,9 @@ class DuplicateDetectionService:
         Returns:
             Dict with statistics:
                 - total_scanned: int
-                - duplicates_found: int
+                - duplicates_found: int (items with different metadata, true duplicates)
                 - duplicates_removed: int
+                - cross_folder_copies: int (items with identical metadata, skipped)
                 - groups: list of DuplicateGroup
         """
         logger.info("Starting duplicate detection...")
@@ -75,6 +76,7 @@ class DuplicateDetectionService:
         duplicate_groups = []
         total_scanned = 0
         total_duplicates_found = 0
+        cross_folder_copies = 0  # Track groups with identical metadata (skipped)
 
         if collection_key:
             # Single collection mode
@@ -117,13 +119,17 @@ class DuplicateDetectionService:
                 )
 
                 # Add new groups to the cumulative list
-                duplicate_groups.extend(new_groups)
+                duplicate_groups.extend(new_groups["groups"])
 
-                new_duplicates = sum(len(g.duplicate_keys) for g in new_groups)
+                # Track cross-folder copies (items with identical metadata)
+                cross_folder_copies += new_groups["cross_folder_copies"]
+
+                new_duplicates = sum(len(g.duplicate_keys) for g in new_groups["groups"])
                 total_duplicates_found += new_duplicates
 
                 logger.info(
                     f"  Batch: {len(batch_items)} items, {new_duplicates} new duplicates, "
+                    f"{new_groups['cross_folder_copies']} cross-folder copies skipped, "
                     f"{total_duplicates_found} total duplicates found"
                 )
 
@@ -186,14 +192,18 @@ class DuplicateDetectionService:
                     )
 
                     # Add new groups to the cumulative list
-                    duplicate_groups.extend(new_groups)
+                    duplicate_groups.extend(new_groups["groups"])
 
-                    new_duplicates = sum(len(g.duplicate_keys) for g in new_groups)
+                    # Track cross-folder copies
+                    cross_folder_copies += new_groups["cross_folder_copies"]
+
+                    new_duplicates = sum(len(g.duplicate_keys) for g in new_groups["groups"])
                     total_duplicates_found += new_duplicates
 
                     logger.info(
                         f"  Collection '{coll_name}': {len(batch_items)} items, "
-                        f"{new_duplicates} new duplicates, {total_duplicates_found} total"
+                        f"{new_duplicates} new duplicates, {new_groups['cross_folder_copies']} cross-folder copies, "
+                        f"{total_duplicates_found} total"
                     )
 
                     # If we got fewer items than scan_limit, we've exhausted this collection
@@ -223,6 +233,7 @@ class DuplicateDetectionService:
                 "total_scanned": total_scanned,
                 "duplicates_found": total_duplicates_found,
                 "duplicates_removed": 0,
+                "cross_folder_copies": cross_folder_copies,
                 "groups": duplicate_groups,
                 "dry_run": True,
             }
@@ -236,15 +247,20 @@ class DuplicateDetectionService:
             "total_scanned": total_scanned,
             "duplicates_found": total_duplicates_found,
             "duplicates_removed": duplicates_removed,
+            "cross_folder_copies": cross_folder_copies,
             "groups": duplicate_groups,
             "dry_run": False,
         }
 
     async def _find_duplicate_groups(
         self, items: list[dict[str, Any]], existing_groups: list[DuplicateGroup] | None = None
-    ) -> list[DuplicateGroup]:
+    ) -> dict[str, Any]:
         """
         Find groups of duplicate items.
+
+        Returns dict with:
+            - groups: list of DuplicateGroup (only items with different metadata)
+            - cross_folder_copies: int (count of skipped groups with identical metadata)
 
         Args:
             items: Items to check for duplicates
@@ -258,6 +274,8 @@ class DuplicateDetectionService:
         existing_duplicate_keys = set()
         for g in all_duplicate_groups:
             existing_duplicate_keys.update(g.duplicate_keys)
+
+        cross_folder_copies = 0  # Track groups with identical metadata (skipped)
 
         # Group by DOI (highest priority)
         doi_groups = defaultdict(list)
@@ -320,7 +338,10 @@ class DuplicateDetectionService:
                 group = self._create_duplicate_group(
                     items_list, match_reason="doi", match_value=doi
                 )
-                duplicate_groups.append(group)
+                if group:  # Only add if metadata differs (not cross-folder copies)
+                    duplicate_groups.append(group)
+                else:
+                    cross_folder_copies += 1
 
         # Title groups
         for title, items_list in title_groups.items():
@@ -328,7 +349,10 @@ class DuplicateDetectionService:
                 group = self._create_duplicate_group(
                     items_list, match_reason="title", match_value=title
                 )
-                duplicate_groups.append(group)
+                if group:  # Only add if metadata differs
+                    duplicate_groups.append(group)
+                else:
+                    cross_folder_copies += 1
 
         # URL groups
         for url, items_list in url_groups.items():
@@ -336,19 +360,42 @@ class DuplicateDetectionService:
                 group = self._create_duplicate_group(
                     items_list, match_reason="url", match_value=url
                 )
-                duplicate_groups.append(group)
+                if group:  # Only add if metadata differs
+                    duplicate_groups.append(group)
+                else:
+                    cross_folder_copies += 1
 
-        return duplicate_groups
+        return {
+            "groups": duplicate_groups,
+            "cross_folder_copies": cross_folder_copies,
+        }
 
     def _create_duplicate_group(
         self, items: list[dict[str, Any]], match_reason: str, match_value: str
-    ) -> DuplicateGroup:
+    ) -> DuplicateGroup | None:
         """
         Create a DuplicateGroup from a list of duplicate items.
+
+        NEW LOGIC:
+        - First checks if items have identical metadata (cross-folder copies)
+        - If all metadata identical, returns None (skip processing)
+        - If metadata differs, treats as duplicates and keeps most complete one
 
         Selects the most complete item as primary (keeps the one with
         attachments, notes, or most metadata).
         """
+        if len(items) < 2:
+            return None
+
+        # Check if all items have identical metadata (cross-folder copies)
+        if self._all_metadata_identical(items):
+            logger.debug(
+                f"  Skipping {len(items)} items with identical {match_reason} "
+                f"(cross-folder copies, not true duplicates)"
+            )
+            return None
+
+        # Metadata differs - these are true duplicates
         # Score each item by completeness
         scored_items = []
         for item in items:
@@ -429,6 +476,103 @@ class DuplicateDetectionService:
             score += len(tags) * 2
 
         return score
+
+    def _all_metadata_identical(self, items: list[dict[str, Any]]) -> bool:
+        """
+        Check if all items have identical metadata (excluding collections and version).
+
+        Used to detect cross-folder copies vs true duplicates.
+
+        Compares key metadata fields:
+        - DOI, title, url (identification)
+        - creators (authors), abstractNote (abstract)
+        - publicationTitle (journal), publisher, date
+        - volume, issue, pages
+        - tags
+
+        Args:
+            items: List of items to compare
+
+        Returns:
+            True if all items have identical metadata, False otherwise
+        """
+        if len(items) < 2:
+            return True
+
+        # Get the first item as reference
+        first_item_data = items[0].get("data", {})
+
+        # Fields to compare (excluding collections and version)
+        comparable_fields = [
+            "DOI", "title", "url",
+            "creators", "abstractNote",
+            "publicationTitle", "publisher", "date",
+            "volume", "issue", "pages",
+            "tags",
+            "journalAbbreviation", "language", "rights",
+            "series", "edition", "place", "extra",
+            "ISSN", "itemType",
+        ]
+
+        # Compare each item with the first
+        for item in items[1:]:
+            item_data = item.get("data", {})
+
+            # Check each comparable field
+            for field in comparable_fields:
+                first_value = first_item_data.get(field)
+                item_value = item_data.get(field)
+
+                # Special handling for creators and tags (lists)
+                if field in ["creators", "tags"]:
+                    if not self._lists_equal(first_value, item_value):
+                        return False
+                # Normal field comparison
+                elif first_value != item_value:
+                    return False
+
+        # All metadata is identical
+        return True
+
+    def _lists_equal(self, list1: list | None, list2: list | None) -> bool:
+        """
+        Compare two lists for equality.
+
+        Handles both dict format (tags: [{"tag": "name"}]) and
+        other list formats.
+
+        Args:
+            list1: First list
+            list2: Second list
+
+        Returns:
+            True if lists are equal, False otherwise
+        """
+        # Handle None values
+        if list1 is None and list2 is None:
+            return True
+        if list1 is None or list2 is None:
+            return False
+
+        # Quick length check
+        if len(list1) != len(list2):
+            return False
+
+        # For tags in dict format [{"tag": "name"}]
+        if list1 and isinstance(list1[0], dict):
+            # Extract tag names for comparison
+            tags1 = sorted([t.get("tag", "") for t in list1])
+            tags2 = sorted([t.get("tag", "") for t in list2])
+            return tags1 == tags2
+
+        # For creators in dict format [{"creatorType": "author", ...}]
+        if list1 and isinstance(list1[0], dict) and "creatorType" in list1[0]:
+            # Compare creators as strings for simplicity
+            # (full comparison would require handling firstName/lastName vs name)
+            return str(list1) == str(list2)
+
+        # Default comparison
+        return list1 == list2
 
     async def _remove_duplicates(
         self, duplicate_groups: list[DuplicateGroup]
