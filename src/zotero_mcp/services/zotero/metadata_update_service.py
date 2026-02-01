@@ -129,8 +129,9 @@ class MetadataUpdateService:
             # Add AI metadata tag
             updated_data = self._add_ai_metadata_tag(updated_data)
 
-            # Prepare full item object for update
-            updated_item = {"key": item_key, "data": updated_data}
+            # Prepare full item object for update - preserve version and other top-level fields
+            updated_item = item.copy()
+            updated_item["data"] = updated_data
 
             # Update the item
             await async_retry_with_backoff(
@@ -169,54 +170,168 @@ class MetadataUpdateService:
         Args:
             collection_key: Optional collection key to limit updates
             scan_limit: Number of items to fetch per batch from API
-            treated_limit: Maximum total number of items to process
+            treated_limit: Maximum total number of items to process (excludes skipped)
 
         Returns:
             Dict with statistics:
-                - total: int (total items processed)
+                - total: int (total items scanned)
                 - updated: int (items successfully updated)
                 - skipped: int (items with no updates needed)
                 - failed: int (items that failed to update)
         """
-        logger.info("Starting metadata update for multiple items...")
+        logger.info(
+            f"Starting metadata update for multiple items "
+            f"(batch: {scan_limit}, max: {treated_limit or 'all'})"
+        )
 
-        # Get items to update with batch scanning
-        if collection_key:
-            items = await self._get_collection_items_batch(
-                collection_key, scan_limit, treated_limit
-            )
-        else:
-            # Get all items (need to implement or use existing method)
-            items = await self._get_all_items(scan_limit, treated_limit)
-
-        total = len(items)
         updated = 0
         skipped = 0
         failed = 0
+        total_processed = 0  # Only counts items that were actually processed
+        total_scanned = 0
 
-        for idx, item in enumerate(items, 1):
-            item_key = item.get("key", "")
-            title = item.get("data", {}).get("title", "Unknown")[:50]
+        if collection_key:
+            # Single collection mode
+            logger.info(f"Scanning collection: {collection_key}")
+            offset = 0
 
-            logger.info(f"[{idx}/{total}] Processing: {title}...")
+            while True:
+                # Check if we've processed enough items
+                if treated_limit and total_processed >= treated_limit:
+                    break
 
-            result = await self.update_item_metadata(item_key)
+                # Fetch batch from API
+                items = await self.item_service.get_collection_items(
+                    collection_key, limit=scan_limit, start=offset
+                )
 
-            if result["success"]:
-                if result["updated"]:
-                    updated += 1
-                else:
-                    skipped += 1
-            else:
-                failed += 1
+                if not items:
+                    break  # No more items
+
+                total_scanned += len(items)
+
+                # Process each item
+                for item in items:
+                    # Check if we've processed enough items
+                    if treated_limit and total_processed >= treated_limit:
+                        break
+
+                    # Quick check: skip if already has AI元数据 tag
+                    existing_tags = item.tags or []
+                    tag_list = [
+                        t.get("tag", "") if isinstance(t, dict) else t
+                        for t in existing_tags
+                    ]
+
+                    if AI_METADATA_TAG in tag_list:
+                        skipped += 1
+                        continue
+
+                    # Process the item
+                    total_processed += 1
+                    result = await self.update_item_metadata(item.key)
+
+                    if result["success"]:
+                        if result["updated"]:
+                            updated += 1
+                        else:
+                            skipped += 1
+                    else:
+                        failed += 1
+
+                # If we got fewer items than scan_limit, we've exhausted the collection
+                if len(items) < scan_limit:
+                    break
+
+                offset += scan_limit
+
+                logger.info(
+                    f"  Progress: {total_processed} processed, {updated} updated, "
+                    f"{skipped} skipped (scanned: {total_scanned})"
+                )
+        else:
+            # Scan all collections in order
+            logger.info("Scanning all collections in name order...")
+            collections = await self.item_service.get_sorted_collections()
+
+            for coll in collections:
+                # Check if we've processed enough items
+                if treated_limit and total_processed >= treated_limit:
+                    break
+
+                coll_key = coll["key"]
+                coll_name = coll.get("data", {}).get("name", "")
+                logger.info(f"Scanning collection: {coll_name}")
+
+                # Keep fetching batches from this collection
+                offset = 0
+                while True:
+                    # Check if we've processed enough items
+                    if treated_limit and total_processed >= treated_limit:
+                        break
+
+                    # Fetch batch from API
+                    items = await self.item_service.get_collection_items(
+                        coll_key, limit=scan_limit, start=offset
+                    )
+
+                    if not items:
+                        break  # No more items in this collection
+
+                    total_scanned += len(items)
+
+                    # Process each item
+                    for item in items:
+                        # Check if we've processed enough items
+                        if treated_limit and total_processed >= treated_limit:
+                            break
+
+                        # Quick check: skip if already has AI元数据 tag
+                        existing_tags = item.tags or []
+                        tag_list = [
+                            t.get("tag", "") if isinstance(t, dict) else t
+                            for t in existing_tags
+                        ]
+
+                        if AI_METADATA_TAG in tag_list:
+                            skipped += 1
+                            continue
+
+                        # Process the item
+                        total_processed += 1
+                        result = await self.update_item_metadata(item.key)
+
+                        if result["success"]:
+                            if result["updated"]:
+                                updated += 1
+                            else:
+                                skipped += 1
+                        else:
+                            failed += 1
+
+                    # If we got fewer items than scan_limit, we've exhausted this collection
+                    if len(items) < scan_limit:
+                        break
+
+                    offset += scan_limit
+
+                logger.info(
+                    f"  Collection '{coll_name}': {total_processed} processed, "
+                    f"{updated} updated, {skipped} skipped"
+                )
+
+                # Early exit if we've processed enough
+                if treated_limit and total_processed >= treated_limit:
+                    logger.info(f"Reached treated_limit ({treated_limit}), stopping scan")
+                    break
 
         logger.info(
             f"Metadata update complete: {updated} updated, "
-            f"{skipped} skipped, {failed} failed"
+            f"{skipped} skipped, {failed} failed (scanned: {total_scanned})"
         )
 
         return {
-            "total": total,
+            "total": total_scanned,
             "updated": updated,
             "skipped": skipped,
             "failed": failed,
@@ -380,21 +495,19 @@ class MetadataUpdateService:
         """Add AI元数据 tag to item."""
         updated = item_data.copy()
 
-        # Get existing tags
+        # Get existing tags - always convert to dict format [{"tag": "name"}, ...]
         existing_tags = updated.get("tags", [])
         if isinstance(existing_tags[0], dict) if existing_tags else False:
-            # Tags are in dict format: [{"tag": "name"}, ...]
+            # Tags are already in dict format
             tag_list = [t.get("tag", "") for t in existing_tags]
         else:
-            # Tags are in string format: ["tag1", "tag2"]
+            # Tags are in string format - convert to dict format
+            existing_tags = [{"tag": tag} for tag in existing_tags]
             tag_list = existing_tags
 
         # Add AI元数据 tag if not present
         if AI_METADATA_TAG not in tag_list:
-            if isinstance(existing_tags[0], dict) if existing_tags else False:
-                existing_tags.append({"tag": AI_METADATA_TAG})
-            else:
-                existing_tags.append(AI_METADATA_TAG)
+            existing_tags.append({"tag": AI_METADATA_TAG})
             updated["tags"] = existing_tags
 
         return updated
@@ -422,31 +535,49 @@ class MetadataUpdateService:
             coll_name = coll.get("data", {}).get("name", "")
             logger.info(f"Scanning collection: {coll_name}")
 
-            # Get items from this collection
-            items = await self.item_service.get_collection_items(
-                coll_key, limit=scan_limit
-            )
+            # Keep fetching batches from this collection until treated_limit or exhausted
+            offset = 0
+            collection_count = 0
+            while True:
+                # Check if we've reached the treated_limit
+                if treated_limit and len(all_items) >= treated_limit:
+                    break
 
-            # Filter duplicates and convert to dict
-            for item in items:
-                if item.key not in seen_keys:
-                    seen_keys.add(item.key)
-                    all_items.append(
-                        {
-                            "key": item.key,
-                            "data": {
-                                "title": item.title,
-                                "DOI": item.doi,
-                                "url": item.url,
-                            },
-                        }
-                    )
+                # Fetch batch from API
+                items = await self.item_service.get_collection_items(
+                    coll_key, limit=scan_limit, start=offset
+                )
 
-                    # Check if we've reached the treated_limit
-                    if treated_limit and len(all_items) >= treated_limit:
-                        break
+                if not items:
+                    break  # No more items in this collection
 
-            logger.info(f"  Collection '{coll_name}': {len(items)} items")
+                # Filter duplicates and convert to dict
+                for item in items:
+                    if item.key not in seen_keys:
+                        seen_keys.add(item.key)
+                        collection_count += 1
+                        all_items.append(
+                            {
+                                "key": item.key,
+                                "data": {
+                                    "title": item.title,
+                                    "DOI": item.doi,
+                                    "url": item.url,
+                                },
+                            }
+                        )
+
+                        # Check if we've reached the treated_limit
+                        if treated_limit and len(all_items) >= treated_limit:
+                            break
+
+                # If we got fewer items than scan_limit, we've exhausted this collection
+                if len(items) < scan_limit:
+                    break
+
+                offset += scan_limit
+
+            logger.info(f"  Collection '{coll_name}': {collection_count} items")
 
         logger.info(f"Retrieved {len(all_items)} items from all collections")
         return all_items
