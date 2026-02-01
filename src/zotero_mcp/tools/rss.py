@@ -1,7 +1,7 @@
 from fastmcp import Context, FastMCP
 from pydantic import BaseModel, Field
 
-from zotero_mcp.models.rss import RSSFeed
+from zotero_mcp.models.ingestion import RSSFeed
 from zotero_mcp.services.rss.rss_fetcher import RSSFetcher
 
 # Initialize the fetcher globally

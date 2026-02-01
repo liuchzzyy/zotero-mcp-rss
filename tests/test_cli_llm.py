@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zotero_mcp.clients.llm import CLILLMClient, is_cli_llm_available
-from zotero_mcp.models.rss import RSSItem
+from zotero_mcp.models.ingestion import RSSItem
 from zotero_mcp.services.common import PaperFilter
 
 

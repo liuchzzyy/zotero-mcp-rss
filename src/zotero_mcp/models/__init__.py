@@ -1,43 +1,45 @@
-"""
-Pydantic models for Zotero MCP tool inputs and outputs.
-"""
+"""Pydantic models for Zotero MCP tool inputs and outputs."""
 
-from .annotations import (
+from .common import DatabaseStatusResponse, ResponseFormat, SearchResultItem
+from .database import DatabaseStatusInput, UpdateDatabaseInput
+from .ingestion import (
+    EmailItem,
+    EmailMessage,
+    GmailProcessResult,
+    RSSFeed,
+    RSSItem,
+    RSSProcessResult,
+)
+from .search import (
+    AdvancedSearchInput,
+    SearchItemsInput,
+)
+from .workflow import (
+    AnalysisItem,
+    BatchAnalyzeResponse,
+    ItemAnalysisResult,
+    PrepareAnalysisResponse,
+)
+from .zotero import (
     CreateNoteInput,
     GetAnnotationsInput,
-    GetNotesInput,
-    SearchNotesInput,
-)
-from .common import PaginationParams, ResponseFormat
-from .database import (
-    DatabaseStatusInput,
-    UpdateDatabaseInput,
-)
-from .items import (
     GetBundleInput,
     GetChildrenInput,
     GetCollectionsInput,
     GetFulltextInput,
     GetMetadataInput,
-)
-from .search import (
-    AdvancedSearchInput,
-    GetRecentInput,
-    SearchByTagInput,
-    SearchItemsInput,
-    SemanticSearchInput,
+    GetNotesInput,
+    SearchNotesInput,
 )
 
 __all__ = [
     # Common
     "ResponseFormat",
-    "PaginationParams",
+    "SearchResultItem",
+    "DatabaseStatusResponse",
     # Search
     "SearchItemsInput",
-    "SearchByTagInput",
     "AdvancedSearchInput",
-    "SemanticSearchInput",
-    "GetRecentInput",
     # Items
     "GetMetadataInput",
     "GetFulltextInput",
@@ -52,4 +54,16 @@ __all__ = [
     # Database
     "UpdateDatabaseInput",
     "DatabaseStatusInput",
+    # Workflow
+    "AnalysisItem",
+    "ItemAnalysisResult",
+    "PrepareAnalysisResponse",
+    "BatchAnalyzeResponse",
+    # Ingestion
+    "RSSFeed",
+    "RSSItem",
+    "RSSProcessResult",
+    "EmailItem",
+    "EmailMessage",
+    "GmailProcessResult",
 ]

@@ -4,7 +4,7 @@ Pydantic models for database-related tools.
 
 from pydantic import Field
 
-from .common import BaseInput
+from zotero_mcp.models.common import BaseInput
 
 
 class UpdateDatabaseInput(BaseInput):

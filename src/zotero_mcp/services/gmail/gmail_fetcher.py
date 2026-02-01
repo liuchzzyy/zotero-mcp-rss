@@ -6,8 +6,7 @@ import logging
 from bs4 import BeautifulSoup, Tag
 
 from zotero_mcp.clients.gmail import GmailClient
-from zotero_mcp.models.gmail import EmailItem, EmailMessage
-from zotero_mcp.models.rss import RSSItem
+from zotero_mcp.models.ingestion import EmailItem, EmailMessage, RSSItem
 from zotero_mcp.utils.helpers import DOI_PATTERN, clean_title
 
 logger = logging.getLogger(__name__)

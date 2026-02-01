@@ -24,7 +24,7 @@ import tempfile
 
 from openai import OpenAI
 
-from zotero_mcp.models.rss import RSSItem
+from zotero_mcp.models.ingestion import RSSItem
 
 logger = logging.getLogger(__name__)
 

@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import Field, field_validator
 
-from .common import BaseInput, PaginatedInput, SearchMode
+from zotero_mcp.models.common import BaseInput, PaginatedInput, SearchMode
 
 
 class SearchItemsInput(PaginatedInput):

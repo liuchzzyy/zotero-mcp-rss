@@ -22,7 +22,7 @@ from zotero_mcp.models.common import (
     SearchResponse,
     SearchResultItem,
 )
-from zotero_mcp.models.items import (
+from zotero_mcp.models.zotero import (
     GetBundleInput,
     GetChildrenInput,
     GetCollectionsInput,

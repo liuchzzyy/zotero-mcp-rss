@@ -6,7 +6,7 @@ Converts ContentBlock objects into formatted HTML with controlled styling.
 
 import re
 
-from zotero_mcp.models.note_structure import (
+from zotero_mcp.models.zotero import (
     AnyBlock,
     BulletListBlock,
     CodeBlock,

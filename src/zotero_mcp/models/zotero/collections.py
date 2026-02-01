@@ -4,7 +4,7 @@ Pydantic models for collection management tools.
 
 from pydantic import Field
 
-from .common import BaseInput, BaseResponse
+from zotero_mcp.models.common import BaseInput, BaseResponse
 
 
 class CreateCollectionInput(BaseInput):

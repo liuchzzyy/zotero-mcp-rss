@@ -8,7 +8,7 @@ import json
 import re
 from typing import Any
 
-from zotero_mcp.models.note_structure import (
+from zotero_mcp.models.zotero import (
     AnyBlock,
     BulletListBlock,
     Citation,

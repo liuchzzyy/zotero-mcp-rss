@@ -3,7 +3,7 @@
 from datetime import datetime
 import logging
 
-from zotero_mcp.models.rss import RSSItem
+from zotero_mcp.models.ingestion import RSSItem
 from zotero_mcp.services.common.retry import async_retry_with_backoff
 from zotero_mcp.utils.helpers import clean_title
 

@@ -2,7 +2,7 @@
 
 import pytest
 
-from zotero_mcp.models.rss import RSSItem
+from zotero_mcp.models.ingestion import RSSItem
 from zotero_mcp.services.common.zotero_item_creator import (
     ZoteroItemCreator,
     parse_creator_string,

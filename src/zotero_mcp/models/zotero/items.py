@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from .common import BaseInput, OutputFormat, PaginatedInput
+from zotero_mcp.models.common import BaseInput, OutputFormat, PaginatedInput
 
 
 class GetMetadataInput(BaseInput):

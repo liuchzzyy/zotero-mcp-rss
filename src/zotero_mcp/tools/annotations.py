@@ -13,7 +13,7 @@ import re
 from fastmcp import Context, FastMCP
 from mcp.types import ToolAnnotations
 
-from zotero_mcp.models.annotations import (
+from zotero_mcp.models.zotero import (
     CreateNoteInput,
     GetAnnotationsInput,
     GetNotesInput,

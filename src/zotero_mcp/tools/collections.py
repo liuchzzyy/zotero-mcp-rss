@@ -5,7 +5,7 @@ Collection management tools for Zotero MCP.
 from fastmcp import Context, FastMCP
 from mcp.types import ToolAnnotations
 
-from zotero_mcp.models.collections import (
+from zotero_mcp.models.zotero import (
     CreateCollectionInput,
     CreateCollectionResponse,
     DeleteCollectionInput,

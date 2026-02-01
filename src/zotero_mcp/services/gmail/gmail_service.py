@@ -12,7 +12,7 @@ This module provides the main workflow for processing Gmail emails:
 import asyncio
 import logging
 
-from zotero_mcp.models.gmail import EmailItem, GmailProcessResult
+from zotero_mcp.models.ingestion import EmailItem, GmailProcessResult
 from zotero_mcp.services.common import PaperFilter, ZoteroItemCreator
 from zotero_mcp.services.data_access import get_data_service
 from zotero_mcp.services.gmail.gmail_fetcher import GmailFetcher
