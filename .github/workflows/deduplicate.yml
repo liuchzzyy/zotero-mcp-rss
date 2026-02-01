@@ -1,28 +1,19 @@
-name: Metadata Update
+name: Deduplicate Items
 
 on:
   schedule:
-    # Run daily at 14:00 UTC (22:00 Beijing Time)
-    - cron: '0 14 * * *'
+    # Run daily at 15:30 UTC (23:30 Beijing Time)
+    - cron: '30 15 * * *'
 
   workflow_dispatch:
     inputs:
+      dry_run:
+        description: 'Preview mode - do not delete duplicates'
+        required: false
+        default: false
+        type: boolean
       collection:
         description: 'Limit to specific collection key (optional)'
-        required: false
-        type: string
-      limit:
-        description: 'Maximum items to process'
-        required: false
-        default: '1000'
-        type: choice
-        options:
-          - '100'
-          - '500'
-          - '1000'
-          - '5000'
-      item_key:
-        description: 'Update specific item by key'
         required: false
         type: string
 
@@ -37,10 +28,10 @@ env:
   ENV_MODE: production
 
 jobs:
-  metadata-update:
-    name: Update Item Metadata
+  deduplicate:
+    name: Remove Duplicate Items
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -65,36 +56,40 @@ jobs:
         run: |
           uv run zotero-mcp version
 
-      - name: Run metadata update
-        id: update
+      - name: Run deduplication
+        id: dedup
         run: |
-          echo "Starting metadata update at $(date)"
+          echo "Starting deduplication at $(date)"
           echo "========================================"
 
           ARGS=""
           if [ -n "${{ github.event.inputs.collection }}" ]; then
             ARGS="$ARGS --collection ${{ github.event.inputs.collection }}"
           fi
-          ARGS="$ARGS --limit ${{ github.event.inputs.limit || '1000' }}"
 
-          echo "Command: zotero-mcp update-metadata $ARGS"
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+            echo "Running in PREVIEW MODE (dry-run)"
+          fi
+
+          echo "Command: zotero-mcp deduplicate $ARGS"
           echo "========================================"
 
-          uv run zotero-mcp update-metadata $ARGS 2>&1 | tee metadata-update.log
+          uv run zotero-mcp deduplicate $ARGS 2>&1 | tee dedup.log
 
           EXIT_CODE=${PIPESTATUS[0]}
           echo "========================================"
-          echo "Metadata update completed at $(date)"
+          echo "Deduplication completed at $(date)"
           echo "Exit code: $EXIT_CODE"
           exit $EXIT_CODE
 
-      - name: Upload metadata update logs
+      - name: Upload deduplication logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: metadata-update-logs-${{ github.run_number }}
+          name: dedup-logs-${{ github.run_number }}
           path: |
-            metadata-update.log
+            dedup.log
             ~/.cache/zotero-mcp/logs/
           retention-days: 7
           if-no-files-found: warn
@@ -102,17 +97,16 @@ jobs:
       - name: Generate summary
         if: always()
         run: |
-          echo "## Metadata Update Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Deduplication Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Run Number**: ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Collection**: ${{ github.event.inputs.collection || 'All' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Limit**: ${{ github.event.inputs.limit || '1000' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Dry Run**: ${{ github.event.inputs.dry_run || 'false' }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [ -f metadata-update.log ]; then
+          if [ -f dedup.log ]; then
             echo "### Output Log" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            tail -50 metadata-update.log >> $GITHUB_STEP_SUMMARY
+            tail -50 dedup.log >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
-
