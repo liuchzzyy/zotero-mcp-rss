@@ -784,15 +784,27 @@ def main():
                 print(f"  Duplicate groups: {len(result.get('groups', []))}")
 
                 if result.get("groups"):
-                    print("\n  Duplicate Groups:")
+                    print("\n  📋 重复条目详情:")
+                    print(f"  共发现 {len(result['groups'])} 组重复条目\\n")
                     for i, group in enumerate(result["groups"][:10], 1):
-                        print(
-                            f"    {i}. {group.match_reason}: {group.match_value[:50]}"
+                        match_name = {"doi": "DOI", "title": "标题", "url": "URL"}.get(
+                            group.match_reason, group.match_reason
                         )
-                        print(f"       Keeping: {group.primary_key}")
+
+                        print(f"  [{i}] 匹配类型: {match_name}")
+                        print(f"      匹配值: {group.match_value[:60]}...")
+                        print(f"      ✅ 保留: {group.primary_key} (信息最全)")
                         print(
-                            f"       Moving to trash: {len(group.duplicate_keys)} items"
+                            f"      🗑️  移动到垃圾箱: {len(group.duplicate_keys)} 个条目"
                         )
+                        if len(group.duplicate_keys) <= 3:
+                            for dup_key in group.duplicate_keys:
+                                print(f"         - {dup_key}")
+                        else:
+                            print(
+                                f"         - {group.duplicate_keys[0]} 等 {len(group.duplicate_keys)} 个条目"
+                            )
+                        print()
 
             except Exception as e:
                 print(f"Error: {e}")
