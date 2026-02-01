@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from zotero_mcp.services.item import ItemService
+from zotero_mcp.services.zotero.item_service import ItemService
 from zotero_mcp.utils.batch_loader import BatchLoader
 
 

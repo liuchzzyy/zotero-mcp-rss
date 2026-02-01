@@ -21,8 +21,8 @@ from zotero_mcp.clients.local_db import (
 from zotero_mcp.clients.zotero_client import ZoteroAPIClient, get_zotero_client
 from zotero_mcp.formatters import JSONFormatter, MarkdownFormatter
 from zotero_mcp.models.common import ResponseFormat, SearchResultItem
-from zotero_mcp.services.item import ItemService
-from zotero_mcp.services.search import SearchService
+from zotero_mcp.services.zotero.item_service import ItemService
+from zotero_mcp.services.zotero.search_service import SearchService
 from zotero_mcp.utils.helpers import is_local_mode
 
 logger = logging.getLogger(__name__)

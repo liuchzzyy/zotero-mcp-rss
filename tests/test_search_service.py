@@ -8,7 +8,7 @@ import pytest
 
 from zotero_mcp.clients.local_db import LocalDatabaseClient
 from zotero_mcp.clients.zotero_client import ZoteroAPIClient
-from zotero_mcp.services.search import SearchService
+from zotero_mcp.services.zotero.search_service import SearchService
 
 
 @pytest.fixture

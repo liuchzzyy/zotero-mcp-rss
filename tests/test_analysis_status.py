@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from zotero_mcp.services.analysis_status import AnalysisStatusService
-from zotero_mcp.services.item import ItemService
+from zotero_mcp.services.zotero.item_service import ItemService
 
 
 @pytest.fixture

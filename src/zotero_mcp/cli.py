@@ -327,7 +327,7 @@ def main():
 
         # Check semantic search
         try:
-            from zotero_mcp.services.semantic import create_semantic_search
+            from zotero_mcp.services.zotero.semantic_search import create_semantic_search
 
             search = create_semantic_search()
             status = search.get_database_status()

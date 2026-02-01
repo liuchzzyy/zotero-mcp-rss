@@ -8,7 +8,7 @@ import pytest
 
 from zotero_mcp.clients.better_bibtex import BetterBibTeXClient
 from zotero_mcp.clients.zotero_client import ZoteroAPIClient
-from zotero_mcp.services.item import ItemService
+from zotero_mcp.services.zotero.item_service import ItemService
 
 
 @pytest.fixture
