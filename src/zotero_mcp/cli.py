@@ -269,7 +269,26 @@ def main():
 
     # Scan command (global analysis)
     scan_parser = subparsers.add_parser(
-        "scan", help="Scan library and analyze items without AI notes"
+        "scan",
+        help="Scan library and analyze items without AI notes",
+        description="""
+Scan library and analyze research papers with AI.
+
+NEW: Multi-modal support! Use --multimodal to extract images and tables from PDFs.
+
+Available LLM providers:
+- auto (default): Automatically selects best provider based on content
+- claude-cli: Supports text, images, and tables (multi-modal)
+- deepseek: Text only (fast, good for papers without figures)
+- openai: Supports text and images (OpenAI GPT-4 Vision)
+- gemini: Supports text and images (Google Gemini Vision)
+
+Examples:
+    zotero-mcp scan -c "Recent Papers" --llm auto
+    zotero-mcp scan -c "Figures" --llm claude-cli --multimodal
+    zotero-mcp scan -c "Text Only" --llm deepseek --no-multimodal
+    zotero-mcp scan --llm openai --multimodal --treated-limit 5
+        """
     )
     scan_parser.add_argument(
         "--scan-limit",
@@ -293,7 +312,7 @@ def main():
     )
     scan_parser.add_argument(
         "--llm-provider",
-        choices=["auto", "claude-cli"],
+        choices=["auto", "claude-cli", "deepseek", "openai", "gemini"],
         default="auto",
         help="LLM provider for analysis (default: auto)",
     )
@@ -301,6 +320,17 @@ def main():
         "--source-collection",
         default="00_INBOXS",
         help="Collection to scan first (default: 00_INBOXS)",
+    )
+    scan_parser.add_argument(
+        "--multimodal",
+        action="store_true",
+        default=True,
+        help="Enable multi-modal analysis (images and tables) (default: enabled)",
+    )
+    scan_parser.add_argument(
+        "--no-multimodal",
+        action="store_true",
+        help="Disable multi-modal analysis (text only)",
     )
 
     # Update metadata command
@@ -666,6 +696,9 @@ def main():
 
         scanner = GlobalScanner()
         try:
+            # Handle multimodal flag
+            multimodal = args.multimodal and not args.no_multimodal
+
             result = asyncio.run(
                 scanner.scan_and_process(
                     scan_limit=args.scan_limit,
@@ -674,6 +707,7 @@ def main():
                     dry_run=args.dry_run,
                     llm_provider=args.llm_provider,
                     source_collection=args.source_collection,
+                    multimodal=multimodal,
                 )
             )
 
