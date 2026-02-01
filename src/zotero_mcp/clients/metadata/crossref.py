@@ -15,6 +15,8 @@ from urllib.parse import quote
 
 import httpx
 
+from zotero_mcp.utils.formatting.helpers import clean_abstract
+
 logger = logging.getLogger(__name__)
 
 # Crossref API base URL
@@ -114,11 +116,8 @@ class CrossrefWork:
         issue = data.get("issue")
         pages = data.get("page")
 
-        # Extract abstract (may contain HTML/XML tags)
-        abstract = data.get("abstract", "")
-        if abstract:
-            # Simple cleanup of JATS XML tags
-            abstract = re.sub(r"<[^>]+>", "", abstract).strip()
+        # Extract abstract and clean HTML/XML tags
+        abstract = clean_abstract(data.get("abstract"))
 
         # Extract URL
         url = data.get("URL") or (f"https://doi.org/{doi}" if doi else None)

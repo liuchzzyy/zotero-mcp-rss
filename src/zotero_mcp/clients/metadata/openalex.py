@@ -15,6 +15,8 @@ from urllib.parse import quote
 
 import httpx
 
+from zotero_mcp.utils.formatting.helpers import clean_abstract
+
 logger = logging.getLogger(__name__)
 
 # OpenAlex API base URL
@@ -112,7 +114,7 @@ class OpenAlexWork:
             issue = primary_location.get("issue")
             pages = primary_location.get("pages")
 
-        # Extract abstract from inverted index
+        # Extract abstract from inverted index and clean
         abstract = None
         abstract_inverted_index = data.get("abstract_inverted_index")
         if abstract_inverted_index:
@@ -122,7 +124,8 @@ class OpenAlexWork:
                     for pos in positions:
                         word_positions.append((pos, word))
                 word_positions.sort(key=lambda x: x[0])
-                abstract = " ".join([wp[1] for wp in word_positions])
+                abstract_text = " ".join([wp[1] for wp in word_positions])
+                abstract = clean_abstract(abstract_text)
             except Exception:
                 pass
 

@@ -2,6 +2,7 @@
 Common helper functions for Zotero MCP.
 """
 
+import html
 import os
 import re
 
@@ -83,6 +84,58 @@ def clean_html(raw_html: str) -> str:
         'No HTML here'
     """
     return re.sub(_HTML_TAG_PATTERN, "", raw_html)
+
+
+def clean_abstract(abstract: str | None) -> str | None:
+    """
+    Clean abstract text by removing HTML/XML tags and entities.
+
+    Removes:
+    - HTML/XML tags (<...>)
+    - HTML entities (&amp;, &lt;, etc.)
+    - JATS XML tags (specific to academic publishing)
+    - Extra whitespace and newlines
+    - Embedded DOI/URL patterns
+
+    Args:
+        abstract: Raw abstract text that may contain HTML/XML
+
+    Returns:
+        Clean plain text abstract, or None if input is empty/None
+
+    Examples:
+        >>> clean_abstract("<p>This is an abstract</p>")
+        'This is an abstract'
+        >>> clean_abstract("Text with &amp; entity")
+        'Text with & entity'
+    """
+    if not abstract:
+        return None
+
+    # Decode HTML entities first (e.g., &amp; -> &, &lt; -> <)
+    try:
+        abstract = html.unescape(abstract)
+    except Exception:
+        pass
+
+    # Remove XML/HTML tags (including self-closing tags)
+    abstract = re.sub(r"<[^>]+>", "", abstract)
+
+    # Remove common JATS/XML-specific patterns
+    abstract = re.sub(r"</?(?:jats:[^>]+|xref|sup|sub|italic|bold|sc)>", "", abstract)
+
+    # Remove DOI/URL patterns sometimes embedded in abstracts
+    abstract = re.sub(r"https?://doi\.org/[^\s]+", "", abstract)
+    abstract = re.sub(r"DOI:\s*[^\s]+", "", abstract)
+
+    # Clean up whitespace:
+    # - Replace multiple spaces/newlines with single space
+    # - Remove leading/trailing whitespace
+    abstract = re.sub(r"\s+", " ", abstract)
+    abstract = abstract.strip()
+
+    # Return None if empty after cleaning
+    return abstract if abstract else None
 
 
 def is_local_mode() -> bool:
