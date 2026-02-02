@@ -10,7 +10,6 @@ def test_scan_help_shows_multimodal_flags():
         [sys.executable, "-m", "zotero_mcp.cli", "scan", "--help"],
         capture_output=True,
         text=True,
-        cwd=r"E:\Desktop\zotero-mcp",
     )
 
     assert result.returncode == 0
@@ -37,7 +36,6 @@ def test_scan_help_shows_examples():
         [sys.executable, "-m", "zotero_mcp.cli", "scan", "--help"],
         capture_output=True,
         text=True,
-        cwd=r"E:\Desktop\zotero-mcp",
     )
 
     assert result.returncode == 0
@@ -57,7 +55,6 @@ def test_scan_limit_and_treated_limit_defaults():
         [sys.executable, "-m", "zotero_mcp.cli", "scan", "--help"],
         capture_output=True,
         text=True,
-        cwd=r"E:\Desktop\zotero-mcp",
     )
 
     assert result.returncode == 0
@@ -76,7 +73,6 @@ def test_collection_defaults():
         [sys.executable, "-m", "zotero_mcp.cli", "scan", "--help"],
         capture_output=True,
         text=True,
-        cwd=r"E:\Desktop\zotero-mcp",
     )
 
     assert result.returncode == 0
@@ -94,7 +90,6 @@ def test_dry_run_flag():
         [sys.executable, "-m", "zotero_mcp.cli", "scan", "--help"],
         capture_output=True,
         text=True,
-        cwd=r"E:\Desktop\zotero-mcp",
     )
 
     assert result.returncode == 0
