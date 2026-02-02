@@ -288,7 +288,7 @@ Examples:
     zotero-mcp scan -c "Figures" --llm claude-cli --multimodal
     zotero-mcp scan -c "Text Only" --llm deepseek --no-multimodal
     zotero-mcp scan --llm openai --multimodal --treated-limit 5
-        """
+        """,
     )
     scan_parser.add_argument(
         "--scan-limit",
@@ -707,7 +707,7 @@ Examples:
                     dry_run=args.dry_run,
                     llm_provider=args.llm_provider,
                     source_collection=args.source_collection,
-                    multimodal=multimodal,
+                    include_multimodal=multimodal,
                 )
             )
 
