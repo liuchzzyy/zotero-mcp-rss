@@ -499,7 +499,7 @@ class DuplicateDetectionService:
                         description=f"Move duplicate item {dup_key} to {trash_collection}",
                     )
                     logger.info(
-                        f"  ✓ Moved ITEM {dup_key} → '{trash_collection}' "
+                        f"  ✓ Moved ITEM {dup_key} → {trash_collection} "
                         f"(matched by {group.match_reason})"
                     )
                     moved_count += 1
@@ -517,7 +517,7 @@ class DuplicateDetectionService:
         )
 
         if collections:
-            logger.info(f"🗑️  Using existing trash collection: '{collection_name}'")
+            logger.info(f"🗑️  Using existing trash collection: {collection_name}")
             return collections[0]
 
         logger.info(f"➕ Creating new trash collection: {collection_name}")
@@ -528,7 +528,7 @@ class DuplicateDetectionService:
                     collection_name, exact_match=True
                 )
                 if collections:
-                    logger.info(f"✓ Created trash collection: '{collection_name}'")
+                    logger.info(f"✓ Created trash collection: {collection_name}")
                     return collections[0]
             return result
         except Exception as e:
