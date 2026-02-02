@@ -2,7 +2,6 @@
 Tests for BatchLoader.
 """
 
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -171,7 +170,9 @@ def mock_item_service_with_storage_pdf():
 
 
 @pytest.mark.asyncio
-async def test_get_item_bundle_multimodal_storage_path(mock_item_service_with_storage_pdf):
+async def test_get_item_bundle_multimodal_storage_path(
+    mock_item_service_with_storage_pdf,
+):
     """Test that storage: paths return empty multimodal (requires LocalDatabaseClient)."""
     loader = BatchLoader(item_service=mock_item_service_with_storage_pdf)
 

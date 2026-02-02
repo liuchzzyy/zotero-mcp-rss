@@ -77,7 +77,9 @@ class MultiModalPDFExtractor:
 
         return result
 
-    def _extract_text_from_page(self, page: fitz.Page, page_num: int) -> list[dict[str, Any]]:
+    def _extract_text_from_page(
+        self, page: fitz.Page, page_num: int
+    ) -> list[dict[str, Any]]:
         """Extract text blocks from a page.
 
         Args:
@@ -93,19 +95,23 @@ class MultiModalPDFExtractor:
         for block in text_blocks:
             # Each block is a tuple: (x0, y0, x1, y1, text, block_type, ...)
             if len(block) >= 5:
-                blocks.append({
-                    "type": "text",
-                    "content": block[4],  # text content
-                    "page": page_num,
-                    "x0": block[0],
-                    "x1": block[2],
-                    "y0": block[1],
-                    "y1": block[3],
-                })
+                blocks.append(
+                    {
+                        "type": "text",
+                        "content": block[4],  # text content
+                        "page": page_num,
+                        "x0": block[0],
+                        "x1": block[2],
+                        "y0": block[1],
+                        "y1": block[3],
+                    }
+                )
 
         return self._merge_text_blocks(blocks)
 
-    def _extract_images_from_page(self, page: fitz.Page, page_num: int) -> list[dict[str, Any]]:
+    def _extract_images_from_page(
+        self, page: fitz.Page, page_num: int
+    ) -> list[dict[str, Any]]:
         """Extract images from a page.
 
         Args:
@@ -126,15 +132,22 @@ class MultiModalPDFExtractor:
                 img_bytes = pix.tobytes("png")
                 img_base64 = base64.b64encode(img_bytes).decode("utf-8")
 
-                images.append({
-                    "type": "image",
-                    "content": img_base64,
-                    "format": "base64.png",
-                    "page": page_num,
-                    "width": page.rect.width,
-                    "height": page.rect.height,
-                    "bbox": [page.rect.x0, page.rect.y0, page.rect.x1, page.rect.y1],
-                })
+                images.append(
+                    {
+                        "type": "image",
+                        "content": img_base64,
+                        "format": "base64.png",
+                        "page": page_num,
+                        "width": page.rect.width,
+                        "height": page.rect.height,
+                        "bbox": [
+                            page.rect.x0,
+                            page.rect.y0,
+                            page.rect.x1,
+                            page.rect.y1,
+                        ],
+                    }
+                )
             else:
                 # Extract each embedded image
                 for img_index, img in enumerate(image_list, 1):
@@ -148,21 +161,25 @@ class MultiModalPDFExtractor:
                     image_ext = base_image["ext"]
                     img_base64 = base64.b64encode(image_bytes).decode("utf-8")
 
-                    images.append({
-                        "type": "image",
-                        "content": img_base64,
-                        "format": f"base64.{image_ext}",
-                        "page": page_num,
-                        "xref": xref,
-                        "index": img_index,
-                    })
+                    images.append(
+                        {
+                            "type": "image",
+                            "content": img_base64,
+                            "format": f"base64.{image_ext}",
+                            "page": page_num,
+                            "xref": xref,
+                            "index": img_index,
+                        }
+                    )
 
         except Exception as e:
             logger.warning(f"Failed to extract image from page {page_num}: {e}")
 
         return images
 
-    def _extract_tables_from_page(self, page: fitz.Page, page_num: int) -> list[dict[str, Any]]:
+    def _extract_tables_from_page(
+        self, page: fitz.Page, page_num: int
+    ) -> list[dict[str, Any]]:
         """Extract tables from a page.
 
         Args:
@@ -185,14 +202,16 @@ class MultiModalPDFExtractor:
                     row_content = [cell if cell else "" for cell in row]
                     table_content.append(row_content)
 
-                tables.append({
-                    "type": "table",
-                    "content": table_content,
-                    "page": page_num,
-                    "rows": len(table_content),
-                    "cols": len(table_content[0]) if table_content else 0,
-                    "bbox": list(table.bbox),
-                })
+                tables.append(
+                    {
+                        "type": "table",
+                        "content": table_content,
+                        "page": page_num,
+                        "rows": len(table_content),
+                        "cols": len(table_content[0]) if table_content else 0,
+                        "bbox": list(table.bbox),
+                    }
+                )
 
         except Exception as e:
             logger.warning(f"Failed to extract tables from page {page_num}: {e}")
@@ -237,7 +256,9 @@ class MultiModalPDFExtractor:
         paragraphs.append(current_paragraph)
         return paragraphs
 
-    def classify_by_type(self, elements: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    def classify_by_type(
+        self, elements: list[dict[str, Any]]
+    ) -> dict[str, list[dict[str, Any]]]:
         """Classify elements by type.
 
         Args:

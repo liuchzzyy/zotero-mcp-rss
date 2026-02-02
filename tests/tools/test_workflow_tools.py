@@ -4,16 +4,16 @@ Tests for workflow MCP tools.
 Tests the multi-modal PDF analysis functionality exposed through MCP tools.
 """
 
+from unittest.mock import AsyncMock, Mock
+
 import pytest
-from unittest.mock import Mock, AsyncMock, MagicMock
-from contextlib import asynccontextmanager
 
 from zotero_mcp.models.workflow import (
-    PrepareAnalysisInput,
-    BatchAnalyzeInput,
-    PrepareAnalysisResponse,
-    BatchAnalyzeResponse,
     AnalysisItem,
+    BatchAnalyzeInput,
+    BatchAnalyzeResponse,
+    PrepareAnalysisInput,
+    PrepareAnalysisResponse,
 )
 
 
@@ -25,25 +25,27 @@ class TestPrepareAnalysisTool:
         """Test that include_multimodal parameter is correctly passed to service."""
         # Create a mock workflow service
         mock_service = Mock()
-        mock_service.prepare_analysis = AsyncMock(return_value=PrepareAnalysisResponse(
-            success=True,
-            total_items=2,
-            prepared_items=2,
-            skipped=0,
-            items=[],
-            template_structure={}
-        ))
+        mock_service.prepare_analysis = AsyncMock(
+            return_value=PrepareAnalysisResponse(
+                success=True,
+                total_items=2,
+                prepared_items=2,
+                skipped=0,
+                items=[],
+                template_structure={},
+            )
+        )
 
         # Test with multimodal=True
         params = PrepareAnalysisInput(
             source="collection",
             collection_name="Test Collection",
             include_multimodal=True,
-            limit=5
+            limit=5,
         )
 
         # Call the service directly (simulating the tool execution)
-        result = await mock_service.prepare_analysis(
+        _ = await mock_service.prepare_analysis(
             source=params.source,
             collection_key=params.collection_key,
             collection_name=params.collection_name,
@@ -71,25 +73,24 @@ class TestPrepareAnalysisTool:
         """Test that include_multimodal=False is correctly passed to service."""
         # Create a mock workflow service
         mock_service = Mock()
-        mock_service.prepare_analysis = AsyncMock(return_value=PrepareAnalysisResponse(
-            success=True,
-            total_items=3,
-            prepared_items=3,
-            skipped=0,
-            items=[],
-            template_structure={}
-        ))
+        mock_service.prepare_analysis = AsyncMock(
+            return_value=PrepareAnalysisResponse(
+                success=True,
+                total_items=3,
+                prepared_items=3,
+                skipped=0,
+                items=[],
+                template_structure={},
+            )
+        )
 
         # Test with multimodal=False
         params = PrepareAnalysisInput(
-            source="recent",
-            include_multimodal=False,
-            limit=3,
-            days=30
+            source="recent", include_multimodal=False, limit=3, days=30
         )
 
         # Call the service directly
-        result = await mock_service.prepare_analysis(
+        _ = await mock_service.prepare_analysis(
             source=params.source,
             collection_key=params.collection_key,
             collection_name=params.collection_name,
@@ -117,14 +118,16 @@ class TestPrepareAnalysisTool:
         """Test that include_multimodal defaults to True."""
         # Create a mock workflow service
         mock_service = Mock()
-        mock_service.prepare_analysis = AsyncMock(return_value=PrepareAnalysisResponse(
-            success=True,
-            total_items=1,
-            prepared_items=1,
-            skipped=0,
-            items=[],
-            template_structure={}
-        ))
+        mock_service.prepare_analysis = AsyncMock(
+            return_value=PrepareAnalysisResponse(
+                success=True,
+                total_items=1,
+                prepared_items=1,
+                skipped=0,
+                items=[],
+                template_structure={},
+            )
+        )
 
         # Test without specifying multimodal (should default to True)
         params = PrepareAnalysisInput(
@@ -134,7 +137,7 @@ class TestPrepareAnalysisTool:
         )
 
         # Call the service directly
-        result = await mock_service.prepare_analysis(
+        _ = await mock_service.prepare_analysis(
             source=params.source,
             collection_key=params.collection_key,
             collection_name=params.collection_name,
@@ -166,17 +169,19 @@ class TestBatchAnalyzeTool:
         """Test that include_multimodal parameter is correctly passed to service."""
         # Create a mock workflow service
         mock_service = Mock()
-        mock_service.batch_analyze = AsyncMock(return_value=BatchAnalyzeResponse(
-            success=True,
-            workflow_id="test_workflow_123",
-            total_items=10,
-            processed=8,
-            skipped=2,
-            failed=0,
-            results=[],
-            status="completed",
-            can_resume=False,
-        ))
+        mock_service.batch_analyze = AsyncMock(
+            return_value=BatchAnalyzeResponse(
+                success=True,
+                workflow_id="test_workflow_123",
+                total_items=10,
+                processed=8,
+                skipped=2,
+                failed=0,
+                results=[],
+                status="completed",
+                can_resume=False,
+            )
+        )
 
         # Create a progress callback
         async def progress_callback(current, total, message):
@@ -188,11 +193,11 @@ class TestBatchAnalyzeTool:
             collection_name="Test Collection",
             include_multimodal=True,
             limit=10,
-            llm_provider="auto"
+            llm_provider="auto",
         )
 
         # Call the service directly
-        result = await mock_service.batch_analyze(
+        _ = await mock_service.batch_analyze(
             source=params.source,
             collection_key=params.collection_key,
             collection_name=params.collection_name,
@@ -221,17 +226,19 @@ class TestBatchAnalyzeTool:
         """Test that include_multimodal=False is correctly passed to service."""
         # Create a mock workflow service
         mock_service = Mock()
-        mock_service.batch_analyze = AsyncMock(return_value=BatchAnalyzeResponse(
-            success=True,
-            workflow_id="test_workflow_456",
-            total_items=5,
-            processed=5,
-            skipped=0,
-            failed=0,
-            results=[],
-            status="completed",
-            can_resume=False,
-        ))
+        mock_service.batch_analyze = AsyncMock(
+            return_value=BatchAnalyzeResponse(
+                success=True,
+                workflow_id="test_workflow_456",
+                total_items=5,
+                processed=5,
+                skipped=0,
+                failed=0,
+                results=[],
+                status="completed",
+                can_resume=False,
+            )
+        )
 
         # Create a progress callback
         async def progress_callback(current, total, message):
@@ -239,14 +246,11 @@ class TestBatchAnalyzeTool:
 
         # Test with multimodal=False
         params = BatchAnalyzeInput(
-            source="recent",
-            include_multimodal=False,
-            limit=5,
-            days=14
+            source="recent", include_multimodal=False, limit=5, days=14
         )
 
         # Call the service directly
-        result = await mock_service.batch_analyze(
+        _ = await mock_service.batch_analyze(
             source=params.source,
             collection_key=params.collection_key,
             collection_name=params.collection_name,
@@ -275,17 +279,19 @@ class TestBatchAnalyzeTool:
         """Test batch analyze with dry run and multimodal enabled."""
         # Create a mock workflow service
         mock_service = Mock()
-        mock_service.batch_analyze = AsyncMock(return_value=BatchAnalyzeResponse(
-            success=True,
-            workflow_id="dry_run_workflow",
-            total_items=3,
-            processed=0,
-            skipped=0,
-            failed=0,
-            results=[],
-            status="completed",
-            can_resume=False,
-        ))
+        mock_service.batch_analyze = AsyncMock(
+            return_value=BatchAnalyzeResponse(
+                success=True,
+                workflow_id="dry_run_workflow",
+                total_items=3,
+                processed=0,
+                skipped=0,
+                failed=0,
+                results=[],
+                status="completed",
+                can_resume=False,
+            )
+        )
 
         # Create a progress callback
         async def progress_callback(current, total, message):
@@ -297,11 +303,11 @@ class TestBatchAnalyzeTool:
             collection_key="12345",
             include_multimodal=True,
             dry_run=True,
-            limit=3
+            limit=3,
         )
 
         # Call the service directly
-        result = await mock_service.batch_analyze(
+        _ = await mock_service.batch_analyze(
             source=params.source,
             collection_key=params.collection_key,
             collection_name=params.collection_name,
@@ -342,11 +348,23 @@ class TestMultimodalContentIntegration:
             pdf_content="Sample PDF content",
             annotations=[],
             images=[
-                {"type": "chart", "data": "base64_chart_data", "caption": "Figure 1: Results"},
-                {"type": "diagram", "data": "base64_diagram_data", "caption": "Figure 2: Method"}
+                {
+                    "type": "chart",
+                    "data": "base64_chart_data",
+                    "caption": "Figure 1: Results",
+                },
+                {
+                    "type": "diagram",
+                    "data": "base64_diagram_data",
+                    "caption": "Figure 2: Method",
+                },
             ],
             tables=[
-                {"type": "data", "data": "table_html", "caption": "Table 1: Experiment Results"}
+                {
+                    "type": "data",
+                    "data": "table_html",
+                    "caption": "Table 1: Experiment Results",
+                }
             ],
             metadata={},
             template_questions=[],

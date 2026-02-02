@@ -1,7 +1,5 @@
 """Tests for template utilities."""
 
-import pytest
-
 from zotero_mcp.utils.data.templates import (
     DEFAULT_ANALYSIS_TEMPLATE_MULTIMODAL,
     format_multimodal_section,

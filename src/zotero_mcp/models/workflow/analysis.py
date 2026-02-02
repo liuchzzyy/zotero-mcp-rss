@@ -164,9 +164,7 @@ class AnalysisItem(BaseModel):
     images: list[dict[str, Any]] = Field(
         default_factory=list, description="PDF images (base64)"
     )
-    tables: list[dict[str, Any]] = Field(
-        default_factory=list, description="PDF tables"
-    )
+    tables: list[dict[str, Any]] = Field(default_factory=list, description="PDF tables")
     metadata: dict[str, Any] = Field(
         default_factory=dict, description="Additional metadata"
     )

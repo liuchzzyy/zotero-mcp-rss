@@ -304,7 +304,9 @@ class WorkflowService:
                             f"(has_images={has_images})"
                         )
                 except Exception as e:
-                    logger.warning(f"Failed to check for images during auto-select: {e}")
+                    logger.warning(
+                        f"Failed to check for images during auto-select: {e}"
+                    )
                     # Fall back to default
                     llm_provider = "deepseek"
             else:

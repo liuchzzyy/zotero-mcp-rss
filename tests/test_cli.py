@@ -1,16 +1,17 @@
 """Tests for CLI multi-modal functionality."""
 
-from unittest.mock import patch, AsyncMock
 import subprocess
 import sys
-import pytest
 
 
 def test_scan_help_shows_multimodal_flags():
     """Test that scan command help shows multi-modal flags."""
-    result = subprocess.run([
-        sys.executable, "-m", "zotero_mcp.cli", "scan", "--help"
-    ], capture_output=True, text=True, cwd="E:\Desktop\zotero-mcp")
+    result = subprocess.run(
+        [sys.executable, "-m", "zotero_mcp.cli", "scan", "--help"],
+        capture_output=True,
+        text=True,
+        cwd=r"E:\Desktop\zotero-mcp",
+    )
 
     assert result.returncode == 0
 
@@ -32,15 +33,18 @@ def test_scan_help_shows_multimodal_flags():
 
 def test_scan_help_shows_examples():
     """Test that scan command help shows usage examples."""
-    result = subprocess.run([
-        sys.executable, "-m", "zotero_mcp.cli", "scan", "--help"
-    ], capture_output=True, text=True, cwd="E:\Desktop\zotero-mcp")
+    result = subprocess.run(
+        [sys.executable, "-m", "zotero_mcp.cli", "scan", "--help"],
+        capture_output=True,
+        text=True,
+        cwd=r"E:\Desktop\zotero-mcp",
+    )
 
     assert result.returncode == 0
 
     # Check for examples in the description
-    assert "zotero-mcp scan -c \"Recent Papers\" --llm auto" in result.stdout
-    assert "zotero-mcp scan -c \"Figures\" --llm claude-cli --multimodal" in result.stdout
+    assert 'zotero-mcp scan -c "Recent Papers" --llm auto' in result.stdout
+    assert 'zotero-mcp scan -c "Figures" --llm claude-cli --multimodal' in result.stdout
     # Check for any example with deepseek
     assert "deepseek" in result.stdout and "no-multimodal" in result.stdout
     # Check for openai example
@@ -49,9 +53,12 @@ def test_scan_help_shows_examples():
 
 def test_scan_limit_and_treated_limit_defaults():
     """Test that scan limit and treated limit have correct defaults."""
-    result = subprocess.run([
-        sys.executable, "-m", "zotero_mcp.cli", "scan", "--help"
-    ], capture_output=True, text=True, cwd="E:\Desktop\zotero-mcp")
+    result = subprocess.run(
+        [sys.executable, "-m", "zotero_mcp.cli", "scan", "--help"],
+        capture_output=True,
+        text=True,
+        cwd=r"E:\Desktop\zotero-mcp",
+    )
 
     assert result.returncode == 0
 
@@ -65,9 +72,12 @@ def test_scan_limit_and_treated_limit_defaults():
 
 def test_collection_defaults():
     """Test that collection defaults are correctly documented."""
-    result = subprocess.run([
-        sys.executable, "-m", "zotero_mcp.cli", "scan", "--help"
-    ], capture_output=True, text=True, cwd="E:\Desktop\zotero-mcp")
+    result = subprocess.run(
+        [sys.executable, "-m", "zotero_mcp.cli", "scan", "--help"],
+        capture_output=True,
+        text=True,
+        cwd=r"E:\Desktop\zotero-mcp",
+    )
 
     assert result.returncode == 0
 
@@ -80,9 +90,12 @@ def test_collection_defaults():
 
 def test_dry_run_flag():
     """Test that dry-run flag is properly documented."""
-    result = subprocess.run([
-        sys.executable, "-m", "zotero_mcp.cli", "scan", "--help"
-    ], capture_output=True, text=True, cwd="E:\Desktop\zotero-mcp")
+    result = subprocess.run(
+        [sys.executable, "-m", "zotero_mcp.cli", "scan", "--help"],
+        capture_output=True,
+        text=True,
+        cwd=r"E:\Desktop\zotero-mcp",
+    )
 
     assert result.returncode == 0
 

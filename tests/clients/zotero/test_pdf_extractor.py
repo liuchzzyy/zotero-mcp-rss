@@ -1,7 +1,8 @@
 """Test MultiModalPDFExtractor class."""
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 from zotero_mcp.clients.zotero.pdf_extractor import MultiModalPDFExtractor
 
@@ -85,7 +86,7 @@ def test_classify_content_types():
     elements = [
         {"type": "text", "content": "Sample text"},
         {"type": "image", "content": "base64..."},
-        {"type": "table", "content": [["Header"], ["Data"]]}
+        {"type": "table", "content": [["Header"], ["Data"]]},
     ]
 
     classified = extractor.classify_by_type(elements)
@@ -102,7 +103,7 @@ def test_extract_with_missing_file():
     """Test extraction with missing PDF file."""
     extractor = MultiModalPDFExtractor()
 
-    with pytest.raises(Exception):
+    with pytest.raises(FileNotFoundError):
         extractor.extract_elements(Path("nonexistent.pdf"))
 
 

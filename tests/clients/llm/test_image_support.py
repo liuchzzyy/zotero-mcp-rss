@@ -5,8 +5,7 @@ Tests for both DeepSeek (text-only) and Claude CLI (multi-modal) clients
 handling image parameters in analyze_paper().
 """
 
-from unittest.mock import AsyncMock, patch
-import pytest
+from unittest.mock import patch
 
 from zotero_mcp.clients.llm.base import LLMClient
 from zotero_mcp.clients.llm.cli import CLILLMClient
@@ -115,9 +114,7 @@ class TestDeepSeekImageSupport:
 
         client = LLMClient()
 
-        annotations = [
-            {"type": "highlight", "text": "Important finding", "page": "5"}
-        ]
+        annotations = [{"type": "highlight", "text": "Important finding", "page": "5"}]
         images = [
             {
                 "page": 1,
@@ -156,12 +153,12 @@ class TestClaudeCLIImageSupport:
 
         written_content = ""
 
-        async def mock_run_cli(content):
+        async def mock_run_cli(content: str) -> str:
             nonlocal written_content
             written_content = content
             return "# Analysis\nNo images test"
 
-        client._run_cli_with_file = mock_run_cli
+        client._run_cli_with_file = mock_run_cli  # type: ignore[assignment]
 
         result = await client.analyze_paper(
             title="Test Paper",
@@ -184,12 +181,12 @@ class TestClaudeCLIImageSupport:
 
         written_content = ""
 
-        async def mock_run_cli(content):
+        async def mock_run_cli(content: str) -> str:
             nonlocal written_content
             written_content = content
             return "# Analysis\nWith embedded images"
 
-        client._run_cli_with_file = mock_run_cli
+        client._run_cli_with_file = mock_run_cli  # type: ignore[assignment]
 
         images = [
             {
@@ -232,12 +229,12 @@ class TestClaudeCLIImageSupport:
 
         written_content = ""
 
-        async def mock_run_cli(content):
+        async def mock_run_cli(content: str) -> str:
             nonlocal written_content
             written_content = content
             return "# Analysis\nEmpty images"
 
-        client._run_cli_with_file = mock_run_cli
+        client._run_cli_with_file = mock_run_cli  # type: ignore[assignment]
 
         result = await client.analyze_paper(
             title="Test Paper",
@@ -260,16 +257,14 @@ class TestClaudeCLIImageSupport:
 
         written_content = ""
 
-        async def mock_run_cli(content):
+        async def mock_run_cli(content: str) -> str:
             nonlocal written_content
             written_content = content
             return "# Analysis\nWith both"
 
-        client._run_cli_with_file = mock_run_cli
+        client._run_cli_with_file = mock_run_cli  # type: ignore[assignment]
 
-        annotations = [
-            {"type": "highlight", "text": "Important finding", "page": "5"}
-        ]
+        annotations = [{"type": "highlight", "text": "Important finding", "page": "5"}]
         images = [
             {
                 "page": 1,
@@ -303,12 +298,12 @@ class TestClaudeCLIImageSupport:
 
         written_content = ""
 
-        async def mock_run_cli(content):
+        async def mock_run_cli(content: str) -> str:
             nonlocal written_content
             written_content = content
             return "# Analysis\nImage without page"
 
-        client._run_cli_with_file = mock_run_cli
+        client._run_cli_with_file = mock_run_cli  # type: ignore[assignment]
 
         images = [
             {
@@ -361,12 +356,12 @@ class TestBackwardCompatibility:
 
         written_content = ""
 
-        async def mock_run_cli(content):
+        async def mock_run_cli(content: str) -> str:
             nonlocal written_content
             written_content = content
             return "# Analysis\nBackward compatible"
 
-        client._run_cli_with_file = mock_run_cli
+        client._run_cli_with_file = mock_run_cli  # type: ignore[assignment]
 
         # Call without images parameter (old way)
         result = await client.analyze_paper(

@@ -1,9 +1,10 @@
 """Test WorkflowService multi-modal integration."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from zotero_mcp.models.workflow import AnalysisItem, BatchAnalyzeResponse
+import pytest
+
+from zotero_mcp.models.workflow import AnalysisItem
 from zotero_mcp.services.workflow import WorkflowService
 
 
@@ -37,7 +38,9 @@ def mock_checkpoint_manager():
 @pytest.fixture
 def workflow_service(mock_data_service, mock_checkpoint_manager, mock_batch_loader):
     """Create workflow service with mocked dependencies."""
-    with patch("zotero_mcp.services.workflow.get_data_service", return_value=mock_data_service):
+    with patch(
+        "zotero_mcp.services.workflow.get_data_service", return_value=mock_data_service
+    ):
         service = WorkflowService()
         service.data_service = mock_data_service
         service.batch_loader = mock_batch_loader
@@ -119,7 +122,9 @@ def sample_bundle_text_only():
 # -------------------- Test _extract_bundle_context --------------------
 
 
-def test_extract_bundle_context_with_multimodal(workflow_service, sample_bundle_with_multimodal):
+def test_extract_bundle_context_with_multimodal(
+    workflow_service, sample_bundle_with_multimodal
+):
     """Test extracting bundle context with multi-modal content."""
     context = workflow_service._extract_bundle_context(
         sample_bundle_with_multimodal, include_multimodal=True
@@ -133,7 +138,9 @@ def test_extract_bundle_context_with_multimodal(workflow_service, sample_bundle_
     assert context["tables"][0]["page"] == 2
 
 
-def test_extract_bundle_context_without_multimodal(workflow_service, sample_bundle_with_multimodal):
+def test_extract_bundle_context_without_multimodal(
+    workflow_service, sample_bundle_with_multimodal
+):
     """Test extracting bundle context without multi-modal content."""
     context = workflow_service._extract_bundle_context(
         sample_bundle_with_multimodal, include_multimodal=False
@@ -188,7 +195,9 @@ def test_validate_context_missing_fulltext(workflow_service):
 
 
 @pytest.mark.asyncio
-async def test_prepare_analysis_includes_multimodal(workflow_service, mock_batch_loader):
+async def test_prepare_analysis_includes_multimodal(
+    workflow_service, mock_batch_loader
+):
     """Test that prepare_analysis includes multi-modal content."""
     # Mock get_items
     items = [MagicMock(key="ITEM1", title="Paper 1")]
@@ -240,7 +249,9 @@ async def test_prepare_analysis_includes_multimodal(workflow_service, mock_batch
 
 
 @pytest.mark.asyncio
-async def test_prepare_analysis_excludes_multimodal(workflow_service, mock_batch_loader):
+async def test_prepare_analysis_excludes_multimodal(
+    workflow_service, mock_batch_loader
+):
     """Test that prepare_analysis excludes multi-modal content when requested."""
     # Mock get_items
     items = [MagicMock(key="ITEM1", title="Paper 1")]
@@ -290,7 +301,9 @@ async def test_prepare_analysis_excludes_multimodal(workflow_service, mock_batch
 
 
 @pytest.mark.asyncio
-async def test_batch_analyze_auto_selects_multimodal_llm(workflow_service, mock_batch_loader):
+async def test_batch_analyze_auto_selects_multimodal_llm(
+    workflow_service, mock_batch_loader
+):
     """Test that batch_analyze auto-selects multi-modal LLM when images present."""
     # Mock items
     items = [MagicMock(key="ITEM1", title="Paper with Images")]
@@ -317,7 +330,9 @@ async def test_batch_analyze_auto_selects_multimodal_llm(workflow_service, mock_
     workflow.get_remaining_items = MagicMock(return_value=["ITEM1"])
     workflow_state = workflow
 
-    workflow_service.checkpoint_manager.create_workflow = MagicMock(return_value=workflow_state)
+    workflow_service.checkpoint_manager.create_workflow = MagicMock(
+        return_value=workflow_state
+    )
     workflow_service.checkpoint_manager.save_state = MagicMock()
 
     # Mock bundle with images - called twice (auto-select + actual)
@@ -336,7 +351,13 @@ async def test_batch_analyze_auto_selects_multimodal_llm(workflow_service, mock_
     }
 
     # Mock fetch_many_bundles to return appropriate bundle based on call
-    async def mock_fetch(keys, include_fulltext=False, include_annotations=False, include_multimodal=False, include_bibtex=False):
+    async def mock_fetch(
+        keys,
+        include_fulltext=False,
+        include_annotations=False,
+        include_multimodal=False,
+        include_bibtex=False,
+    ):
         return [bundle_with_images]
 
     mock_batch_loader.fetch_many_bundles = AsyncMock(side_effect=mock_fetch)
@@ -348,9 +369,13 @@ async def test_batch_analyze_auto_selects_multimodal_llm(workflow_service, mock_
 
     # Mock data service operations
     workflow_service.data_service.get_notes = AsyncMock(return_value=[])
-    workflow_service.data_service.create_note = AsyncMock(return_value={"successful": {"NOTE1": {"key": "NOTE1"}}})
+    workflow_service.data_service.create_note = AsyncMock(
+        return_value={"successful": {"NOTE1": {"key": "NOTE1"}}}
+    )
 
-    with patch("zotero_mcp.services.workflow.get_llm_client", return_value=mock_llm_client):
+    with patch(
+        "zotero_mcp.services.workflow.get_llm_client", return_value=mock_llm_client
+    ):
         response = await workflow_service.batch_analyze(
             source="collection",
             collection_key="COLL1",
@@ -393,7 +418,9 @@ async def test_batch_analyze_auto_selects_text_llm(workflow_service, mock_batch_
     workflow.get_remaining_items = MagicMock(return_value=["ITEM1"])
     workflow_state = workflow
 
-    workflow_service.checkpoint_manager.create_workflow = MagicMock(return_value=workflow_state)
+    workflow_service.checkpoint_manager.create_workflow = MagicMock(
+        return_value=workflow_state
+    )
     workflow_service.checkpoint_manager.save_state = MagicMock()
 
     # Mock bundle without images - called twice (auto-select + actual)
@@ -409,7 +436,13 @@ async def test_batch_analyze_auto_selects_text_llm(workflow_service, mock_batch_
     }
 
     # Mock fetch_many_bundles
-    async def mock_fetch(keys, include_fulltext=False, include_annotations=False, include_multimodal=False, include_bibtex=False):
+    async def mock_fetch(
+        keys,
+        include_fulltext=False,
+        include_annotations=False,
+        include_multimodal=False,
+        include_bibtex=False,
+    ):
         return [bundle_no_images]
 
     mock_batch_loader.fetch_many_bundles = AsyncMock(side_effect=mock_fetch)
@@ -421,9 +454,13 @@ async def test_batch_analyze_auto_selects_text_llm(workflow_service, mock_batch_
 
     # Mock data service operations
     workflow_service.data_service.get_notes = AsyncMock(return_value=[])
-    workflow_service.data_service.create_note = AsyncMock(return_value={"successful": {"NOTE1": {"key": "NOTE1"}}})
+    workflow_service.data_service.create_note = AsyncMock(
+        return_value={"successful": {"NOTE1": {"key": "NOTE1"}}}
+    )
 
-    with patch("zotero_mcp.services.workflow.get_llm_client", return_value=mock_llm_client):
+    with patch(
+        "zotero_mcp.services.workflow.get_llm_client", return_value=mock_llm_client
+    ):
         response = await workflow_service.batch_analyze(
             source="collection",
             collection_key="COLL1",
