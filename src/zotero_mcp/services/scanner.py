@@ -70,6 +70,7 @@ class GlobalScanner:
         dry_run: bool = False,
         llm_provider: str = "auto",
         source_collection: str | None = "00_INBOXS",
+        include_multimodal: bool = True,
     ) -> dict[str, Any]:
         """
         Scan library and process items needing analysis.
@@ -257,6 +258,7 @@ class GlobalScanner:
                 include_fulltext=True,
                 include_annotations=True,
                 include_bibtex=False,
+                include_multimodal=include_multimodal,
             )
             full_bundle_map = {b["metadata"]["key"]: b for b in full_bundles}
 
@@ -278,6 +280,7 @@ class GlobalScanner:
                         dry_run=False,
                         delete_old_notes=True,
                         move_to_collection=target_collection,
+                        include_multimodal=include_multimodal,
                     )
 
                     if result.success and not result.skipped:
