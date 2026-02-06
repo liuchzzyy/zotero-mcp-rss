@@ -9,9 +9,11 @@ from paper_feed.core.base import PaperSource, ExportAdapter
 # Source implementations
 from paper_feed.sources import RSSSource
 
+# Filter implementations
+from paper_feed.filters import FilterPipeline
+
 # Future exports
 # from paper_feed.sources import GmailSource
-# from paper_feed.filters import FilterPipeline
 # from paper_feed.adapters import JSONAdapter, ZoteroAdapter
 
 __all__ = [
@@ -21,4 +23,5 @@ __all__ = [
     "PaperSource",
     "ExportAdapter",
     "RSSSource",
+    "FilterPipeline",
 ]
