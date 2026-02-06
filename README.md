@@ -369,14 +369,66 @@ zotero-mcp setup
 
 - [CLAUDE.md](./CLAUDE.md) - Development guidelines for Claude Code
 - [CONTRIBUTING.md](./CONTRIBUTING.md) - Contribution guidelines
+- [Migration Guide](./docs/MIGRATION_GUIDE.md) - v2.x to v3.0 migration
 - [Multi-Modal Analysis Guide](./docs/MULTIMODAL_ANALYSIS.md) - Comprehensive multi-modal PDF analysis documentation
 - [GitHub Actions Guide](./docs/GITHUB_ACTIONS_GUIDE.md) - Workflow automation
 - [Gmail Setup](./docs/GMAIL-SETUP.md) - Gmail integration setup
 - [Batch Workflow Example](./examples/workflow_example.py) - Production-grade code example
 
+## 🏗️ Modular Architecture (v3.0)
+
+Starting with v3.0, Zotero MCP is organized as a modular system:
+
+```
+zotero-mcp (MCP integration layer)
+├── zotero-core      → Zotero data access (CRUD, search, metadata)
+├── paper-analyzer   → PDF analysis engine (extraction, LLM)
+└── paper-feed       → Paper collection (RSS, Gmail) - optional
+```
+
+### Standalone Module Usage
+
+Each module can be used independently:
+
+```python
+# paper-feed: Collect papers from RSS
+from paper_feed import RSSSource, FilterPipeline, FilterCriteria
+source = RSSSource("https://arxiv.org/rss/cs.AI")
+papers = await source.fetch_papers(limit=20)
+
+# zotero-core: Access Zotero library
+from zotero_core import ItemService
+service = ItemService(library_id="...", api_key="...")
+items = await service.get_all_items(limit=10)
+
+# paper-analyzer: Analyze PDFs with LLM
+from paper_analyzer import PDFAnalyzer
+from paper_analyzer.clients import DeepSeekClient
+analyzer = PDFAnalyzer(llm_client=DeepSeekClient(api_key="..."))
+result = await analyzer.analyze("paper.pdf")
+```
+
+### Module Details
+
+| Module | Description | Install |
+|--------|-------------|---------|
+| [paper-feed](external/paper-feed/) | RSS/Gmail paper collection framework | `pip install paper-feed` |
+| [zotero-core](modules/zotero-core/) | Zotero API client with hybrid search (RRF) | `pip install zotero-core` |
+| [paper-analyzer](modules/paper-analyzer/) | Multi-modal PDF analysis with LLM | `pip install paper-analyzer` |
+| zotero-mcp | MCP integration layer (this package) | `pip install zotero-mcp` |
+
+For migration from v2.x, see [Migration Guide](docs/MIGRATION_GUIDE.md).
+
 ## 📝 Changelog
 
-### v2.4.0 (Latest)
+### v3.0.0
+- 🏗️ Modular architecture: split into paper-feed, zotero-core, paper-analyzer
+- 🔌 New integration layer with unified config management
+- 📦 Each module independently installable and usable
+- 🔍 Hybrid search with Reciprocal Rank Fusion (RRF) algorithm
+- 📄 Multi-modal PDF analysis with template system
+
+### v2.4.0
 - ✅ Fixed duplicate detection collection key extraction bug
 - ✅ Improved deduplication log output (Chinese labels, emoji)
 - ✅ Added retry logic for API calls (handles 502 errors)
