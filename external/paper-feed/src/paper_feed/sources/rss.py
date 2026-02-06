@@ -1,6 +1,7 @@
 """RSS feed source for paper collection."""
 
 import logging
+import os
 from datetime import date
 from typing import List, Optional
 from urllib.parse import urlparse
@@ -10,6 +11,7 @@ import httpx
 
 from paper_feed.core.base import PaperSource
 from paper_feed.core.models import PaperItem
+from paper_feed.sources.opml import OPMLParser
 from paper_feed.sources.rss_parser import RSSParser
 
 logger = logging.getLogger(__name__)
@@ -192,3 +194,64 @@ class RSSSource(PaperSource):
             )
 
         return papers
+
+    @classmethod
+    def from_opml(
+        cls,
+        opml_path: Optional[str] = None,
+        user_agent: str = "paper-feed/1.0",
+        timeout: int = 30,
+    ) -> List["RSSSource"]:
+        """Create multiple RSS sources from OPML file.
+
+        Args:
+            opml_path: Path to OPML file (None = use environment variable or default)
+            user_agent: HTTP User-Agent header
+            timeout: Request timeout in seconds
+
+        Returns:
+            List of RSSSource instances
+
+        Raises:
+            FileNotFoundError: If OPML file not found
+            ValueError: If no valid RSS feeds found in OPML
+
+        Example:
+            >>> # Use environment variable PAPER_FEED_OPML
+            >>> sources = RSSSource.from_opml()
+            >>> # Use specific file
+            >>> sources = RSSSource.from_opml("feeds/RSS_official.opml")
+            >>> for source in sources:
+            ...     papers = await source.fetch_papers(limit=10)
+        """
+        # Determine OPML file path
+        if opml_path is None:
+            # Check environment variable
+            env_path = os.environ.get("PAPER_FEED_OPML")
+            if env_path:
+                opml_path = env_path
+            else:
+                # Use default location
+                opml_path = "feeds/RSS_official.opml"
+
+        # Parse OPML file
+        parser = OPMLParser(opml_path)
+        feeds = parser.parse()
+
+        if not feeds:
+            raise ValueError(f"No RSS feeds found in OPML file: {opml_path}")
+
+        # Create RSSSource instances
+        sources = []
+        for feed in feeds:
+            source = cls(
+                feed_url=feed["url"],
+                source_name=feed["title"],
+                user_agent=user_agent,
+                timeout=timeout,
+            )
+            sources.append(source)
+
+        logger.info(f"Created {len(sources)} RSS sources from OPML file: {opml_path}")
+
+        return sources
