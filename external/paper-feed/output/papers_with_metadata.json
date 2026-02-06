@@ -1,0 +1,49 @@
+[
+  {
+    "title": "Deep Learning for Computer Vision",
+    "authors": [
+      "Zhang San",
+      "Li Si"
+    ],
+    "abstract": "This paper explores deep learning techniques...",
+    "published_date": "2024-01-15",
+    "doi": "10.1234/dlcv2024",
+    "url": "https://example.com/paper1",
+    "pdf_url": null,
+    "source": "arXiv",
+    "source_id": null,
+    "source_type": "rss",
+    "categories": [
+      "Computer Science",
+      "AI"
+    ],
+    "tags": [
+      "deep learning",
+      "computer vision"
+    ],
+    "metadata": {}
+  },
+  {
+    "title": "Quantum Computing Advances",
+    "authors": [
+      "Wang Wu"
+    ],
+    "abstract": "Recent breakthroughs in quantum computing...",
+    "published_date": "2024-02-20",
+    "doi": "10.1234/qc2024",
+    "url": null,
+    "pdf_url": "https://example.com/paper2.pdf",
+    "source": "Nature",
+    "source_id": null,
+    "source_type": "email",
+    "categories": [
+      "Physics",
+      "Quantum"
+    ],
+    "tags": [
+      "quantum computing",
+      "algorithms"
+    ],
+    "metadata": {}
+  }
+]

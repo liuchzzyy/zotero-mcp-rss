@@ -12,9 +12,17 @@ from paper_feed.sources import RSSSource
 # Filter implementations
 from paper_feed.filters import FilterPipeline
 
+# Adapter implementations
+from paper_feed.adapters import JSONAdapter
+try:
+    from paper_feed.adapters import ZoteroAdapter
+    _zotero_available = True
+except ImportError:
+    ZoteroAdapter = None
+    _zotero_available = False
+
 # Future exports
 # from paper_feed.sources import GmailSource
-# from paper_feed.adapters import JSONAdapter, ZoteroAdapter
 
 __all__ = [
     "PaperItem",
@@ -24,4 +32,6 @@ __all__ = [
     "ExportAdapter",
     "RSSSource",
     "FilterPipeline",
+    "JSONAdapter",
+    "ZoteroAdapter",
 ]
