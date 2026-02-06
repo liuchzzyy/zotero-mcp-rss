@@ -14,7 +14,7 @@ class PaperItem(BaseModel):
         abstract: Paper abstract/summary
         published_date: Publication date
         doi: Digital Object Identifier
-        url: Paper URL (required)
+        url: Paper URL (optional, for flexibility with various sources)
         pdf_url: Direct link to PDF
         source: Source name (e.g., "arXiv", "Nature")
         source_id: Unique ID from source
@@ -23,6 +23,7 @@ class PaperItem(BaseModel):
         tags: Keywords/tags
         metadata: Additional source-specific data
     """
+
     title: str
     authors: List[str] = Field(default_factory=list)
     abstract: str = Field(default="")
@@ -49,6 +50,7 @@ class FilterCriteria(BaseModel):
         authors: Required author names (OR logic)
         has_pdf: Require PDF availability
     """
+
     keywords: List[str] = Field(default_factory=list)
     categories: List[str] = Field(default_factory=list)
     exclude_keywords: List[str] = Field(default_factory=list)
@@ -67,6 +69,7 @@ class FilterResult(BaseModel):
         rejected_count: Papers that were rejected
         filter_stats: Detailed statistics
     """
+
     papers: List[PaperItem]
     total_count: int
     passed_count: int
