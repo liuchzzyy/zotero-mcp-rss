@@ -18,9 +18,7 @@ class PaperSource(ABC):
 
     @abstractmethod
     async def fetch_papers(
-        self,
-        limit: Optional[int] = None,
-        since: Optional[date] = None
+        self, limit: Optional[int] = None, since: Optional[date] = None
     ) -> List[PaperItem]:
         """Fetch papers from this data source.
 
