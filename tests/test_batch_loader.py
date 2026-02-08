@@ -18,7 +18,6 @@ def mock_item_service():
     service.get_item_children.return_value = []
     service.get_fulltext.return_value = "Full text"
     service.get_annotations.return_value = []
-    service.get_bibtex.return_value = "@article{...}"
     return service
 
 
@@ -65,7 +64,6 @@ def mock_item_service_with_pdf():
     ]
     service.get_fulltext.return_value = "Full text"
     service.get_annotations.return_value = []
-    service.get_bibtex.return_value = "@article{...}"
     return service
 
 
@@ -165,7 +163,6 @@ def mock_item_service_with_storage_pdf():
     ]
     service.get_fulltext.return_value = "Full text"
     service.get_annotations.return_value = []
-    service.get_bibtex.return_value = "@article{...}"
     return service
 
 

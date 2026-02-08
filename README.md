@@ -33,10 +33,10 @@
 - Multi-criteria search (title, author, tags, collections)
 - Browse collections, tags, and recent additions
 - Retrieve full text, attachments, notes, and child items
-- Export citations in multiple formats (BibTeX, JSON, Markdown)
+- Export citations in multiple formats (JSON, Markdown)
 
 ### 📝 PDF Annotation Extraction
-- Extract annotations directly from PDF files (Better BibTeX recommended)
+- Extract annotations directly from PDF files
 - Search through PDF annotations and comments
 - Image annotation support
 - Works alongside Zotero's native annotation system
@@ -152,7 +152,7 @@ zotero-mcp setup-info                      # Show installation info
 - `zotero_get_recent` - Recent items
 
 ### Content Access
-- `zotero_get_metadata` - Item metadata (supports BibTeX export)
+- `zotero_get_metadata` - Item metadata
 - `zotero_get_fulltext` - Full text content
 - `zotero_get_bundle` - Comprehensive item data
 - `zotero_get_children` - Attachments and notes
@@ -340,7 +340,7 @@ zotero-mcp setup
 ## 📚 Documentation
 
 - [CLAUDE.md](./CLAUDE.md) - Development guidelines for Claude Code
-- [中文指南](./中文指南.md) - 最新逻辑框架与函数说明
+- [中文指南](./docs/中文指南.md) - 最新逻辑框架与函数说明
 - [CONTRIBUTING.md](./CONTRIBUTING.md) - Contribution guidelines
 - [Migration Guide](./docs/MIGRATION_GUIDE.md) - v2.x to v3.0 migration
 - [Prompt Guide](./docs/PROMPTS.md) - MCP Prompt reference (EN/中文)

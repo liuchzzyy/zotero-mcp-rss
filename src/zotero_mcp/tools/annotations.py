@@ -49,8 +49,7 @@ def register_annotation_tools(mcp: FastMCP) -> None:
         """
         Get PDF annotations (highlights, notes, comments) for a Zotero item.
 
-        Requires Better BibTeX plugin for best results. Supports direct PDF
-        extraction as fallback when Better BibTeX is unavailable.
+        Supports direct PDF extraction as fallback when annotations are not available.
 
         Args:
             params: Input containing:

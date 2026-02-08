@@ -18,7 +18,6 @@ class OutputFormat(str, Enum):
     """Output format for metadata export."""
 
     MARKDOWN = "markdown"
-    BIBTEX = "bibtex"
     JSON = "json"
 
 
@@ -267,7 +266,6 @@ class BundleResponse(BaseResponse):
         default_factory=list, description="PDF annotations"
     )
     fulltext: str | None = Field(default=None, description="Full text content")
-    bibtex: str | None = Field(default=None, description="BibTeX citation")
 
 
 # ===== Database Models =====

@@ -112,7 +112,6 @@ class WorkflowService:
                 include_fulltext=True,
                 include_annotations=include_annotations,
                 include_multimodal=include_multimodal,
-                include_bibtex=False,
             )
 
             # Map bundles by key
@@ -292,7 +291,6 @@ class WorkflowService:
                         include_fulltext=False,
                         include_annotations=False,
                         include_multimodal=True,
-                        include_bibtex=False,
                     )
                     if sample_bundles:
                         sample_multimodal = sample_bundles[0].get("multimodal", {})
@@ -344,7 +342,6 @@ class WorkflowService:
                 include_fulltext=True,
                 include_annotations=include_annotations,
                 include_multimodal=include_multimodal,
-                include_bibtex=False,
             )
             bundle_map = {b["metadata"]["key"]: b for b in bundles}
 

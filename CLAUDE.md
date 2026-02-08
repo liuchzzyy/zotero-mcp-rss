@@ -142,7 +142,7 @@ Business logic organized by domain:
 
 ### Clients Layer (`clients/`)
 External service clients organized by domain:
-- `zotero/` - Zotero API, local DB, Better BibTeX
+- `zotero/` - Zotero API, local DB
 - `database/` - ChromaDB vector database
 - `metadata/` - Crossref, OpenAlex APIs
 - `llm/` - LLM providers (DeepSeek, OpenAI, Gemini, Claude CLI)
@@ -164,7 +164,7 @@ Utility functions organized by purpose:
 - `system/` - System utilities and errors
 
 ### Formatters Layer (`formatters/`)
-Output formatters (Markdown, JSON, BibTeX)
+Output formatters (Markdown, JSON)
 
 ### Key Patterns
 

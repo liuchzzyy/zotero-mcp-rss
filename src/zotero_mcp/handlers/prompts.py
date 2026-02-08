@@ -142,7 +142,7 @@ class PromptHandler:
                         PromptArgument(
                             "include_abstract", "Include abstract (default: true)", False
                         ),
-                        PromptArgument("output_format", "markdown | bibtex | json", False),
+                        PromptArgument("output_format", "markdown | json", False),
                     ],
                 ),
                 Prompt(
@@ -194,9 +194,6 @@ class PromptHandler:
                         ),
                         PromptArgument(
                             "include_notes", "Include notes (true/false)", False
-                        ),
-                        PromptArgument(
-                            "include_bibtex", "Include BibTeX (true/false)", False
                         ),
                     ],
                 ),

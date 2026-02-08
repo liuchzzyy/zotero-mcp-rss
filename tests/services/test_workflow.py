@@ -356,7 +356,6 @@ async def test_batch_analyze_auto_selects_multimodal_llm(
         include_fulltext=False,
         include_annotations=False,
         include_multimodal=False,
-        include_bibtex=False,
     ):
         return [bundle_with_images]
 
@@ -441,7 +440,6 @@ async def test_batch_analyze_auto_selects_text_llm(workflow_service, mock_batch_
         include_fulltext=False,
         include_annotations=False,
         include_multimodal=False,
-        include_bibtex=False,
     ):
         return [bundle_no_images]
 

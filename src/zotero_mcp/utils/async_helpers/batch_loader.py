@@ -39,7 +39,6 @@ class BatchLoader:
         include_fulltext: bool = True,
         include_annotations: bool = True,
         include_notes: bool = True,
-        include_bibtex: bool = True,
         include_multimodal: bool = False,
     ) -> dict[str, Any]:
         """
@@ -68,11 +67,6 @@ class BatchLoader:
         if include_annotations:
             tasks.append(self.item_service.get_annotations(item_key))
             task_map[next_idx] = "annotations"
-            next_idx += 1
-
-        if include_bibtex:
-            tasks.append(self.item_service.get_bibtex(item_key))
-            task_map[next_idx] = "bibtex"
             next_idx += 1
 
         # Multi-modal extraction
@@ -115,8 +109,6 @@ class BatchLoader:
                 bundle["fulltext"] = result
             elif key == "annotations":
                 bundle["annotations"] = result
-            elif key == "bibtex":
-                bundle["bibtex"] = result
             elif key == "multimodal":
                 bundle["multimodal"] = result
 
@@ -186,7 +178,6 @@ class BatchLoader:
         include_fulltext: bool = True,
         include_annotations: bool = True,
         include_notes: bool = True,
-        include_bibtex: bool = True,
         include_multimodal: bool = False,
     ) -> list[dict[str, Any]]:
         """
@@ -201,7 +192,6 @@ class BatchLoader:
                         include_fulltext,
                         include_annotations,
                         include_notes,
-                        include_bibtex,
                         include_multimodal,
                     )
                 except Exception as e:

@@ -7,13 +7,7 @@ Handles CRUD operations for Zotero items, collections, and tags.
 import logging
 from typing import Any
 
-from zotero_mcp.clients.zotero import (
-    BetterBibTeXClient,
-    LocalDatabaseClient,
-    ZoteroAPIClient,
-    ZoteroItem,
-)
-from zotero_mcp.formatters import BibTeXFormatter
+from zotero_mcp.clients.zotero import LocalDatabaseClient, ZoteroAPIClient, ZoteroItem
 from zotero_mcp.models.common import SearchResultItem
 from zotero_mcp.utils.async_helpers.cache import ResponseCache
 from zotero_mcp.utils.formatting.helpers import format_creators
@@ -30,7 +24,6 @@ class ItemService:
         self,
         api_client: ZoteroAPIClient,
         local_client: LocalDatabaseClient | None = None,
-        bibtex_client: BetterBibTeXClient | None = None,
     ):
         """
         Initialize ItemService.
@@ -38,12 +31,9 @@ class ItemService:
         Args:
             api_client: Zotero API client
             local_client: Local database client (optional)
-            bibtex_client: Better BibTeX client (optional)
         """
         self.api_client = api_client
         self.local_client = local_client
-        self.bibtex_client = bibtex_client
-        self._bibtex_formatter = BibTeXFormatter()
         # Internal cache for slow, infrequent changing data (collections, tags)
         self._cache = ResponseCache(ttl_seconds=300)
 
@@ -219,33 +209,12 @@ class ItemService:
         self._cache.set("get_tags", cache_params, tag_list)
         return tag_list
 
-    # -------------------- BibTeX/Annotation/Note --------------------
-
-    async def get_bibtex(self, item_key: str, library_id: int = 1) -> str:
-        """Get BibTeX for an item."""
-        if self.bibtex_client:
-            try:
-                bibtex = self.bibtex_client.export_bibtex(item_key, library_id)
-                if bibtex:
-                    return bibtex
-            except Exception as e:
-                logger.debug(f"Better BibTeX export failed: {e}")
-
-        item = await self.get_item(item_key)
-        return self._bibtex_formatter.format_item(item)
+    # -------------------- Annotation/Note --------------------
 
     async def get_annotations(
         self, item_key: str, library_id: int = 1
     ) -> list[dict[str, Any]]:
         """Get annotations for an item."""
-        if self.bibtex_client:
-            try:
-                citekey = self.bibtex_client.get_citekey(item_key, library_id)
-                if citekey:
-                    return self.bibtex_client.get_annotations(citekey, library_id)
-            except Exception as e:
-                logger.debug(f"Better BibTeX annotations failed: {e}")
-
         children = await self.get_item_children(item_key, item_type="annotation")
         return children
 
@@ -301,7 +270,6 @@ class ItemService:
         include_fulltext: bool = False,
         include_annotations: bool = True,
         include_notes: bool = True,
-        include_bibtex: bool = False,
     ) -> dict[str, Any]:
         """Get comprehensive bundle of item data."""
         bundle: dict[str, Any] = {}
@@ -325,9 +293,6 @@ class ItemService:
 
         if include_fulltext:
             bundle["fulltext"] = await self.get_fulltext(item_key)
-
-        if include_bibtex:
-            bundle["bibtex"] = await self.get_bibtex(item_key)
 
         return bundle
 

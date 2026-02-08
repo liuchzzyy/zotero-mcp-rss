@@ -23,7 +23,7 @@ class GetMetadataInput(BaseInput):
     )
     output_format: OutputFormat = Field(
         default=OutputFormat.MARKDOWN,
-        description="Output format: 'markdown', 'bibtex', or 'json'",
+        description="Output format: 'markdown' or 'json'",
     )
 
 
@@ -103,9 +103,6 @@ class GetBundleInput(BaseInput):
     include_notes: bool = Field(default=True, description="Whether to include notes")
     include_annotations: bool = Field(
         default=False, description="Whether to include annotations from PDF attachments"
-    )
-    include_bibtex: bool = Field(
-        default=False, description="Whether to include BibTeX citation"
     )
     fulltext_max_length: int | None = Field(
         default=10000,

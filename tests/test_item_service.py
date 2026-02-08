@@ -2,14 +2,11 @@
 Tests for ItemService.
 """
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
-from zotero_mcp.clients.zotero import (
-    BetterBibTeXClient,
-    ZoteroAPIClient,
-)
+from zotero_mcp.clients.zotero import ZoteroAPIClient
 from zotero_mcp.services.zotero.item_service import ItemService
 
 
@@ -20,14 +17,8 @@ def mock_api_client():
 
 
 @pytest.fixture
-def mock_bibtex_client():
-    client = MagicMock(spec=BetterBibTeXClient)
-    return client
-
-
-@pytest.fixture
-def item_service(mock_api_client, mock_bibtex_client):
-    return ItemService(api_client=mock_api_client, bibtex_client=mock_bibtex_client)
+def item_service(mock_api_client):
+    return ItemService(api_client=mock_api_client)
 
 
 @pytest.mark.asyncio

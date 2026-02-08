@@ -257,7 +257,6 @@ class GlobalScanner:
                 candidate_keys,
                 include_fulltext=True,
                 include_annotations=True,
-                include_bibtex=False,
                 include_multimodal=include_multimodal,
             )
             full_bundle_map = {b["metadata"]["key"]: b for b in full_bundles}

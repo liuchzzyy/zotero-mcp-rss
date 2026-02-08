@@ -2,7 +2,7 @@
 Item tools for Zotero MCP.
 
 Provides tools for accessing item data:
-- zotero_get_metadata: Get detailed metadata (with optional BibTeX)
+- zotero_get_metadata: Get detailed metadata
 - zotero_get_fulltext: Get full-text content
 - zotero_get_children: Get attachments and notes
 - zotero_get_collections: List collections and items
@@ -53,47 +53,25 @@ def register_item_tools(mcp: FastMCP) -> None:
         Get detailed metadata for a Zotero item.
 
         Retrieves comprehensive bibliographic information including title, authors,
-        publication details, DOI, abstract, and tags. Supports BibTeX export.
+        publication details, DOI, abstract, and tags.
 
         Args:
             params: Input parameters containing:
                 - item_key (str): Zotero item key (8-character alphanumeric)
                 - include_abstract (bool): Whether to include abstract (default: True)
-                - format: Export format - 'markdown', 'bibtex', or 'json'
+                - format: Export format - 'markdown' or 'json'
                 - response_format: Legacy parameter (structured output returned)
 
         Returns:
             ItemDetailResponse: Structured item metadata.
 
-            For BibTeX format, returns special response with raw_data containing bibtex.
-
         Example:
             Use when: "Get details for item ABC12345"
             Use when: "Show me metadata for this paper"
-            Use when: "Export item as BibTeX"
         """
         try:
             service = get_data_service()
             item = await service.get_item(params.item_key.strip().upper())
-
-            # Special handling for BibTeX format
-            if params.output_format.value == "bibtex":
-                bibtex = await service.get_bibtex(params.item_key)
-                if not bibtex:
-                    return ItemDetailResponse(
-                        success=False,
-                        error="Could not generate BibTeX for this item",
-                        key=params.item_key,
-                        title="Error",
-                        item_type="unknown",
-                    )
-                # Return as special response
-                return ItemDetailResponse(
-                    key=params.item_key,
-                    title="BibTeX Citation",
-                    item_type="citation",
-                    raw_data={"bibtex": bibtex},
-                )
 
             # Extract metadata
             data = item.get("data", {})
@@ -378,7 +356,7 @@ def register_item_tools(mcp: FastMCP) -> None:
     async def zotero_get_bundle(params: GetBundleInput, ctx: Context) -> BundleResponse:
         """
         Get comprehensive bundle of item data including metadata, attachments, notes,
-        annotations, and optionally full text and BibTeX.
+        annotations, and optionally full text.
 
         Args:
             params: Input containing:
@@ -386,7 +364,6 @@ def register_item_tools(mcp: FastMCP) -> None:
                 - include_fulltext (bool): Include full-text content
                 - include_annotations (bool): Include PDF annotations
                 - include_notes (bool): Include notes
-                - include_bibtex (bool): Include BibTeX citation
 
         Returns:
             BundleResponse: Comprehensive item bundle.
@@ -402,7 +379,6 @@ def register_item_tools(mcp: FastMCP) -> None:
                 include_fulltext=params.include_fulltext,
                 include_annotations=params.include_annotations,
                 include_notes=params.include_notes,
-                include_bibtex=params.include_bibtex,
             )
 
             # Extract metadata
@@ -443,7 +419,6 @@ def register_item_tools(mcp: FastMCP) -> None:
                 notes=bundle.get("notes", []),
                 annotations=annotations,
                 fulltext=bundle.get("fulltext"),
-                bibtex=bundle.get("bibtex"),
             )
 
         except Exception as e:

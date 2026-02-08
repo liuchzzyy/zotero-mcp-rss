@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🔥 Removed
 - External `paper-feed` module; merged analysis and core logic into main package
+- BibTeX export and Better BibTeX integration
 
 ### 🔧 Changed
 - Unified package layout to align with logseq-mcp style layering

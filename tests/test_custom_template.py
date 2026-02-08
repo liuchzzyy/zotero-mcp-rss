@@ -58,7 +58,6 @@ async def test_workflow_service_propagates_template():
     mock_item_service.get_item_children = AsyncMock(return_value=[])
     mock_item_service.get_fulltext = AsyncMock(return_value="Content")
     mock_item_service.get_annotations = AsyncMock(return_value=[])
-    mock_item_service.get_bibtex = AsyncMock(return_value="")
 
     # Set item_service property
     # Since DataAccessService.item_service is a property, we need to mock it on the instance if possible,

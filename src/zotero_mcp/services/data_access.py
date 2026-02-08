@@ -2,7 +2,7 @@
 Unified data access service for Zotero MCP.
 
 Provides a single interface for accessing Zotero data through
-multiple backends (API, local database, Better BibTeX).
+multiple backends (API, local database).
 """
 
 from functools import lru_cache
@@ -10,11 +10,9 @@ import logging
 from typing import Any, Literal
 
 from zotero_mcp.clients.zotero import (
-    BetterBibTeXClient,
     LocalDatabaseClient,
     ZoteroAPIClient,
     ZoteroItem,
-    get_better_bibtex_client,
     get_local_database_client,
     get_zotero_client,
 )
@@ -38,7 +36,6 @@ class DataAccessService:
 
     Automatically selects the best available backend for each operation:
     - Local Database: Used for fast reads and search when available.
-    - Better BibTeX: Used for citation keys and annotation extraction.
     - Zotero API: Used for write operations and fallback when local access is unavailable.
     """
 
@@ -46,7 +43,6 @@ class DataAccessService:
         self,
         api_client: ZoteroAPIClient | None = None,
         local_client: LocalDatabaseClient | None = None,
-        bibtex_client: BetterBibTeXClient | None = None,
     ):
         """
         Initialize the DataAccessService.
@@ -54,11 +50,9 @@ class DataAccessService:
         Args:
             api_client: Optional pre-configured ZoteroAPIClient.
             local_client: Optional pre-configured LocalDatabaseClient.
-            bibtex_client: Optional pre-configured BetterBibTeXClient.
         """
         self._api_client = api_client
         self._local_client = local_client
-        self._bibtex_client = bibtex_client
         self._formatters = {
             ResponseFormat.MARKDOWN: MarkdownFormatter(),
             ResponseFormat.JSON: JSONFormatter(),
@@ -101,20 +95,12 @@ class DataAccessService:
         return self._local_client
 
     @property
-    def bibtex_client(self) -> BetterBibTeXClient | None:
-        """Get Better BibTeX client if available."""
-        if self._bibtex_client is None:
-            self._bibtex_client = get_better_bibtex_client()
-        return self._bibtex_client
-
-    @property
     def item_service(self) -> ItemService:
         """Get ItemService instance."""
         if self._item_service is None:
             self._item_service = ItemService(
                 api_client=self.api_client,
                 local_client=self.local_client,
-                bibtex_client=self.bibtex_client,
             )
         return self._item_service
 
@@ -275,16 +261,6 @@ class DataAccessService:
         """Find collections by name."""
         return await self.item_service.find_collection_by_name(name, exact_match)
 
-    # -------------------- BibTeX Operations --------------------
-
-    async def get_bibtex(
-        self,
-        item_key: str,
-        library_id: int = 1,
-    ) -> str:
-        """Get BibTeX for an item."""
-        return await self.item_service.get_bibtex(item_key, library_id)
-
     # -------------------- Annotation Operations --------------------
 
     async def get_annotations(
@@ -353,7 +329,6 @@ class DataAccessService:
         include_fulltext: bool = False,
         include_annotations: bool = True,
         include_notes: bool = True,
-        include_bibtex: bool = False,
     ) -> dict[str, Any]:
         """Get comprehensive bundle of item data."""
         return await self.item_service.get_item_bundle(
@@ -361,7 +336,6 @@ class DataAccessService:
             include_fulltext,
             include_annotations,
             include_notes,
-            include_bibtex,
         )
 
     # -------------------- Helper Methods (Legacy Support) --------------------
