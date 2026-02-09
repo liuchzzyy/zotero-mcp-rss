@@ -252,6 +252,16 @@ class ItemService:
         self._cache.invalidate("get_tags", {"limit": 100})
         return result
 
+    async def upload_attachment(
+        self, parent_key: str, file_path: str, title: str | None = None
+    ) -> dict[str, Any]:
+        """Upload a local file and attach it to an item."""
+        return await self.api_client.upload_attachment(
+            parent_key=parent_key,
+            file_path=file_path,
+            title=title,
+        )
+
     async def update_item(self, item: dict[str, Any]) -> dict[str, Any]:
         """Update an item's data."""
         return await self.api_client.update_item(item)

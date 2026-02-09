@@ -452,6 +452,34 @@ class ZoteroAPIClient:
 
         return None
 
+    async def upload_attachment(
+        self,
+        parent_key: str,
+        file_path: str,
+        title: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        Upload a file as an attachment to a parent item.
+
+        Args:
+            parent_key: Parent Zotero item key
+            file_path: Local file path to upload
+            title: Optional attachment title
+
+        Returns:
+            Upload result dict from pyzotero
+        """
+        loop = asyncio.get_event_loop()
+
+        def _upload():
+            if title:
+                return self.client.attachment_both(
+                    [(title, file_path)], parentid=parent_key
+                )
+            return self.client.attachment_simple([file_path], parentid=parent_key)
+
+        return await loop.run_in_executor(None, _upload)
+
     # -------------------- Write Methods --------------------
 
     async def create_items(self, items: list[dict[str, Any]]) -> dict[str, Any]:

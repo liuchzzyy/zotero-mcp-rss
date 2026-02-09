@@ -29,6 +29,8 @@ from zotero_mcp.models.zotero.collections import (
     RenameCollectionInput,
 )
 from zotero_mcp.models.zotero.items import (
+    FindPdfSiBatchInput,
+    FindPdfSiInput,
     GetBundleInput,
     GetChildrenInput,
     GetCollectionsInput,
@@ -53,6 +55,8 @@ __all__ = [
     "DeleteCollectionInput",
     "EmptyInput",
     "FindCollectionInput",
+    "FindPdfSiBatchInput",
+    "FindPdfSiInput",
     "GetAnnotationsInput",
     "GetBundleInput",
     "GetChildrenInput",
