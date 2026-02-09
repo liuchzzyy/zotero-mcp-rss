@@ -7,8 +7,8 @@
   <a href="https://modelcontextprotocol.io/introduction">
     <img src="https://img.shields.io/badge/MCP-0175C2?style=for-the-badge&logoColor=white" alt="MCP">
   </a>
-  <a href="https://github.com/54yyyu/zotero-mcp/releases">
-    <img src="https://img.shields.io/github/v/release/54yyyu/zotero-mcp?style=for-the-badge" alt="Release">
+  <a href="https://github.com/liuchzzyy/zotero-mcp/releases">
+    <img src="https://img.shields.io/github/v/release/liuchzzyy/zotero-mcp?style=for-the-badge" alt="Release">
   </a>
 </p>
 
@@ -54,7 +54,7 @@
 
 ```bash
 # Install via uv
-uv tool install "git+https://github.com/54yyyu/zotero-mcp.git"
+uv tool install "git+https://github.com/liuchzzyy/zotero-mcp.git"
 
 # Configure
 zotero-mcp setup
@@ -366,24 +366,7 @@ The PDF analyzer and Zotero core logic are fully integrated into the main packag
 
 ## 📝 Changelog
 
-### v3.0.0
-- 🏗️ Unified architecture with a single package and clear layering
-- 🔌 MCP tool refactor with consolidated configuration
-- 🔍 Hybrid search with Reciprocal Rank Fusion (RRF) algorithm
-- 📄 Multi-modal PDF analysis with template system
-
-### v2.4.0
-- ✅ Fixed duplicate detection collection key extraction bug
-- ✅ Improved deduplication log output (Chinese labels, emoji)
-- ✅ Added retry logic for API calls (handles 502 errors)
-- ✅ Note/attachment type protection in deduplication
-- ✅ Cross-folder copy detection (preserves intentional duplicates)
-- ✅ Enhanced error handling and logging
-
-### v2.3.0
-- Enhanced metadata matching (lowered threshold to 0.6)
-- Improved timeout handling (45s default)
-- Cache error tolerance for GitHub Actions
+The current version is defined in `pyproject.toml`. See `CHANGELOG.md` for the full release history.
 
 ## 📄 License
 

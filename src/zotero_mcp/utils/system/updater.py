@@ -126,7 +126,8 @@ def get_latest_version() -> str | None:
 
     try:
         response = requests.get(
-            "https://api.github.com/repos/54yyyu/zotero-mcp/releases/latest", timeout=10
+            "https://api.github.com/repos/liuchzzyy/zotero-mcp/releases/latest",
+            timeout=10,
         )
 
         if response.status_code == 200:
@@ -226,7 +227,7 @@ def update_via_method(method: str, force: bool = False) -> tuple[bool, str]:
     Returns:
         Tuple of (success, message)
     """
-    repo_url = "git+https://github.com/54yyyu/zotero-mcp.git"
+    repo_url = "git+https://github.com/liuchzzyy/zotero-mcp.git"
 
     try:
         if method == "uv":

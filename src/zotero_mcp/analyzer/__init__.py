@@ -18,4 +18,9 @@ __all__ = [
     "PDFAnalyzer",
 ]
 
-__version__ = "2.0.1"
+try:
+    from importlib.metadata import PackageNotFoundError, version as _pkg_version
+
+    __version__ = _pkg_version("zotero-mcp")
+except PackageNotFoundError:
+    __version__ = "unknown"
