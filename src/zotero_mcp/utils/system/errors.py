@@ -3,10 +3,10 @@ Unified error handling for Zotero MCP.
 """
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from fastmcp import Context
+    Context = Any
 
 logger = logging.getLogger(__name__)
 

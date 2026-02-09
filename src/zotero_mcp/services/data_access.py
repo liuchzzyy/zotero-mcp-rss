@@ -5,9 +5,11 @@ Provides a single interface for accessing Zotero data through
 multiple backends (API, local database).
 """
 
+from __future__ import annotations
+
 from functools import lru_cache
 import logging
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from zotero_mcp.clients.zotero import (
     LocalDatabaseClient,
@@ -16,12 +18,14 @@ from zotero_mcp.clients.zotero import (
     get_local_database_client,
     get_zotero_client,
 )
-from zotero_mcp.formatters import JSONFormatter, MarkdownFormatter
 from zotero_mcp.models.common import ResponseFormat, SearchResultItem
 from zotero_mcp.services.zotero.item_service import ItemService
 from zotero_mcp.services.zotero.metadata_service import MetadataService
 from zotero_mcp.services.zotero.search_service import SearchService
 from zotero_mcp.utils.formatting.helpers import is_local_mode
+
+if TYPE_CHECKING:
+    from zotero_mcp.formatters import JSONFormatter, MarkdownFormatter
 
 logger = logging.getLogger(__name__)
 
@@ -53,10 +57,7 @@ class DataAccessService:
         """
         self._api_client = api_client
         self._local_client = local_client
-        self._formatters = {
-            ResponseFormat.MARKDOWN: MarkdownFormatter(),
-            ResponseFormat.JSON: JSONFormatter(),
-        }
+        self._formatters: dict | None = None
 
         # Initialize sub-services (lazy loading clients)
         self._item_service: ItemService | None = None
@@ -125,6 +126,13 @@ class DataAccessService:
         self, response_format: ResponseFormat
     ) -> MarkdownFormatter | JSONFormatter:
         """Get formatter for response format."""
+        if self._formatters is None:
+            from zotero_mcp.formatters import JSONFormatter, MarkdownFormatter
+
+            self._formatters = {
+                ResponseFormat.MARKDOWN: MarkdownFormatter(),
+                ResponseFormat.JSON: JSONFormatter(),
+            }
         return self._formatters.get(
             response_format, self._formatters[ResponseFormat.MARKDOWN]
         )

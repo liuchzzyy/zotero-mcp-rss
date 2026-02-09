@@ -53,9 +53,7 @@ class PDFExtractor:
         Returns:
             PDFContent with text, images, and tables
         """
-        return await asyncio.to_thread(
-            self._extract_sync, file_path, pages
-        )
+        return await asyncio.to_thread(self._extract_sync, file_path, pages)
 
     def _extract_sync(
         self,
@@ -97,9 +95,7 @@ class PDFExtractor:
 
     async def extract_text_only(self, file_path: str) -> str:
         """Fast text-only extraction."""
-        return await asyncio.to_thread(
-            self._extract_text_only_sync, file_path
-        )
+        return await asyncio.to_thread(self._extract_text_only_sync, file_path)
 
     def _extract_text_only_sync(self, file_path: str) -> str:
         """Synchronous text-only extraction."""

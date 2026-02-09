@@ -450,8 +450,6 @@ Examples:
 
     elif args.command == "scan":
         load_config()
-        import asyncio
-
         from zotero_mcp.services.scanner import GlobalScanner
 
         scanner = GlobalScanner()
@@ -492,8 +490,6 @@ Examples:
 
     elif args.command == "update-metadata":
         load_config()
-        import asyncio
-
         from zotero_mcp.services.data_access import DataAccessService
         from zotero_mcp.services.zotero.metadata_update_service import (
             MetadataUpdateService,
@@ -543,8 +539,6 @@ Examples:
 
     elif args.command == "deduplicate":
         load_config()
-        import asyncio
-
         from zotero_mcp.services.data_access import DataAccessService
         from zotero_mcp.services.zotero.duplicate_service import (
             DuplicateDetectionService,

@@ -65,7 +65,6 @@ classifiers = [
 
 dependencies = [
     # MCP Server Framework
-    "fastmcp>=2.14.0",  # FastMCP framework for building MCP servers
     "mcp>=1.2.0",  # Model Context Protocol SDK
 
     # Zotero Integration

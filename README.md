@@ -342,10 +342,6 @@ zotero-mcp setup
 - [CLAUDE.md](./CLAUDE.md) - Development guidelines for Claude Code
 - [中文指南](./docs/中文指南.md) - 最新逻辑框架与函数说明
 - [CONTRIBUTING.md](./CONTRIBUTING.md) - Contribution guidelines
-- [Migration Guide](./docs/MIGRATION_GUIDE.md) - v2.x to v3.0 migration
-- [Prompt Guide](./docs/PROMPTS.md) - MCP Prompt reference (EN/中文)
-- [Multi-Modal Analysis Guide](./docs/MULTIMODAL_ANALYSIS.md) - Comprehensive multi-modal PDF analysis documentation
-- [GitHub Actions Guide](./docs/GITHUB_ACTIONS_GUIDE.md) - Workflow automation
 - [Batch Workflow Example](./examples/workflow_example.py) - Production-grade code example
 
 ## 🏗️ Architecture Overview
@@ -354,14 +350,14 @@ Zotero MCP is now a single, cohesive package with a Logseq-inspired layering:
 
 ```
 src/zotero_mcp
-├── app.py       # FastMCP tool registry (shared by server/CLI)
 ├── server.py    # MCP stdio server entrypoint
 ├── cli.py       # CLI entrypoint
 ├── clients/     # External APIs (Zotero, metadata, LLM, database)
+├── input/       # External input adapters (paper-feed)
 ├── handlers/    # MCP tool/prompt handlers (logseq-mcp style)
 ├── services/    # Core business logic (search, items, workflows)
-├── tools/       # MCP tool registrations (FastMCP)
-├── models/      # Pydantic schemas and responses
+├── models/      # Pydantic schemas and AI models
+├── analyzer/    # PDF analysis and LLM pipelines
 ├── settings.py  # Pydantic Settings (logseq-mcp aligned)
 └── utils/       # Shared helpers (config, logging, formatting)
 ```
@@ -397,7 +393,6 @@ MIT License - see [LICENSE](./LICENSE) for details.
 
 - [Zotero](https://www.zotero.org/) - Excellent reference management software
 - [Model Context Protocol](https://modelcontextprotocol.io/) - Standard for AI tool integration
-- [FastMCP](https://github.com/jlowin/fastmcp) - MCP server framework
 - [ChromaDB](https://www.trychroma.com/) - Vector database for semantic search
 - All contributors and users of Zotero MCP!
 

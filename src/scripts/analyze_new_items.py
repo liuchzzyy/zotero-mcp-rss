@@ -40,9 +40,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# Configuration
-SOURCE_COLLECTION_NAME = "00_INBOXS"
-DEST_COLLECTION_NAME = "01_SHORTTERMS"
+# Configuration (override via .env)
+SOURCE_COLLECTION_NAME = os.getenv("SOURCE_COLLECTION_NAME", "00_INBOXS").strip()
+DEST_COLLECTION_NAME = os.getenv("DEST_COLLECTION_NAME", "01_SHORTTERMS").strip()
 
 # Runtime options from environment variables
 _max_items_env = os.getenv("MAX_ITEMS", "").strip()

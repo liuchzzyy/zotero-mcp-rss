@@ -14,7 +14,7 @@ Example:
 
 Zotero MCP is a Model Context Protocol (MCP) server that connects AI assistants to Zotero research libraries. It provides semantic search (ChromaDB), PDF analysis via LLMs (DeepSeek/OpenAI/Gemini), annotation extraction, and comprehensive logging.
 
-**Tech Stack:** MCP SDK + FastMCP, Python 3.10+, uv (package manager)
+**Tech Stack:** MCP SDK, Python 3.10+, uv (package manager)
 
 ## Key Commands
 
@@ -114,11 +114,11 @@ Layered architecture with strict separation of concerns, organized by domain:
 
 ### Entry Layer
 - `server.py` - MCP stdio server entrypoint (logseq-mcp aligned)
-- `app.py` - FastMCP tool registry (shared by server/CLI)
+- `server.py` - MCP stdio server entrypoint
 - `cli.py` - Command-line interface
 - `settings.py` - Pydantic Settings (env config)
 
-### Tools Layer (`tools/`)
+### Tools Layer (Handlers)
 Thin MCP tool wrappers (`@mcp.tool`) that delegate to Services:
 - `annotations.py` - PDF annotation and note tools
 - `batch.py` - Batch operation tools
@@ -222,8 +222,8 @@ This makes the code more testable, readable, and easier to modify.
 
 1. Define Pydantic models in `models/` for request/response
 2. Implement business logic in `services/`
-3. Create tool wrapper in `tools/` with `@mcp.tool` decorator
-4. Register in `tools/__init__.py`
+3. Define tool schema and handler entry in `handlers/tools.py`
+4. Add or update input models in `models/schemas.py`
 
 ## Multi-Modal PDF Analysis
 

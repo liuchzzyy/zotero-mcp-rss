@@ -7,9 +7,8 @@ from collections.abc import Sequence
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
-from mcp.types import ContentBlock, Prompt, Tool
+from mcp.types import Prompt, TextContent, Tool
 
-from zotero_mcp.app import get_fastmcp_app
 from zotero_mcp.handlers import PromptHandler, ToolHandler
 from zotero_mcp.settings import settings
 from zotero_mcp.utils.config import load_config
@@ -22,17 +21,15 @@ async def serve() -> None:
     load_config()
 
     server = Server(settings.server_name)
-    app = get_fastmcp_app()
-
-    tool_handler = ToolHandler(app=app)
+    tool_handler = ToolHandler()
     prompt_handler = PromptHandler()
 
     @server.list_tools()
     async def list_tools() -> list[Tool]:
-        return await tool_handler.get_tools()
+        return tool_handler.get_tools()
 
     @server.call_tool()
-    async def call_tool(name: str, arguments: dict) -> Sequence[ContentBlock]:
+    async def call_tool(name: str, arguments: dict) -> Sequence[TextContent]:
         return await tool_handler.handle_tool(name, arguments)
 
     @server.list_prompts()

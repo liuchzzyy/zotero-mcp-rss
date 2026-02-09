@@ -53,11 +53,3 @@ pyzotero/
 worktrees/
 .worktrees/
 
-# Runtime caches
-RSS/keywords_cache.json
-
-# Gmail OAuth credentials (sensitive)
-*credentials.json
-*token.json
-gmail_credentials.json
-token.json

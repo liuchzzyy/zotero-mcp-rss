@@ -51,14 +51,10 @@ class Config(BaseModel):
             llm_api_key=os.getenv("LLM_API_KEY", ""),
             llm_base_url=os.getenv("LLM_BASE_URL", ""),
             llm_model=os.getenv("LLM_MODEL", "deepseek-chat"),
-            chromadb_persist_dir=os.getenv(
-                "CHROMADB_PERSIST_DIR", "./chromadb_data"
-            ),
+            chromadb_persist_dir=os.getenv("CHROMADB_PERSIST_DIR", "./chromadb_data"),
             embedding_provider=os.getenv("EMBEDDING_PROVIDER", "openai"),
             embedding_api_key=os.getenv("EMBEDDING_API_KEY", ""),
-            embedding_model=os.getenv(
-                "EMBEDDING_MODEL", "text-embedding-3-small"
-            ),
+            embedding_model=os.getenv("EMBEDDING_MODEL", "text-embedding-3-small"),
             log_level=os.getenv("LOG_LEVEL", "INFO"),
             debug=os.getenv("DEBUG", "false").lower() in ("true", "1"),
         )

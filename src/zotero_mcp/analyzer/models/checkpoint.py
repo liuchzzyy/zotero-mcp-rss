@@ -30,15 +30,11 @@ class CheckpointData(BaseModel):
     )
 
     # Detailed records
-    completed: list[str] = Field(
-        default_factory=list, description="Completed item IDs"
-    )
+    completed: list[str] = Field(default_factory=list, description="Completed item IDs")
     failed: dict[str, str] = Field(
         default_factory=dict, description="Failed item ID -> error"
     )
-    skipped: list[str] = Field(
-        default_factory=list, description="Skipped item IDs"
-    )
+    skipped: list[str] = Field(default_factory=list, description="Skipped item IDs")
 
     # Config snapshot
     config: dict[str, Any] = Field(
@@ -53,7 +49,5 @@ class CheckpointData(BaseModel):
 
     @property
     def is_completed(self) -> bool:
-        processed = (
-            self.completed_items + self.failed_items + self.skipped_items
-        )
+        processed = self.completed_items + self.failed_items + self.skipped_items
         return processed >= self.total_items

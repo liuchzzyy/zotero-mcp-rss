@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import json
+from typing import Any
 
 from mcp.types import (
     GetPromptResult,
@@ -84,7 +83,9 @@ class PromptHandler:
                     arguments=[
                         PromptArgument("query", "Search keywords", True),
                         PromptArgument("limit", "Maximum results (default: 20)", False),
-                        PromptArgument("offset", "Pagination offset (default: 0)", False),
+                        PromptArgument(
+                            "offset", "Pagination offset (default: 0)", False
+                        ),
                         PromptArgument(
                             "qmode",
                             "Search mode: titleCreatorYear | everything",
@@ -96,9 +97,7 @@ class PromptHandler:
                     name="zotero_search_by_tag",
                     description="Search Zotero items by tag",
                     arguments=[
-                        PromptArgument(
-                            "tags", "Tag list (use -tag to exclude)", True
-                        ),
+                        PromptArgument("tags", "Tag list (use -tag to exclude)", True),
                         PromptArgument("limit", "Maximum results (default: 20)", False),
                     ],
                 ),
@@ -140,7 +139,9 @@ class PromptHandler:
                     arguments=[
                         PromptArgument("item_key", "Zotero item key", True),
                         PromptArgument(
-                            "include_abstract", "Include abstract (default: true)", False
+                            "include_abstract",
+                            "Include abstract (default: true)",
+                            False,
                         ),
                         PromptArgument("output_format", "markdown | json", False),
                     ],
@@ -162,9 +163,7 @@ class PromptHandler:
                     description="Get attachments/notes for an item",
                     arguments=[
                         PromptArgument("item_key", "Parent item key", True),
-                        PromptArgument(
-                            "child_type", "all | attachment | note", False
-                        ),
+                        PromptArgument("child_type", "all | attachment | note", False),
                     ],
                 ),
                 Prompt(
@@ -247,7 +246,9 @@ class PromptHandler:
                             False,
                         ),
                         PromptArgument(
-                            "case_sensitive", "Case sensitive search (true/false)", False
+                            "case_sensitive",
+                            "Case sensitive search (true/false)",
+                            False,
                         ),
                         PromptArgument("offset", "Pagination offset", False),
                         PromptArgument("limit", "Maximum results", False),
@@ -377,7 +378,9 @@ class PromptHandler:
                         PromptArgument("collection_key", "Collection key", False),
                         PromptArgument("days", "Recent days window", False),
                         PromptArgument("limit", "Maximum items", False),
-                        PromptArgument("resume_workflow_id", "Resume workflow ID", False),
+                        PromptArgument(
+                            "resume_workflow_id", "Resume workflow ID", False
+                        ),
                         PromptArgument(
                             "skip_existing_notes", "Skip items with notes", False
                         ),
@@ -387,7 +390,9 @@ class PromptHandler:
                         PromptArgument(
                             "include_multimodal", "Extract images/tables", False
                         ),
-                        PromptArgument("llm_provider", "deepseek | claude-cli | auto", False),
+                        PromptArgument(
+                            "llm_provider", "deepseek | claude-cli | auto", False
+                        ),
                         PromptArgument("llm_model", "Model name", False),
                         PromptArgument("template", "Template name", False),
                         PromptArgument("dry_run", "Preview only (true/false)", False),
@@ -440,7 +445,9 @@ class PromptHandler:
                 messages=[
                     PromptMessage(
                         role="user",
-                        content=TextContent(type="text", text=f"Unknown prompt: {name}"),
+                        content=TextContent(
+                            type="text", text=f"Unknown prompt: {name}"
+                        ),
                     )
                 ],
             )
@@ -453,5 +460,7 @@ class PromptHandler:
 
         return GetPromptResult(
             description=description,
-            messages=[PromptMessage(role="user", content=TextContent(type="text", text=text))],
+            messages=[
+                PromptMessage(role="user", content=TextContent(type="text", text=text))
+            ],
         )

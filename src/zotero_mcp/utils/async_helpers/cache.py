@@ -90,7 +90,7 @@ def cached_tool(ttl_seconds: int | None = None):
                 # params is a Pydantic model, use model_dump()
                 params_dict: dict[str, Any] | str = params.model_dump()
             except AttributeError:
-                # fallback if params is a dict (unlikely with FastMCP but possible)
+                # fallback if params is a dict (legacy compatibility)
                 params_dict = params if isinstance(params, dict) else str(params)
 
             cached_response = cache.get(tool_name, params_dict)  # type: ignore[arg-type]

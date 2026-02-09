@@ -73,11 +73,7 @@ class PDFAnalyzer:
             and content.has_images
             and self.llm_client.supports_vision()
         ):
-            images = [
-                img.data_base64
-                for img in content.images[:10]
-                if img.data_base64
-            ]
+            images = [img.data_base64 for img in content.images[:10] if img.data_base64]
 
         # 5. Call LLM
         raw_output = await self.llm_client.analyze(
@@ -166,9 +162,7 @@ class PDFAnalyzer:
     ) -> str:
         """Build prompt from template and content."""
         variables = {
-            "title": content.metadata.get(
-                "title", Path(content.file_path).stem
-            ),
+            "title": content.metadata.get("title", Path(content.file_path).stem),
             "text": content.text[:10000],
             "page_count": content.total_pages,
             "has_images": content.has_images,
@@ -202,9 +196,7 @@ class PDFAnalyzer:
 
         return result
 
-    def _parse_json_output(
-        self, result: AnalysisResult, raw_output: str
-    ) -> None:
+    def _parse_json_output(self, result: AnalysisResult, raw_output: str) -> None:
         """Parse JSON-formatted LLM output."""
         try:
             data = json.loads(raw_output)
@@ -212,15 +204,11 @@ class PDFAnalyzer:
             result.key_points = data.get("key_points", [])
             result.methodology = data.get("methodology", "")
             result.conclusions = data.get("conclusions", "")
-            result.formatted_output = json.dumps(
-                data, indent=2, ensure_ascii=False
-            )
+            result.formatted_output = json.dumps(data, indent=2, ensure_ascii=False)
         except json.JSONDecodeError:
             result.formatted_output = raw_output
 
-    def _parse_markdown_output(
-        self, result: AnalysisResult, raw_output: str
-    ) -> None:
+    def _parse_markdown_output(self, result: AnalysisResult, raw_output: str) -> None:
         """Parse Markdown-formatted LLM output."""
         section_map = {
             "summary": "summary",
@@ -264,9 +252,7 @@ class PDFAnalyzer:
             result.summary = text
         elif field == "key_points":
             result.key_points = [
-                line.strip().lstrip("-*").strip()
-                for line in lines
-                if line.strip()
+                line.strip().lstrip("-*").strip() for line in lines if line.strip()
             ]
         elif field == "methodology":
             result.methodology = text

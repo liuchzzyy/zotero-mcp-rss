@@ -148,7 +148,7 @@ uv run ruff check src/
 import asyncio  # 标准库
 from typing import Any  # 标准库类型
 
-from fastmcp import Context, FastMCP  # 第三方库
+from mcp.server import Server  # 第三方库
 from pydantic import Field  # 第三方库
 
 from zotero_mcp.models import SearchInput  # 本地导入
@@ -348,7 +348,7 @@ git push origin feature/your-feature-name
 
 1. **定义输入模型** - 在 `src/zotero_mcp/models/` 中创建
 2. **定义输出模型** - 在 `src/zotero_mcp/models/common.py` 中添加
-3. **实现工具** - 在相应的 `tools/` 文件中实现
+3. **实现工具** - 在 `handlers/tools.py` 中实现调用逻辑，并在 `models/schemas.py` 中定义输入模型
 4. **添加注释** - 使用 `ToolAnnotations`
 5. **编写文档** - Google-style docstrings
 6. **添加示例** - 在文档中添加使用示例

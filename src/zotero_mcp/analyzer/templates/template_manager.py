@@ -72,13 +72,13 @@ _STRUCTURED_TEMPLATE = AnalysisTemplate(
         "Please analyze the following paper and output JSON:\n\n"
         "Title: {title}\n"
         "Content: {text}\n\n"
-        'Output format:\n'
-        '{{\n'
+        "Output format:\n"
+        "{{\n"
         '  "summary": "Research summary",\n'
         '  "key_points": ["Point 1", "Point 2"],\n'
         '  "methodology": "Research method",\n'
         '  "conclusions": "Main conclusions"\n'
-        '}}'
+        "}}"
     ),
     output_format="json",
     output_schema={
@@ -101,9 +101,7 @@ class TemplateManager:
         "structured": _STRUCTURED_TEMPLATE,
     }
 
-    def __init__(
-        self, custom_templates_dir: Path | None = None
-    ):
+    def __init__(self, custom_templates_dir: Path | None = None):
         self.custom_templates_dir = custom_templates_dir
         self._custom: dict[str, AnalysisTemplate] = {}
 
@@ -117,8 +115,7 @@ class TemplateManager:
         if name in self.BUILTIN_TEMPLATES:
             return self.BUILTIN_TEMPLATES[name]
         raise KeyError(
-            f"Template '{name}' not found. "
-            f"Available: {self.list_templates()}"
+            f"Template '{name}' not found. Available: {self.list_templates()}"
         )
 
     def list_templates(self) -> list[str]:

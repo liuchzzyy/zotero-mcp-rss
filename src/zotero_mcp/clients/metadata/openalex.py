@@ -27,8 +27,7 @@ REQUEST_TIMEOUT = 45.0
 
 # User-Agent for polite pool
 USER_AGENT = (
-    "zotero-mcp/1.0 (https://github.com/54yyyu/zotero-mcp; "
-    "mailto:support@example.com)"
+    "zotero-mcp/1.0 (https://github.com/54yyyu/zotero-mcp; mailto:support@example.com)"
 )
 
 # API configuration

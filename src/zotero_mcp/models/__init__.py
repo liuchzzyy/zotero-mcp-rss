@@ -1,5 +1,6 @@
 """Pydantic models for Zotero MCP tool inputs and outputs."""
 
+from .ai import AIAnalysisInput, AIAnalysisResult, AIModelConfig, AIProvider
 from .common import DatabaseStatusResponse, ResponseFormat, SearchResultItem
 from .database import DatabaseStatusInput, UpdateDatabaseInput
 from .search import (
@@ -25,6 +26,11 @@ from .zotero import (
 )
 
 __all__ = [
+    # AI
+    "AIProvider",
+    "AIModelConfig",
+    "AIAnalysisInput",
+    "AIAnalysisResult",
     # Common
     "ResponseFormat",
     "SearchResultItem",

@@ -56,16 +56,12 @@ class OpenAIClient(BaseLLMClient):
 
         # Build user message
         if images and self.supports_vision():
-            content: list[dict[str, Any]] = [
-                {"type": "text", "text": prompt}
-            ]
+            content: list[dict[str, Any]] = [{"type": "text", "text": prompt}]
             for img_base64 in images:
                 content.append(
                     {
                         "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/png;base64,{img_base64}"
-                        },
+                        "image_url": {"url": f"data:image/png;base64,{img_base64}"},
                     }
                 )
             messages.append({"role": "user", "content": content})

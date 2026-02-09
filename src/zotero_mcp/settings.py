@@ -23,8 +23,15 @@ class ZoteroSettings(BaseSettings):
         extra="ignore",
     )
 
+    # Server metadata
     server_name: str = Field(default="zotero-mcp")
     server_version: str = Field(default_factory=_get_version)
+
+    # Feature flags
+    enable_semantic_search: bool = Field(default=True)
+    enable_workflows: bool = Field(default=True)
+    enable_database_tools: bool = Field(default=True)
+    enable_collection_tools: bool = Field(default=True)
 
 
 settings = ZoteroSettings()

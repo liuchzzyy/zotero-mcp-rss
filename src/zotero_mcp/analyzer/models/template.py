@@ -25,18 +25,14 @@ class AnalysisTemplate(BaseModel):
         default="markdown",
         description="Output format: markdown, json, html",
     )
-    output_schema: dict[str, Any] | None = Field(
-        None, description="Output JSON Schema"
-    )
+    output_schema: dict[str, Any] | None = Field(None, description="Output JSON Schema")
 
     # Feature configuration
     supports_multimodal: bool = Field(
         default=False, description="Whether template supports multi-modal input"
     )
     max_tokens: int = Field(default=4000, description="Max output tokens")
-    temperature: float = Field(
-        default=0.7, ge=0.0, le=2.0, description="Temperature"
-    )
+    temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="Temperature")
 
     # Variable definitions
     required_variables: list[str] = Field(
@@ -61,8 +57,7 @@ class AnalysisTemplate(BaseModel):
             try:
                 data = json.loads(output)
                 return all(
-                    key in data
-                    for key in self.output_schema.get("required", [])
+                    key in data for key in self.output_schema.get("required", [])
                 )
             except json.JSONDecodeError:
                 return False

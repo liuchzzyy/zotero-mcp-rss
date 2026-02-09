@@ -41,9 +41,9 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# Configuration
-EXCLUDED_COLLECTION_NAME = "00_INBOXS"  # Don't process items here
-TAG_TO_ADD = "AI分析"  # Tag to add after successful analysis
+# Configuration (override via .env)
+EXCLUDED_COLLECTION_NAME = os.getenv("EXCLUDED_COLLECTION_NAME", "00_INBOXS").strip()
+TAG_TO_ADD = os.getenv("TAG_TO_ADD", "AI分析").strip()
 
 # Runtime options from environment variables
 _max_items_env = os.getenv("MAX_ITEMS", "").strip()

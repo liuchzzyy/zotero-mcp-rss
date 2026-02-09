@@ -1,6 +1,5 @@
 """Tests for zotero-mcp config module."""
 
-
 from zotero_mcp.config import Config, get_config, reset_config
 
 
@@ -10,8 +9,11 @@ class TestConfig:
 
     def test_from_env_defaults(self, monkeypatch):
         for key in [
-            "ZOTERO_LIBRARY_ID", "ZOTERO_API_KEY", "LLM_API_KEY",
-            "LLM_PROVIDER", "DEBUG",
+            "ZOTERO_LIBRARY_ID",
+            "ZOTERO_API_KEY",
+            "LLM_API_KEY",
+            "LLM_PROVIDER",
+            "DEBUG",
         ]:
             monkeypatch.delenv(key, raising=False)
 

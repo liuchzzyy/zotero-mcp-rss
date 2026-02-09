@@ -72,8 +72,7 @@ class ZoteroIntegration:
         }
         if creators:
             item_data["creators"] = [
-                {"creatorType": "author", "name": name}
-                for name in creators
+                {"creatorType": "author", "name": name} for name in creators
             ]
         if abstract:
             item_data["abstractNote"] = abstract
@@ -86,9 +85,7 @@ class ZoteroIntegration:
 
         return await self.item_service.create_item(item_data)
 
-    async def search(
-        self, query: str, limit: int = 25
-    ) -> list[dict[str, Any]]:
+    async def search(self, query: str, limit: int = 25) -> list[dict[str, Any]]:
         """Search items by keyword."""
         return await self._client.search_items(query=query, limit=limit)
 
@@ -121,7 +118,9 @@ class ZoteroIntegration:
             key = data.get("key", item.get("key", ""))
             creators = data.get("creators", [])
             authors = ", ".join(
-                c.get("name", f"{c.get('firstName', '')} {c.get('lastName', '')}").strip()
+                c.get(
+                    "name", f"{c.get('firstName', '')} {c.get('lastName', '')}"
+                ).strip()
                 for c in creators[:3]
             )
             date = data.get("date", "N/A")
@@ -149,26 +148,26 @@ class ZoteroIntegration:
         )
         abstract = data.get("abstractNote", "No abstract available")
         tags = data.get("tags", [])
-        tag_str = ", ".join(
-            t.get("tag", "") for t in tags
-        ) if tags else "No tags"
+        tag_str = ", ".join(t.get("tag", "") for t in tags) if tags else "No tags"
 
-        return "\n".join([
-            f"## {title}",
-            "",
-            f"**Key**: {key}",
-            f"**Type**: {item_type}",
-            f"**Authors**: {authors or 'N/A'}",
-            f"**Date**: {data.get('date', 'N/A')}",
-            f"**DOI**: {data.get('DOI', 'N/A')}",
-            f"**URL**: {data.get('url', 'N/A')}",
-            "",
-            "### Abstract",
-            abstract,
-            "",
-            "### Tags",
-            tag_str,
-        ])
+        return "\n".join(
+            [
+                f"## {title}",
+                "",
+                f"**Key**: {key}",
+                f"**Type**: {item_type}",
+                f"**Authors**: {authors or 'N/A'}",
+                f"**Date**: {data.get('date', 'N/A')}",
+                f"**DOI**: {data.get('DOI', 'N/A')}",
+                f"**URL**: {data.get('url', 'N/A')}",
+                "",
+                "### Abstract",
+                abstract,
+                "",
+                "### Tags",
+                tag_str,
+            ]
+        )
 
     def format_collections(self, collections: list[dict[str, Any]]) -> str:
         """Format collections as Markdown."""

@@ -18,9 +18,7 @@ class ImageBlock(BaseModel):
     )
     width: float = Field(..., description="Image width in pixels")
     height: float = Field(..., description="Image height in pixels")
-    data_base64: str | None = Field(
-        None, description="Base64-encoded image data"
-    )
+    data_base64: str | None = Field(None, description="Base64-encoded image data")
     format: str = Field(default="png", description="Image format")
 
 
@@ -28,17 +26,11 @@ class TableBlock(BaseModel):
     """Table block extracted from PDF."""
 
     page_number: int = Field(..., description="Page number (1-based)")
-    bbox: tuple[float, float, float, float] = Field(
-        ..., description="Bounding box"
-    )
+    bbox: tuple[float, float, float, float] = Field(..., description="Bounding box")
     rows: int = Field(..., description="Number of rows")
     cols: int = Field(..., description="Number of columns")
-    data: list[list[str]] = Field(
-        default_factory=list, description="Table cell data"
-    )
-    markdown: str | None = Field(
-        None, description="Markdown representation"
-    )
+    data: list[list[str]] = Field(default_factory=list, description="Table cell data")
+    markdown: str | None = Field(None, description="Markdown representation")
 
 
 class PDFContent(BaseModel):
@@ -52,9 +44,7 @@ class PDFContent(BaseModel):
 
     # Text content
     text: str = Field(default="", description="Full text")
-    text_by_page: list[str] = Field(
-        default_factory=list, description="Text by page"
-    )
+    text_by_page: list[str] = Field(default_factory=list, description="Text by page")
 
     # Multi-modal content
     images: list[ImageBlock] = Field(
@@ -65,9 +55,7 @@ class PDFContent(BaseModel):
     )
 
     # Metadata
-    metadata: dict[str, Any] = Field(
-        default_factory=dict, description="PDF metadata"
-    )
+    metadata: dict[str, Any] = Field(default_factory=dict, description="PDF metadata")
 
     @property
     def has_images(self) -> bool:
