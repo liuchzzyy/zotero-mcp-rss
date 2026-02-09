@@ -48,6 +48,9 @@ chroma_db/
 pyzotero/
 .claude/
 
+# Test fixtures (local)
+tests/fixtures/
+
 # Git worktrees (isolated workspaces)
 worktrees/
 .worktrees/

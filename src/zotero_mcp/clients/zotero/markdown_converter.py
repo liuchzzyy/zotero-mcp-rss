@@ -12,6 +12,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+import fitz  # PyMuPDF
 import pymupdf4llm
 
 logger = logging.getLogger(__name__)
@@ -46,14 +47,40 @@ class PDFToMarkdownConverter:
             Markdown string
         """
         try:
-            # Use PyMuPDF4LLM's to_markdown function
-            md_text = pymupdf4llm.to_markdown(
-                str(pdf_path),
-                pages=None,  # All pages
-                hdr_info=None,  # Auto-detect headers
-                show_progress=show_progress,
-                page_breaks=page_breaks,
-            )
+            # PyMuPDF4LLM ignores page_breaks in legacy mode, so add markers manually.
+            if page_breaks:
+                with fitz.open(str(pdf_path)) as doc:
+                    page_count = doc.page_count
+
+                if page_count <= 1:
+                    md_text = pymupdf4llm.to_markdown(
+                        str(pdf_path),
+                        pages=None,
+                        hdr_info=None,
+                        show_progress=show_progress,
+                        page_breaks=False,
+                    )
+                else:
+                    parts: list[str] = []
+                    for page_index in range(page_count):
+                        part = pymupdf4llm.to_markdown(
+                            str(pdf_path),
+                            pages=[page_index],
+                            hdr_info=None,
+                            show_progress=show_progress,
+                            page_breaks=False,
+                        )
+                        parts.append(part.strip())
+
+                    md_text = "\n\n---\n\n".join(parts).strip() + "\n"
+            else:
+                md_text = pymupdf4llm.to_markdown(
+                    str(pdf_path),
+                    pages=None,  # All pages
+                    hdr_info=None,  # Auto-detect headers
+                    show_progress=show_progress,
+                    page_breaks=False,
+                )
 
             return md_text
 
@@ -94,10 +121,8 @@ class PDFToMarkdownConverter:
 
         try:
             # PyMuPDF4LLM automatically embeds images in markdown
-            md_text = pymupdf4llm.to_markdown(
-                str(pdf_path),
-                pages=None,
-                hdr_info=None,
+            md_text = self.to_markdown(
+                pdf_path,
                 show_progress=False,
                 page_breaks=True,
             )

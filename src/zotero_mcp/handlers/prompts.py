@@ -270,6 +270,158 @@ class PromptHandler:
                         ),
                     ],
                 ),
+                Prompt(
+                    name="zotero_find_pdf_si",
+                    description="Find PDFs and supporting information",
+                    arguments=[
+                        PromptArgument(
+                            name="item_key",
+                            description="Zotero item key (optional)",
+                            required=False,
+                        ),
+                        PromptArgument(
+                            name="doi",
+                            description="DOI (optional)",
+                            required=False,
+                        ),
+                        PromptArgument(
+                            name="title",
+                            description="Title (optional)",
+                            required=False,
+                        ),
+                        PromptArgument(
+                            name="url",
+                            description="Landing URL (optional)",
+                            required=False,
+                        ),
+                        PromptArgument(
+                            name="include_supplementary",
+                            description="Include supporting info (true/false)",
+                            required=False,
+                        ),
+                        PromptArgument(
+                            name="include_scihub",
+                            description="Include Sci-Hub link (true/false)",
+                            required=False,
+                        ),
+                        PromptArgument(
+                            name="scihub_base_url",
+                            description="Sci-Hub base URL (optional)",
+                            required=False,
+                        ),
+                        PromptArgument(
+                            name="max_supplementary",
+                            description="Max supporting links",
+                            required=False,
+                        ),
+                        PromptArgument(
+                            name="download_pdfs",
+                            description="Download PDFs (true/false)",
+                            required=False,
+                        ),
+                        PromptArgument(
+                            name="download_supplementary",
+                            description="Download supporting files (true/false)",
+                            required=False,
+                        ),
+                        PromptArgument(
+                            name="attach_to_zotero",
+                            description="Attach to Zotero (true/false)",
+                            required=False,
+                        ),
+                        PromptArgument(
+                            name="max_pdf_downloads",
+                            description="Max PDFs to download",
+                            required=False,
+                        ),
+                        PromptArgument(
+                            name="max_supplementary_downloads",
+                            description="Max supporting files to download",
+                            required=False,
+                        ),
+                        PromptArgument(
+                            name="dry_run",
+                            description="Preview only (true/false)",
+                            required=False,
+                        ),
+                    ],
+                ),
+                Prompt(
+                    name="zotero_find_pdf_si_batch",
+                    description="Batch find PDFs and supporting information",
+                    arguments=[
+                        PromptArgument(
+                            name="collection_name",
+                            description="Collection name (default: 00_INBOXS)",
+                            required=False,
+                        ),
+                        PromptArgument(
+                            name="scan_limit",
+                            description="Batch scan size",
+                            required=False,
+                        ),
+                        PromptArgument(
+                            name="treated_limit",
+                            description="Max items to process",
+                            required=False,
+                        ),
+                        PromptArgument(
+                            name="process_items_with_pdf",
+                            description="Also scan items with PDF (SI only)",
+                            required=False,
+                        ),
+                        PromptArgument(
+                            name="include_supplementary",
+                            description="Include supporting info (true/false)",
+                            required=False,
+                        ),
+                        PromptArgument(
+                            name="include_scihub",
+                            description="Include Sci-Hub link (true/false)",
+                            required=False,
+                        ),
+                        PromptArgument(
+                            name="scihub_base_url",
+                            description="Sci-Hub base URL (optional)",
+                            required=False,
+                        ),
+                        PromptArgument(
+                            name="max_supplementary",
+                            description="Max supporting links",
+                            required=False,
+                        ),
+                        PromptArgument(
+                            name="download_pdfs",
+                            description="Download PDFs (true/false)",
+                            required=False,
+                        ),
+                        PromptArgument(
+                            name="download_supplementary",
+                            description="Download supporting files (true/false)",
+                            required=False,
+                        ),
+                        PromptArgument(
+                            name="attach_to_zotero",
+                            description="Attach to Zotero (true/false)",
+                            required=False,
+                        ),
+                        PromptArgument(
+                            name="max_pdf_downloads",
+                            description="Max PDFs to download",
+                            required=False,
+                        ),
+                        PromptArgument(
+                            name="max_supplementary_downloads",
+                            description="Max supporting files to download",
+                            required=False,
+                        ),
+                        PromptArgument(
+                            name="dry_run",
+                            description="Preview only (true/false)",
+                            required=False,
+                        ),
+                    ],
+                ),
             ]
         )
 
