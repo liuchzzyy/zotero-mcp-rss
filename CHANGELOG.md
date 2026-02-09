@@ -14,6 +14,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 🔧 Changed
 - Unified package layout to align with logseq-mcp style layering
 
+## [2.0.1] - 2026-02-09
+
+### 🔧 Changed
+- Metadata lookup priority: DOI → title → URL (Crossref/OpenAlex)
+- Type checking now targets Python 3.12 (updated project requirements)
+- GitHub repository links and updater endpoints now point to `liuchzzyy/zotero-mcp`
+
+### 🧹 Removed
+- RSS/Gmail related remnants (configs, docs, and templates)
+
+### ✅ Quality
+- `ruff` and `ty` checks pass on Python 3.12
+
 ## [2.5.0] - 2026-02-02
 
 ### 🚀 Enhancements
