@@ -124,7 +124,7 @@ class MetadataUpdateService:
                 f"(DOI: {item_data.get('DOI') or 'N/A'})"
             )
 
-            # Fetch enhanced metadata (priority: DOI > title)
+            # Fetch enhanced metadata (priority: DOI > title > URL)
             enhanced_metadata = await self._fetch_enhanced_metadata(
                 doi=item_data.get("DOI", ""),
                 title=current_title,
@@ -331,7 +331,7 @@ class MetadataUpdateService:
     async def _fetch_enhanced_metadata(
         self, doi: str, title: str, url: str
     ) -> dict[str, Any] | None:
-        """Fetch enhanced metadata from APIs with priority: DOI > title."""
+        """Fetch enhanced metadata from APIs with priority: DOI > title > URL."""
         if doi:
             logger.debug(f"  Looking up by DOI: {doi}")
             metadata = await self.metadata_service.get_metadata_by_doi(doi)
@@ -340,7 +340,13 @@ class MetadataUpdateService:
 
         if title:
             logger.debug(f"  Looking up by title: {title[:50]}")
-            metadata = await self.metadata_service.lookup_metadata(title)
+            metadata = await self.metadata_service.lookup_metadata(title=title)
+            if metadata:
+                return self._metadata_to_dict(metadata)
+
+        if url:
+            logger.debug("  Looking up by URL")
+            metadata = await self.metadata_service.lookup_metadata(url=url)
             if metadata:
                 return self._metadata_to_dict(metadata)
 

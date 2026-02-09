@@ -23,6 +23,7 @@ from zotero_mcp.clients.metadata import (
     OpenAlexClient,
     OpenAlexWork,
 )
+from zotero_mcp.utils.formatting.helpers import DOI_PATTERN
 
 logger = logging.getLogger(__name__)
 
@@ -195,7 +196,12 @@ class MetadataService:
         await self.openalex_client.close()
 
     async def lookup_doi(
-        self, title: str, author: str | None = None, return_metadata: bool = False
+        self,
+        title: str | None = None,
+        author: str | None = None,
+        return_metadata: bool = False,
+        url: str | None = None,
+        doi: str | None = None,
     ) -> str | dict[str, Any] | None:
         """
         Lookup DOI for a given title and author.
@@ -209,40 +215,91 @@ class MetadataService:
             title: Article title
             author: Optional author name
             return_metadata: If True, return dict with doi, title, url; otherwise just DOI
+            url: Optional URL (fallback when title doesn't match)
+            doi: Optional DOI (highest priority)
 
         Returns:
             - If return_metadata=False: DOI string or None
             - If return_metadata=True: Dict with 'doi', 'title', 'url' or None
         """
-        # Try Crossref first with lenient threshold
-        work = await self.crossref_client.find_best_match(title, threshold=0.6)
-        if work and work.doi:
-            logger.debug(f"  ✓ DOI found via Crossref: {work.doi}")
-            if return_metadata:
-                return {
-                    "doi": work.doi,
-                    "title": work.title,
-                    "url": work.url,
-                }
-            return work.doi
+        # 1) DOI (explicit) or DOI extracted from URL
+        doi_value = self._clean_doi(doi or "")
+        if not doi_value and url:
+            doi_value = self._extract_doi_from_url(url)
+        if doi_value:
+            metadata = await self.get_metadata_by_doi(doi_value)
+            if metadata and metadata.doi:
+                logger.debug(f"  ✓ DOI found via DOI lookup: {metadata.doi}")
+                if return_metadata:
+                    return {
+                        "doi": metadata.doi,
+                        "title": metadata.title,
+                        "url": metadata.url,
+                    }
+                return metadata.doi
 
-        # Fallback to OpenAlex with lenient threshold
-        work = await self.openalex_client.find_best_match(title, threshold=0.6)
-        if work and work.doi:
-            logger.debug(f"  ✓ DOI found via OpenAlex: {work.doi}")
-            if return_metadata:
-                return {
-                    "doi": work.doi,
-                    "title": work.title,
-                    "url": work.url,
-                }
-            return work.doi
+        # 2) Title
+        if title:
+            # Try Crossref first with lenient threshold
+            work = await self.crossref_client.find_best_match(title, threshold=0.6)
+            if work and work.doi:
+                logger.debug(f"  ✓ DOI found via Crossref: {work.doi}")
+                if return_metadata:
+                    return {
+                        "doi": work.doi,
+                        "title": work.title,
+                        "url": work.url,
+                    }
+                return work.doi
 
-        logger.debug(f"  ✗ No DOI found for title: {title[:50]}...")
+            # Fallback to OpenAlex with lenient threshold
+            work = await self.openalex_client.find_best_match(title, threshold=0.6)
+            if work and work.doi:
+                logger.debug(f"  ✓ DOI found via OpenAlex: {work.doi}")
+                if return_metadata:
+                    return {
+                        "doi": work.doi,
+                        "title": work.title,
+                        "url": work.url,
+                    }
+                return work.doi
+
+        # 3) URL (last resort)
+        if url:
+            work = await self.crossref_client.find_best_match(url, threshold=0.6)
+            if work and work.doi:
+                logger.debug(f"  ✓ DOI found via Crossref URL search: {work.doi}")
+                if return_metadata:
+                    return {
+                        "doi": work.doi,
+                        "title": work.title,
+                        "url": work.url,
+                    }
+                return work.doi
+
+            work = await self.openalex_client.find_best_match(url, threshold=0.6)
+            if work and work.doi:
+                logger.debug(f"  ✓ DOI found via OpenAlex URL search: {work.doi}")
+                if return_metadata:
+                    return {
+                        "doi": work.doi,
+                        "title": work.title,
+                        "url": work.url,
+                    }
+                return work.doi
+
+        if title:
+            logger.debug(f"  ✗ No DOI found for title: {title[:50]}...")
+        elif url:
+            logger.debug("  ✗ No DOI found for URL")
         return None
 
     async def lookup_metadata(
-        self, title: str, author: str | None = None
+        self,
+        title: str | None = None,
+        author: str | None = None,
+        url: str | None = None,
+        doi: str | None = None,
     ) -> ArticleMetadata | None:
         """
         Lookup complete metadata for a given title and author.
@@ -254,19 +311,42 @@ class MetadataService:
         Args:
             title: Article title
             author: Optional author name
+            url: Optional URL (fallback when title doesn't match)
+            doi: Optional DOI (highest priority)
 
         Returns:
             ArticleMetadata object or None if not found
         """
-        # Try Crossref first with lenient threshold
-        work = await self.crossref_client.find_best_match(title, threshold=0.6)
-        if work:
-            return self._crossref_work_to_metadata(work)
+        # 1) DOI (explicit) or DOI extracted from URL
+        doi_value = self._clean_doi(doi or "")
+        if not doi_value and url:
+            doi_value = self._extract_doi_from_url(url)
+        if doi_value:
+            metadata = await self.get_metadata_by_doi(doi_value)
+            if metadata:
+                return metadata
 
-        # Fallback to OpenAlex with lenient threshold
-        work = await self.openalex_client.find_best_match(title, threshold=0.6)
-        if work:
-            return self._openalex_work_to_metadata(work)
+        # 2) Title
+        if title:
+            # Try Crossref first with lenient threshold
+            work = await self.crossref_client.find_best_match(title, threshold=0.6)
+            if work:
+                return self._crossref_work_to_metadata(work)
+
+            # Fallback to OpenAlex with lenient threshold
+            work = await self.openalex_client.find_best_match(title, threshold=0.6)
+            if work:
+                return self._openalex_work_to_metadata(work)
+
+        # 3) URL (last resort)
+        if url:
+            work = await self.crossref_client.find_best_match(url, threshold=0.6)
+            if work:
+                return self._crossref_work_to_metadata(work)
+
+            work = await self.openalex_client.find_best_match(url, threshold=0.6)
+            if work:
+                return self._openalex_work_to_metadata(work)
 
         return None
 
@@ -306,6 +386,15 @@ class MetadataService:
         elif doi.startswith("doi:"):
             doi = doi[4:]
         return doi.strip()
+
+    def _extract_doi_from_url(self, url: str) -> str:
+        """Extract DOI from a URL if present."""
+        if not url:
+            return ""
+        match = DOI_PATTERN.search(url)
+        if match:
+            return match.group(0)
+        return ""
 
     def _crossref_work_to_metadata(self, work: CrossrefWork) -> ArticleMetadata:
         """Convert CrossrefWork to ArticleMetadata with enhanced fields."""
