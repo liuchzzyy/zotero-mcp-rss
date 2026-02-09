@@ -8,6 +8,7 @@ API Docs: https://docs.openalex.org/
 """
 
 from dataclasses import dataclass
+from importlib.metadata import PackageNotFoundError, version as _pkg_version
 import logging
 import re
 from typing import Any
@@ -26,9 +27,19 @@ OPENALEX_API_BASE = "https://api.openalex.org"
 REQUEST_TIMEOUT = 45.0
 
 # User-Agent for polite pool
-USER_AGENT = (
-    "zotero-mcp/1.0 (https://github.com/54yyyu/zotero-mcp; mailto:support@example.com)"
-)
+def _get_user_agent() -> str:
+    try:
+        pkg_version = _pkg_version("zotero-mcp")
+    except PackageNotFoundError:
+        pkg_version = "unknown"
+    return (
+        "zotero-mcp/"
+        f"{pkg_version} (https://github.com/liuchzzyy/zotero-mcp; "
+        "mailto:support@example.com)"
+    )
+
+
+USER_AGENT = _get_user_agent()
 
 # API configuration
 MAX_RETRIES = 3

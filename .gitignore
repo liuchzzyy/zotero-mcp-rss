@@ -15,7 +15,6 @@ build/
 # Virtual environments
 venv/
 env/
-.env
 .venv/
 
 # Testing

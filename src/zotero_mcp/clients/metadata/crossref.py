@@ -8,6 +8,7 @@ API Docs: https://api.crossref.org/swagger-ui/index.html
 """
 
 from dataclasses import dataclass
+from importlib.metadata import PackageNotFoundError, version as _pkg_version
 import logging
 import re
 from typing import Any
@@ -27,9 +28,19 @@ REQUEST_TIMEOUT = 45.0
 
 # User-Agent for polite pool (faster rate limits)
 # See: https://github.com/CrossRef/rest-api-doc#good-manners--more-reliable-service
-USER_AGENT = (
-    "zotero-mcp/1.0 (https://github.com/54yyyu/zotero-mcp; mailto:support@example.com)"
-)
+def _get_user_agent() -> str:
+    try:
+        pkg_version = _pkg_version("zotero-mcp")
+    except PackageNotFoundError:
+        pkg_version = "unknown"
+    return (
+        "zotero-mcp/"
+        f"{pkg_version} (https://github.com/liuchzzyy/zotero-mcp; "
+        "mailto:support@example.com)"
+    )
+
+
+USER_AGENT = _get_user_agent()
 
 
 @dataclass

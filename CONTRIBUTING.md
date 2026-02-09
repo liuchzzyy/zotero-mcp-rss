@@ -100,7 +100,7 @@
 
 3. **添加上游仓库**
    ```bash
-   git remote add upstream https://github.com/54yyyu/zotero-mcp.git
+   git remote add upstream https://github.com/liuchzzyy/zotero-mcp.git
    ```
 
 4. **安装开发依赖**

@@ -4,11 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Communication Style
 
-**IMPORTANT**: When responding to the user, always address them as **"干饭小伙子"** (which means "Mealtime Young Man" in Chinese) at the beginning of your responses. This is the user's preferred nickname and should be used consistently in all interactions.
-
-Example:
-- "干饭小伙子，我已经完成了代码修改..."
-- "干饭小伙子，这是你要求的功能..."
+When responding to the user, follow any nickname or tone explicitly requested by the user. If no preference is given, keep responses neutral and professional.
 
 ## Project Overview
 

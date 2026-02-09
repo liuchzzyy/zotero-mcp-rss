@@ -260,10 +260,10 @@ result = await call_tool("zotero_search", params={"query": "AI", "limit": 10})
 
 ## Links
 
-- [Repository](https://github.com/54yyyu/zotero-mcp)
+- [Repository](https://github.com/liuchzzyy/zotero-mcp)
 - [Documentation](./docs/)
-- [Issues](https://github.com/54yyyu/zotero-mcp/issues)
-- [Releases](https://github.com/54yyyu/zotero-mcp/releases)
+- [Issues](https://github.com/liuchzzyy/zotero-mcp/issues)
+- [Releases](https://github.com/liuchzzyy/zotero-mcp/releases)
 
 ---
 
