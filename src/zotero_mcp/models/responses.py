@@ -36,6 +36,16 @@ class Formatters:
 
     _json = JSONFormatter()
     _md = MarkdownFormatter()
+    _max_inline_json_chars = 20000
+
+    @classmethod
+    def _truncate_json(cls, text: str) -> str:
+        if len(text) <= cls._max_inline_json_chars:
+            return text
+        return (
+            text[: cls._max_inline_json_chars]
+            + "\n... (truncated)\n"
+        )
 
     @classmethod
     def format_response(cls, response: Any, response_format: ResponseFormat) -> str:
@@ -54,10 +64,15 @@ class Formatters:
     def _format_markdown(cls, response: Any) -> str:
         if isinstance(response, SearchResponse):
             items = [item.model_dump() for item in response.items]
+            total_value = (
+                response.total_count
+                if response.total_count is not None
+                else response.total
+            )
             return cls._md.format_search_results(
                 items=items,
                 query=response.query,
-                total=response.total,
+                total=total_value,
                 offset=response.offset,
                 limit=response.limit,
             )
@@ -363,6 +378,8 @@ class Formatters:
             return f"❌ {response.error or 'Operation failed.'}"
 
         if isinstance(response, dict):
-            return json.dumps(response, indent=2, ensure_ascii=False)
+            return cls._truncate_json(
+                json.dumps(response, indent=2, ensure_ascii=False)
+            )
 
         return str(response)

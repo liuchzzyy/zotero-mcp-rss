@@ -4,6 +4,7 @@ Item and Collection Service.
 Handles CRUD operations for Zotero items, collections, and tags.
 """
 
+import asyncio
 import logging
 from typing import Any
 
@@ -272,6 +273,8 @@ class ItemService:
 
     async def create_item(self, item: dict[str, Any]) -> dict[str, Any]:
         """Create a single item."""
+        if not isinstance(item, dict) or not item:
+            raise ValueError("Item payload must be a non-empty dict")
         return await self.api_client.create_items([item])
 
     async def get_item_bundle(
@@ -284,11 +287,27 @@ class ItemService:
         """Get comprehensive bundle of item data."""
         bundle: dict[str, Any] = {}
 
-        # TODO: Optimize this with asyncio.gather in Phase 2
-        item = await self.get_item(item_key)
-        bundle["metadata"] = item
+        tasks: dict[str, Any] = {
+            "metadata": self.get_item(item_key),
+            "children": self.get_item_children(item_key),
+        }
+        if include_annotations:
+            tasks["annotations"] = self.get_annotations(item_key)
+        if include_fulltext:
+            tasks["fulltext"] = self.get_fulltext(item_key)
 
-        children = await self.get_item_children(item_key)
+        results = await asyncio.gather(*tasks.values(), return_exceptions=True)
+        result_map = dict(zip(tasks.keys(), results, strict=False))
+
+        metadata = result_map.get("metadata")
+        if isinstance(metadata, Exception):
+            raise metadata
+        bundle["metadata"] = metadata
+
+        children = result_map.get("children")
+        if isinstance(children, Exception):
+            logger.warning(f"Failed to load children for {item_key}: {children}")
+            children = []
         bundle["attachments"] = [
             c for c in children if c.get("data", {}).get("itemType") == "attachment"
         ]
@@ -299,10 +318,20 @@ class ItemService:
             ]
 
         if include_annotations:
-            bundle["annotations"] = await self.get_annotations(item_key)
+            annotations = result_map.get("annotations", [])
+            if isinstance(annotations, Exception):
+                logger.warning(
+                    f"Failed to load annotations for {item_key}: {annotations}"
+                )
+                annotations = []
+            bundle["annotations"] = annotations
 
         if include_fulltext:
-            bundle["fulltext"] = await self.get_fulltext(item_key)
+            fulltext = result_map.get("fulltext")
+            if isinstance(fulltext, Exception):
+                logger.warning(f"Failed to load fulltext for {item_key}: {fulltext}")
+                fulltext = None
+            bundle["fulltext"] = fulltext
 
         return bundle
 

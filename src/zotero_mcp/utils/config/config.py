@@ -64,6 +64,21 @@ ENV_MODES = {
 }
 
 
+RELEVANT_ENV_PREFIXES = [
+    "ZOTERO_",
+    "DEEPSEEK_",
+    "OPENALEX_",
+    "POLITE_POOL_",
+    "API_TIMEOUT",
+    "ENV_MODE",
+]
+
+
+def get_relevant_env_prefixes() -> list[str]:
+    """Get list of environment variable prefixes used by config loader."""
+    return list(RELEVANT_ENV_PREFIXES)
+
+
 def get_env_mode() -> str:
     """
     Get the current environment mode.
@@ -233,14 +248,7 @@ def load_config(
 
     # Apply environment variables (highest priority)
     # We scan for relevant keys to include in the returned config
-    relevant_prefixes = [
-        "ZOTERO_",
-        "DEEPSEEK_",
-        "OPENALEX_",
-        "POLITE_POOL_",
-        "API_TIMEOUT",
-        "ENV_MODE",
-    ]
+    relevant_prefixes = get_relevant_env_prefixes()
     for key, value in os.environ.items():
         if any(key.startswith(prefix) for prefix in relevant_prefixes):
             env_config[key] = value

@@ -64,7 +64,7 @@ def format_creators(creators: list[dict[str, str]]) -> str:
             names.append(f"{creator['lastName']}, {creator['firstName']}")
         elif "name" in creator:
             names.append(creator["name"])
-    return "; ".join(names) if names else "No authors listed"
+    return "; ".join(names) if names else ""
 
 
 def clean_html(raw_html: str) -> str:
@@ -118,11 +118,11 @@ def clean_abstract(abstract: str | None) -> str | None:
     except Exception:
         pass
 
+    # Remove common JATS/XML-specific patterns first
+    abstract = re.sub(r"</?(?:jats:[^>]+|xref|sup|sub|italic|bold|sc)>", "", abstract)
+
     # Remove XML/HTML tags (including self-closing tags)
     abstract = re.sub(r"<[^>]+>", "", abstract)
-
-    # Remove common JATS/XML-specific patterns
-    abstract = re.sub(r"</?(?:jats:[^>]+|xref|sup|sub|italic|bold|sc)>", "", abstract)
 
     # Remove DOI/URL patterns sometimes embedded in abstracts
     abstract = re.sub(r"https?://doi\.org/[^\s]+", "", abstract)

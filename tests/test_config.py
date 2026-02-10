@@ -4,7 +4,11 @@ from unittest.mock import patch
 
 import pytest
 
-from zotero_mcp.utils.config import _clear_cache, load_config
+from zotero_mcp.utils.config import (
+    _clear_cache,
+    get_relevant_env_prefixes,
+    load_config,
+)
 
 
 @pytest.fixture
@@ -19,11 +23,7 @@ def clear_test_env():
     # Clear config cache first
     _clear_cache()
     # Clear all relevant prefixes
-    prefixes = [
-        "ZOTERO_",
-        "DEEPSEEK_",
-        "ENV_MODE",
-    ]
+    prefixes = get_relevant_env_prefixes()
     to_delete = [
         key for key in os.environ if any(key.startswith(prefix) for prefix in prefixes)
     ]

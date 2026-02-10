@@ -43,6 +43,8 @@ logger = get_logger(__name__)
 class WorkflowService:
     """Service for batch PDF analysis workflows."""
 
+    BATCH_CHUNK_SIZE = 5
+
     def __init__(self):
         self.data_service = get_data_service()
         self.checkpoint_manager = get_checkpoint_manager()
@@ -81,7 +83,7 @@ class WorkflowService:
         skipped_count = 0
 
         # Optimization: Fetch bundles in batches
-        chunk_size = 5
+        chunk_size = self.BATCH_CHUNK_SIZE
 
         # We need to map keys to Item objects for metadata not in bundle (like item.title vs bundle.title)
         # Actually bundle['metadata'] has everything.
@@ -90,18 +92,32 @@ class WorkflowService:
             chunk_items = items[i : i + chunk_size]
 
             # 1. Filter existing notes first (fast check)
-            # We can't batch check notes easily without fetching children, which BatchLoader does.
-            # But legacy logic checked notes first to avoid heavy fetch.
-            # Let's verify existing notes first if skip_existing is True.
-
-            keys_to_fetch = []
-            for item in chunk_items:
-                if skip_existing:
-                    notes = await self.data_service.get_notes(item.key)
+            keys_to_fetch: list[str] = []
+            if skip_existing:
+                note_bundles = await self.batch_loader.fetch_many_bundles(
+                    [item.key for item in chunk_items],
+                    include_fulltext=False,
+                    include_annotations=False,
+                    include_notes=True,
+                    include_multimodal=False,
+                )
+                note_map = {b["metadata"]["key"]: b for b in note_bundles}
+                for item in chunk_items:
+                    bundle = note_map.get(item.key)
+                    if bundle is None:
+                        logger.warning(
+                            f"Failed to fetch notes bundle for {item.key}, "
+                            "defaulting to fetch full bundle"
+                        )
+                        keys_to_fetch.append(item.key)
+                        continue
+                    notes = bundle.get("notes", []) if bundle else []
                     if notes:
                         skipped_count += 1
                         continue
-                keys_to_fetch.append(item.key)
+                    keys_to_fetch.append(item.key)
+            else:
+                keys_to_fetch = [item.key for item in chunk_items]
 
             if not keys_to_fetch:
                 continue
@@ -111,6 +127,7 @@ class WorkflowService:
                 keys_to_fetch,
                 include_fulltext=True,
                 include_annotations=include_annotations,
+                include_notes=False,
                 include_multimodal=include_multimodal,
             )
 
@@ -284,17 +301,20 @@ class WorkflowService:
             # Fetch a sample bundle to check for images
             # Only fetch if include_multimodal is True
             if include_multimodal and remaining_keys:
-                sample_key = remaining_keys[0]
+                sample_keys = remaining_keys[:3]
                 try:
                     sample_bundles = await self.batch_loader.fetch_many_bundles(
-                        [sample_key],
+                        sample_keys,
                         include_fulltext=False,
                         include_annotations=False,
                         include_multimodal=True,
                     )
-                    if sample_bundles:
-                        sample_multimodal = sample_bundles[0].get("multimodal", {})
-                        has_images = bool(sample_multimodal.get("images"))
+                    has_images = False
+                    for bundle in sample_bundles:
+                        sample_multimodal = bundle.get("multimodal", {})
+                        if sample_multimodal.get("images"):
+                            has_images = True
+                            break
                         # Auto-select: prefer multi-modal if images available
                         llm_provider = "claude-cli" if has_images else "deepseek"
                         logger.info(
@@ -330,7 +350,7 @@ class WorkflowService:
         processed_count = len(workflow_state.processed_keys)
         total_count = workflow_state.total_items
 
-        chunk_size = 5
+        chunk_size = self.BATCH_CHUNK_SIZE
 
         for i in range(0, len(remaining_keys), chunk_size):
             chunk_keys = remaining_keys[i : i + chunk_size]
@@ -504,6 +524,14 @@ class WorkflowService:
                 images=images_to_send,
             )
             if not analysis_content:
+                logger.warning(
+                    "LLM returned empty analysis content",
+                    extra={
+                        "item_key": item.key,
+                        "provider": getattr(llm_client, "provider", None),
+                        "model": getattr(llm_client, "model", None),
+                    },
+                )
                 return ItemAnalysisResult(
                     item_key=item.key,
                     title=item.title,
@@ -516,7 +544,17 @@ class WorkflowService:
             note_key = None
             if not dry_run:
                 if delete_old_notes:
-                    await self._delete_old_notes(item.key, existing_notes)
+                    delete_errors = await self._delete_old_notes(
+                        item.key, existing_notes
+                    )
+                    if delete_errors:
+                        return ItemAnalysisResult(
+                            item_key=item.key,
+                            title=item.title,
+                            success=False,
+                            error="Failed to delete existing notes",
+                            processing_time=time.time() - start_time,
+                        )
 
                 html_note = self._generate_html_note(
                     item=item,
@@ -629,8 +667,11 @@ class WorkflowService:
             template=template,
         )
 
-    async def _delete_old_notes(self, item_key: str, notes: list) -> None:
+    async def _delete_old_notes(
+        self, item_key: str, notes: list
+    ) -> list[str]:
         """Delete existing notes for an item."""
+        errors: list[str] = []
         for note in notes:
             note_key = note.get("key") or note.get("data", {}).get("key")
             if note_key:
@@ -638,7 +679,9 @@ class WorkflowService:
                     await self.data_service.delete_item(note_key)
                     logger.debug(f"Deleted old note {note_key} from {item_key}")
                 except Exception as e:
+                    errors.append(str(e))
                     logger.warning(f"Failed to delete old note {note_key}: {e}")
+        return errors
 
     def _generate_html_note(
         self, item: Any, metadata: dict, analysis_content: str, use_structured: bool

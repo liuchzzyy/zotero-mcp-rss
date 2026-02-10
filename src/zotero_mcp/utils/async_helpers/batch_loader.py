@@ -69,12 +69,6 @@ class BatchLoader:
             task_map[next_idx] = "annotations"
             next_idx += 1
 
-        # Multi-modal extraction
-        if include_multimodal:
-            tasks.append(self._extract_multimodal_content(item_key))
-            task_map[next_idx] = "multimodal"
-            next_idx += 1
-
         # Execute parallel requests
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -109,12 +103,17 @@ class BatchLoader:
                 bundle["fulltext"] = result
             elif key == "annotations":
                 bundle["annotations"] = result
-            elif key == "multimodal":
-                bundle["multimodal"] = result
+        if include_multimodal:
+            attachments = bundle.get("attachments", [])
+            bundle["multimodal"] = await self._extract_multimodal_content(
+                item_key, attachments
+            )
 
         return bundle
 
-    async def _extract_multimodal_content(self, item_key: str) -> dict[str, Any]:
+    async def _extract_multimodal_content(
+        self, item_key: str, attachments: list[dict[str, Any]] | None = None
+    ) -> dict[str, Any]:
         """Extract multi-modal content (images, tables) from PDF attachments.
 
         Args:
@@ -125,7 +124,8 @@ class BatchLoader:
         """
         try:
             # Get attachments to find PDF
-            attachments = await self.item_service.get_item_children(item_key)
+            if attachments is None:
+                attachments = await self.item_service.get_item_children(item_key)
 
             # Filter for PDF attachments
             pdf_attachments = [
@@ -140,7 +140,8 @@ class BatchLoader:
                 return {}
 
             # Get local path from first PDF attachment
-            pdf_path_info = pdf_attachments[0].get("data", {}).get("path")
+            first_pdf = pdf_attachments[0]
+            pdf_path_info = first_pdf.get("data", {}).get("path")
             if not pdf_path_info:
                 logger.debug(f"No path info for PDF attachment in {item_key}")
                 return {}
@@ -148,23 +149,40 @@ class BatchLoader:
             # Resolve Zotero storage path to filesystem path
             # Format: "storage:filename.pdf" -> <storage_dir>/<attachment_key>/filename.pdf
             if pdf_path_info.startswith("storage:"):
-                # This is a simplified path resolution
-                # In production, you'd use LocalDatabaseClient._resolve_path
-                # For now, return empty to indicate need for local client
-                logger.debug(
-                    f"Local PDF path resolution requires LocalDatabaseClient for {item_key}"
+                local_client = self.item_service.local_client
+                attachment_key = first_pdf.get("key") or first_pdf.get("data", {}).get(
+                    "key"
                 )
-                return {}
+                if local_client and attachment_key:
+                    resolved = local_client._resolve_path(
+                        attachment_key, pdf_path_info
+                    )
+                    if resolved and resolved.exists():
+                        pdf_path = resolved
+                    else:
+                        logger.debug(
+                            f"Local PDF path resolution failed for {item_key}"
+                        )
+                        return {}
+                else:
+                    logger.debug(
+                        f"Local PDF path resolution requires LocalDatabaseClient for {item_key}"
+                    )
+                    return {}
 
             # If we have a direct path, try extraction
-            pdf_path = Path(pdf_path_info)
+            if not pdf_path_info.startswith("storage:"):
+                pdf_path = Path(pdf_path_info)
             if not pdf_path.exists():
                 logger.debug(f"PDF file does not exist: {pdf_path}")
                 return {}
 
             # Extract multi-modal content
             extractor = MultiModalPDFExtractor()
-            result = extractor.extract_elements(pdf_path)
+            result = await asyncio.to_thread(
+                extractor.extract_elements,
+                pdf_path,
+            )
 
             return result
 

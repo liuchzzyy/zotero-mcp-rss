@@ -63,6 +63,8 @@ class SearchService:
         if self.local_client and qmode == "everything":
             try:
                 items = self.local_client.search_items(query, limit=limit + offset)
+                if offset >= len(items):
+                    return []
                 return [
                     self._zotero_item_to_result(item)
                     for item in items[offset : offset + limit]
@@ -134,7 +136,12 @@ class SearchService:
             items = [
                 i
                 for i in items
-                if tag in [t.get("tag", "") for t in i.get("data", {}).get("tags", [])]
+                if tag
+                in {
+                    t.get("tag", "")
+                    for t in i.get("data", {}).get("tags", [])
+                    if t.get("tag")
+                }
             ]
 
         # Exclude tags
@@ -144,7 +151,11 @@ class SearchService:
                     i
                     for i in items
                     if tag
-                    not in [t.get("tag", "") for t in i.get("data", {}).get("tags", [])]
+                    not in {
+                        t.get("tag", "")
+                        for t in i.get("data", {}).get("tags", [])
+                        if t.get("tag")
+                    }
                 ]
 
         return [self._api_item_to_result(item) for item in items[:limit]]

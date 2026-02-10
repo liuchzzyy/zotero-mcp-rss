@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+import html
 import re
 from typing import Any
 
@@ -23,6 +24,8 @@ from zotero_mcp.models.common import (
     ItemDetailResponse,
     NoteCreationResponse,
     NotesResponse,
+    OutputFormat,
+    ResponseFormat,
     SearchResponse,
     SearchResultItem,
 )
@@ -74,11 +77,79 @@ from zotero_mcp.services.data_access import get_data_service
 from zotero_mcp.services.workflow import get_workflow_service
 from zotero_mcp.settings import settings
 from zotero_mcp.utils.errors import format_error
-from zotero_mcp.utils.formatting.helpers import format_creators
+from zotero_mcp.utils.formatting.helpers import format_creators, normalize_item_key
+
+
+def _get_response_format(params: Any) -> ResponseFormat:
+    response_format = getattr(params, "response_format", ResponseFormat.MARKDOWN)
+    return response_format or ResponseFormat.MARKDOWN
+
+
+def _build_search_response(
+    *,
+    query: str,
+    items: list[SearchResultItem],
+    params: Any,
+    total: int | None = None,
+    offset: int | None = None,
+    has_more: bool | None = None,
+    next_offset: int | None = None,
+    total_count: int | None = None,
+    include_results: bool = False,
+) -> SearchResponse:
+    count = len(items)
+    limit = getattr(params, "limit", count)
+    offset_value = offset if offset is not None else getattr(params, "offset", 0)
+    total_value = total if total is not None else count
+
+    if has_more is None:
+        has_more = (offset_value + count) < total_value
+
+    if next_offset is None:
+        next_offset = (offset_value + count) if has_more else None
+
+    response_kwargs: dict[str, Any] = {
+        "query": query,
+        "total": total_value,
+        "count": count,
+        "offset": offset_value,
+        "limit": limit,
+        "has_more": has_more,
+        "next_offset": next_offset,
+        "items": items,
+    }
+
+    if include_results:
+        response_kwargs["results"] = items
+    if total_count is not None:
+        response_kwargs["total_count"] = total_count
+
+    return SearchResponse(**response_kwargs)
+
+
+def _split_tags(tags: Sequence[str]) -> tuple[list[str], list[str]]:
+    include_tags: list[str] = []
+    exclude_tags: list[str] = []
+    for tag in tags:
+        tag = tag.strip()
+        if not tag:
+            continue
+        if tag.startswith("-"):
+            exclude_tags.append(tag[1:].strip())
+        else:
+            include_tags.append(tag)
+    return include_tags, exclude_tags
+
+
+def _clean_note_html(note_html: str) -> str:
+    cleaned = re.sub(r"<[^>]+>", "", note_html)
+    return html.unescape(cleaned).strip()
 
 
 class ToolHandler:
     """Handler for MCP tool calls."""
+
+    ADVANCED_SEARCH_LIMIT = 100
 
     @staticmethod
     def get_tools() -> list[Tool]:
@@ -289,34 +360,28 @@ class ToolHandler:
                         items = [
                             i for i in items if required.issubset(set(i.tags or []))
                         ]
-                    response = SearchResponse(
-                        query=params.query,
-                        total=len(items),
-                        count=len(items),
-                        offset=params.offset,
-                        limit=params.limit,
-                        has_more=len(items) == params.limit,
-                        next_offset=(
+                    if params.tags:
+                        has_more = False
+                        next_offset = None
+                    else:
+                        has_more = len(items) == params.limit
+                        next_offset = (
                             params.offset + len(items)
                             if len(items) == params.limit
                             else None
-                        ),
+                        )
+                    response = _build_search_response(
+                        query=params.query,
                         items=items,
+                        params=params,
+                        total=len(items),
+                        has_more=has_more,
+                        next_offset=next_offset,
                     )
-                    response_format = params.response_format
 
                 case ToolName.SEARCH_BY_TAG:
                     params = SearchByTagInput(**args)
-                    include_tags: list[str] = []
-                    exclude_tags: list[str] = []
-                    for tag in params.tags:
-                        tag = tag.strip()
-                        if not tag:
-                            continue
-                        if tag.startswith("-"):
-                            exclude_tags.append(tag[1:].strip())
-                        else:
-                            include_tags.append(tag)
+                    include_tags, exclude_tags = _split_tags(params.tags)
                     results = await data_service.search_by_tag(
                         tags=include_tags,
                         exclude_tags=exclude_tags,
@@ -333,16 +398,14 @@ class ToolHandler:
                         )
                         for r in results
                     ]
-                    response = SearchResponse(
+                    response = _build_search_response(
                         query=f"tags={include_tags}",
-                        total=len(items),
-                        count=len(items),
-                        offset=0,
-                        limit=params.limit,
-                        has_more=False,
                         items=items,
+                        params=params,
+                        total=len(items),
+                        offset=0,
+                        has_more=False,
                     )
-                    response_format = params.response_format
 
                 case ToolName.ADVANCED_SEARCH:
                     params = AdvancedSearchInput(**args)
@@ -356,7 +419,7 @@ class ToolHandler:
                     query = join_op.join(query_parts) if query_parts else "*"
                     results = await data_service.search_items(
                         query=query,
-                        limit=100,
+                        limit=self.ADVANCED_SEARCH_LIMIT,
                         qmode="everything",
                     )
                     start = params.offset
@@ -374,20 +437,18 @@ class ToolHandler:
                         )
                         for r in filtered_page
                     ]
-                    response = SearchResponse(
+                    response = _build_search_response(
                         query=", ".join(
                             f"{c.field} {c.operation} '{c.value}'"
                             for c in params.conditions
                         ),
+                        items=items,
+                        params=params,
                         total=len(results),
-                        count=len(items),
-                        offset=0,
-                        limit=params.limit,
+                        offset=params.offset,
                         has_more=end < len(results),
                         next_offset=end if end < len(results) else None,
-                        items=items,
                     )
-                    response_format = params.response_format
 
                 case ToolName.SEMANTIC_SEARCH:
                     if not settings.enable_semantic_search:
@@ -416,16 +477,14 @@ class ToolHandler:
                         )
                         for r in results
                     ]
-                    response = SearchResponse(
+                    response = _build_search_response(
                         query=f"semantic: {params.query}",
-                        total=len(items),
-                        count=len(items),
-                        offset=0,
-                        limit=params.limit,
-                        has_more=False,
                         items=items,
+                        params=params,
+                        total=len(items),
+                        offset=0,
+                        has_more=False,
                     )
-                    response_format = params.response_format
 
                 case ToolName.GET_RECENT:
                     params = GetRecentInput(**args)
@@ -444,19 +503,19 @@ class ToolHandler:
                         )
                         for r in results
                     ]
-                    response = SearchResponse(
+                    response = _build_search_response(
                         query=f"recent (last {params.days} days)",
-                        total=len(items),
-                        count=len(items),
-                        offset=0,
-                        limit=params.limit,
-                        has_more=False,
                         items=items,
+                        params=params,
+                        total=len(items),
+                        offset=0,
+                        has_more=False,
                     )
-                    response_format = params.response_format
                 case ToolName.GET_METADATA:
                     params = GetMetadataInput(**args)
-                    item = await data_service.get_item(params.item_key.strip().upper())
+                    item = await data_service.get_item(
+                        normalize_item_key(params.item_key)
+                    )
                     data = item.get("data", {}) if isinstance(item, dict) else {}
                     tags = [
                         t.get("tag", "") for t in data.get("tags", []) if t.get("tag")
@@ -475,14 +534,17 @@ class ToolHandler:
                         if params.include_abstract
                         else None,
                         tags=tags,
-                        raw_data=item if params.output_format.value == "json" else None,
+                        raw_data=(
+                            item
+                            if params.output_format == OutputFormat.JSON
+                            else None
+                        ),
                     )
-                    response_format = params.response_format
 
                 case ToolName.GET_FULLTEXT:
                     params = GetFulltextInput(**args)
                     fulltext = await data_service.get_fulltext(
-                        params.item_key.strip().upper()
+                        normalize_item_key(params.item_key)
                     )
                     if not fulltext:
                         response = FulltextResponse(
@@ -510,11 +572,10 @@ class ToolHandler:
                             length=len(fulltext),
                             truncated=truncated,
                         )
-                    response_format = params.response_format
 
                 case ToolName.GET_CHILDREN:
                     params = GetChildrenInput(**args)
-                    item_key = params.item_key.strip().upper()
+                    item_key = normalize_item_key(params.item_key)
                     type_filter = (
                         None if params.child_type == "all" else params.child_type
                     )
@@ -527,13 +588,12 @@ class ToolHandler:
                         "count": len(children),
                         "children": children,
                     }
-                    response_format = params.response_format
 
                 case ToolName.GET_COLLECTIONS:
                     params = GetCollectionsInput(**args)
                     if params.collection_key:
                         results = await data_service.get_collection_items(
-                            params.collection_key.strip().upper(),
+                            normalize_item_key(params.collection_key),
                             limit=params.limit,
                         )
                         items = [
@@ -555,7 +615,6 @@ class ToolHandler:
                             has_more=False,
                             items=items,
                         )
-                        response_format = params.response_format
                     else:
                         collections = await data_service.get_collections()
                         collection_items = []
@@ -576,12 +635,11 @@ class ToolHandler:
                             count=len(collection_items),
                             collections=collection_items,
                         )
-                        response_format = params.response_format
 
                 case ToolName.GET_BUNDLE:
                     params = GetBundleInput(**args)
                     bundle = await data_service.get_item_bundle(
-                        params.item_key.strip().upper(),
+                        normalize_item_key(params.item_key),
                         include_fulltext=params.include_fulltext,
                         include_annotations=params.include_annotations,
                         include_notes=params.include_notes,
@@ -622,7 +680,6 @@ class ToolHandler:
                         annotations=annotations,
                         fulltext=bundle.get("fulltext"),
                     )
-                    response_format = params.response_format
                 case ToolName.FIND_PDF_SI:
                     params = FindPdfSiInput(**args)
                     from zotero_mcp.services.pdf_finder import PdfSiFinder
@@ -659,7 +716,6 @@ class ToolHandler:
                         sources=meta.get("sources", []),
                         warnings=meta.get("warnings", []),
                     )
-                    response_format = params.response_format
                 case ToolName.FIND_PDF_SI_BATCH:
                     params = FindPdfSiBatchInput(**args)
                     from zotero_mcp.services.pdf_finder import PdfSiFinder
@@ -693,7 +749,6 @@ class ToolHandler:
                             scan_limit=params.scan_limit,
                             treated_limit=params.treated_limit,
                         )
-                        response_format = params.response_format
                     else:
                         scanned = 0
                         processed = 0
@@ -799,7 +854,6 @@ class ToolHandler:
                             failed=failed,
                             results=results,
                         )
-                        response_format = params.response_format
                 case ToolName.GET_ANNOTATIONS:
                     params = GetAnnotationsInput(**args)
                     if not params.item_key:
@@ -811,7 +865,7 @@ class ToolHandler:
                             annotations=[],
                         )
                     else:
-                        item_key = params.item_key.strip().upper()
+                        item_key = normalize_item_key(params.item_key)
                         annotations = await data_service.get_annotations(item_key)
                         if params.annotation_type != "all":
                             annotations = [
@@ -845,7 +899,6 @@ class ToolHandler:
                             has_more=has_more,
                             next_offset=end_idx if has_more else None,
                         )
-                    response_format = params.response_format
 
                 case ToolName.GET_NOTES:
                     params = GetNotesInput(**args)
@@ -858,15 +911,14 @@ class ToolHandler:
                             notes=[],
                         )
                     else:
-                        item_key = params.item_key.strip().upper()
+                        item_key = normalize_item_key(params.item_key)
                         notes = await data_service.get_notes(item_key)
                         processed_notes = []
                         for note in notes:
                             data = note.get("data", {})
                             note_key = data.get("key", "")
                             note_content = data.get("note", "")
-                            clean_content = re.sub(r"<[^>]+>", "", note_content)
-                            clean_content = clean_content.replace("&nbsp;", " ").strip()
+                            clean_content = _clean_note_html(note_content)
                             display_content = clean_content[:2000]
                             if len(clean_content) > 2000:
                                 display_content += "..."
@@ -891,7 +943,6 @@ class ToolHandler:
                             has_more=has_more,
                             next_offset=end_idx if has_more else None,
                         )
-                    response_format = params.response_format
 
                 case ToolName.SEARCH_NOTES:
                     params = SearchNotesInput(**args)
@@ -904,13 +955,14 @@ class ToolHandler:
                     query_to_match = (
                         params.query if params.case_sensitive else params.query.lower()
                     )
+                    target_count = params.offset + params.limit
                     for result in results:
                         try:
                             notes = await data_service.get_notes(result.key)
                             for note in notes:
                                 data = note.get("data", {})
                                 note_content = data.get("note", "")
-                                clean = re.sub(r"<[^>]+>", "", note_content)
+                                clean = _clean_note_html(note_content)
                                 search_text = (
                                     clean if params.case_sensitive else clean.lower()
                                 )
@@ -928,11 +980,11 @@ class ToolHandler:
                                             "context": context,
                                         }
                                     )
-                                    if len(matches) >= params.limit:
+                                    if len(matches) >= target_count:
                                         break
                         except Exception:
                             continue
-                        if len(matches) >= params.limit:
+                        if len(matches) >= target_count:
                             break
                     result_items = [
                         SearchResultItem(
@@ -952,19 +1004,17 @@ class ToolHandler:
                     end_idx = start_idx + params.limit
                     paginated_results = result_items[start_idx:end_idx]
                     has_more = end_idx < total_count
-                    response = SearchResponse(
+                    response = _build_search_response(
                         query=params.query,
-                        count=len(paginated_results),
-                        total_count=total_count,
-                        has_more=has_more,
-                        next_offset=end_idx if has_more else None,
-                        results=paginated_results,
+                        items=paginated_results,
+                        params=params,
                         total=total_count,
                         offset=params.offset,
-                        limit=params.limit,
-                        items=paginated_results,
+                        has_more=has_more,
+                        next_offset=end_idx if has_more else None,
+                        total_count=total_count,
+                        include_results=True,
                     )
-                    response_format = params.response_format
 
                 case ToolName.CREATE_NOTE:
                     params = CreateNoteInput(**args)
@@ -973,7 +1023,7 @@ class ToolHandler:
                         html_content = f"<p>{params.content}</p>"
                         html_content = html_content.replace("\n\n", "</p><p>")
                         html_content = html_content.replace("\n", "<br/>")
-                    item_key = params.item_key.strip().upper()
+                    item_key = normalize_item_key(params.item_key)
                     result = await data_service.create_note(
                         parent_key=item_key,
                         content=html_content,
@@ -990,7 +1040,6 @@ class ToolHandler:
                         parent_key=item_key,
                         message=f"Note created successfully with key: {note_key}",
                     )
-                    response_format = params.response_format
                 case ToolName.CREATE_COLLECTION:
                     params = CreateCollectionInput(**args)
                     result = await data_service.create_collection(
@@ -1009,13 +1058,11 @@ class ToolHandler:
                             success=False,
                             error=f"API response did not indicate success: {result}",
                         )
-                    response_format = params.response_format
 
                 case ToolName.DELETE_COLLECTION:
                     params = DeleteCollectionInput(**args)
                     await data_service.delete_collection(params.collection_key)
                     response = BaseResponse(success=True)
-                    response_format = params.response_format
 
                 case ToolName.MOVE_COLLECTION:
                     params = MoveCollectionInput(**args)
@@ -1026,7 +1073,6 @@ class ToolHandler:
                         collection_key=params.collection_key, parent_key=parent
                     )
                     response = BaseResponse(success=True)
-                    response_format = params.response_format
 
                 case ToolName.RENAME_COLLECTION:
                     params = RenameCollectionInput(**args)
@@ -1034,7 +1080,6 @@ class ToolHandler:
                         collection_key=params.collection_key, name=params.new_name
                     )
                     response = BaseResponse(success=True)
-                    response_format = params.response_format
 
                 case ToolName.UPDATE_DATABASE:
                     if not settings.enable_database_tools:
@@ -1075,7 +1120,6 @@ class ToolHandler:
                             duration_seconds=0,
                             message="Database update completed successfully",
                         )
-                    response_format = params.response_format
 
                 case ToolName.DATABASE_STATUS:
                     if not settings.enable_database_tools:
@@ -1103,7 +1147,6 @@ class ToolHandler:
                         ),
                         message=status.get("message"),
                     )
-                    response_format = params.response_format
 
                 case ToolName.BATCH_GET_METADATA:
                     params = BatchGetMetadataInput(**args)
@@ -1112,7 +1155,9 @@ class ToolHandler:
                     failed = 0
                     for item_key in params.item_keys:
                         try:
-                            item = await data_service.get_item(item_key.strip().upper())
+                            item = await data_service.get_item(
+                                normalize_item_key(item_key)
+                            )
                             if item:
                                 data = item.get("data", {})
                                 tags = [
@@ -1168,7 +1213,6 @@ class ToolHandler:
                         failed=failed,
                         results=results,
                     )
-                    response_format = params.response_format
                 case ToolName.PREPARE_ANALYSIS:
                     if not settings.enable_workflows:
                         raise ValueError("Workflow tools are disabled by configuration")
@@ -1184,7 +1228,6 @@ class ToolHandler:
                         include_multimodal=params.include_multimodal,
                         skip_existing=params.skip_existing_notes,
                     )
-                    response_format = params.response_format
 
                 case ToolName.BATCH_ANALYZE_PDFS:
                     if not settings.enable_workflows:
@@ -1206,7 +1249,6 @@ class ToolHandler:
                         template=params.template,
                         dry_run=params.dry_run,
                     )
-                    response_format = params.response_format
 
                 case ToolName.RESUME_WORKFLOW:
                     if not settings.enable_workflows:
@@ -1240,7 +1282,6 @@ class ToolHandler:
                             llm_model=metadata.get("llm_model"),
                             dry_run=False,
                         )
-                    response_format = params.response_format
 
                 case ToolName.LIST_WORKFLOWS:
                     params = EmptyInput(**args)
@@ -1264,7 +1305,6 @@ class ToolHandler:
                         count=len(workflow_infos),
                         workflows=workflow_infos,
                     )
-                    response_format = params.response_format
 
                 case ToolName.FIND_COLLECTION:
                     params = FindCollectionInput(**args)
@@ -1293,11 +1333,11 @@ class ToolHandler:
                         count=len(collection_matches),
                         matches=collection_matches,
                     )
-                    response_format = params.response_format
 
                 case _:
                     raise ValueError(f"Unknown tool: {name}")
 
+            response_format = _get_response_format(params)
             text = Formatters.format_response(response, response_format)
             return [TextContent(type="text", text=text)]
 

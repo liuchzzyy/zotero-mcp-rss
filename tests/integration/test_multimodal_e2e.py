@@ -10,6 +10,9 @@ Run with:
 """
 
 import pytest
+from dotenv import load_dotenv
+
+load_dotenv(override=False)
 
 from zotero_mcp.clients.llm import get_llm_client
 from zotero_mcp.clients.llm.capabilities import (
