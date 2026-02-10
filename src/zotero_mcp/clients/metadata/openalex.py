@@ -7,26 +7,24 @@ This client provides async access to their free API.
 API Docs: https://docs.openalex.org/
 """
 
+import asyncio
 from dataclasses import dataclass
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _pkg_version
 import logging
+import os
 import re
+import sys
+import time
 from typing import Any
 from urllib.parse import quote
 
 import httpx
 
+from zotero_mcp.utils.config.config import get_openalex_config
 from zotero_mcp.utils.formatting.helpers import clean_abstract
 
 logger = logging.getLogger(__name__)
-
-# OpenAlex API base URL
-OPENALEX_API_BASE = "https://api.openalex.org"
-
-# Request timeout in seconds (increased to handle slow network conditions)
-REQUEST_TIMEOUT = 45.0
-
 
 # User-Agent for polite pool
 def _get_user_agent() -> str:
@@ -42,10 +40,6 @@ def _get_user_agent() -> str:
 
 
 USER_AGENT = _get_user_agent()
-
-# API configuration
-MAX_RETRIES = 3
-RETRY_DELAY = 1.0
 
 
 @dataclass
@@ -316,13 +310,31 @@ class OpenAlexClient:
         Args:
             email: Optional email for polite pool access
         """
+        config = get_openalex_config()
+        if email is None:
+            email = config.get("email")
         self.email = email
+        self._api_key: str | None = config.get("api_key")
+        self._api_base: str = config.get("api_base", "https://api.openalex.org")
+        self._timeout: float = config.get("timeout", 45.0)
+        default_ua = _get_user_agent()
+        if email:
+            default_ua = re.sub(r"mailto:[^)]+", f"mailto:{email}", default_ua)
+        self._user_agent: str = config.get("user_agent") or default_ua
+        self._max_rps: int = int(config.get("max_requests_per_second", 10) or 10)
+        if os.getenv("PYTEST_CURRENT_TEST") or "pytest" in sys.modules:
+            self._min_interval = 0.0
+        else:
+            self._min_interval = 1.0 / max(self._max_rps, 1)
+        self._last_request_ts = 0.0
+        self._rate_lock = asyncio.Lock()
         self._client: httpx.AsyncClient | None = None
 
     @property
     def headers(self) -> dict[str, str]:
         """Build request headers."""
-        headers = {"User-Agent": USER_AGENT}
+        ua = self._user_agent or USER_AGENT
+        headers = {"User-Agent": ua}
         if self.email:
             headers["mailto"] = self.email
         return headers
@@ -331,9 +343,9 @@ class OpenAlexClient:
         """Get or create the HTTP client."""
         if self._client is None:
             self._client = httpx.AsyncClient(
-                base_url=OPENALEX_API_BASE,
+                base_url=self._api_base,
                 headers=self.headers,
-                timeout=REQUEST_TIMEOUT,
+                timeout=self._timeout,
             )
         return self._client
 
@@ -342,6 +354,60 @@ class OpenAlexClient:
         if self._client:
             await self._client.aclose()
             self._client = None
+
+    async def _apply_rate_limit(self) -> None:
+        if self._min_interval <= 0:
+            return
+        async with self._rate_lock:
+            now = time.monotonic()
+            wait = self._min_interval - (now - self._last_request_ts)
+            if wait > 0:
+                await asyncio.sleep(wait)
+            self._last_request_ts = time.monotonic()
+
+    @staticmethod
+    def _retry_delay_seconds(response: httpx.Response, attempt: int) -> float:
+        retry_after = response.headers.get("Retry-After")
+        if retry_after and retry_after.isdigit():
+            return float(retry_after)
+        reset = response.headers.get("X-RateLimit-Reset")
+        if reset and reset.isdigit():
+            reset_at = float(reset)
+            return max(0.0, reset_at - time.time())
+        return min(4.0, 2 ** max(attempt - 1, 0))
+
+    async def _get_with_retry(
+        self, url: str, params: dict[str, Any]
+    ) -> httpx.Response:
+        client = await self._get_client()
+        if self._api_key:
+            params = dict(params)
+            params["api_key"] = self._api_key
+
+        last_exc: Exception | None = None
+        max_attempts = 3
+        for attempt in range(1, max_attempts + 1):
+            await self._apply_rate_limit()
+            response = await client.get(url, params=params)
+            status_code = response.status_code
+            if isinstance(status_code, int) and status_code == 429:
+                delay = self._retry_delay_seconds(response, attempt)
+                logger.warning("OpenAlex rate limited (429). Sleeping %.2fs", delay)
+                await asyncio.sleep(delay)
+                continue
+            try:
+                response.raise_for_status()
+                return response
+            except httpx.HTTPStatusError as exc:
+                last_exc = exc
+                if response.status_code in {429, 500, 502, 503, 504}:
+                    delay = self._retry_delay_seconds(response, attempt)
+                    await asyncio.sleep(delay)
+                    continue
+                raise
+        if last_exc:
+            raise last_exc
+        raise httpx.HTTPError("OpenAlex request failed without response")
 
     async def search_by_title(
         self,
@@ -358,17 +424,11 @@ class OpenAlexClient:
         Returns:
             List of OpenAlexWork objects
         """
-        client = await self._get_client()
-
         try:
-            response = await client.get(
+            response = await self._get_with_retry(
                 "/works",
-                params={
-                    "search": title,
-                    "per_page": per_page,
-                },
+                params={"search": title, "per_page": per_page},
             )
-            response.raise_for_status()
             data = response.json()
 
             results = data.get("results", [])
@@ -396,8 +456,6 @@ class OpenAlexClient:
         Returns:
             OpenAlexWork object or None if not found
         """
-        client = await self._get_client()
-
         # Clean DOI (remove URL prefix if present)
         if doi.startswith("https://doi.org/"):
             doi = doi[16:]
@@ -410,8 +468,9 @@ class OpenAlexClient:
         doi_url = f"https://doi.org/{doi}"
 
         try:
-            response = await client.get(f"/works/{quote(doi_url, safe='')}")
-            response.raise_for_status()
+            response = await self._get_with_retry(
+                f"/works/{quote(doi_url, safe='')}", params={}
+            )
             data = response.json()
 
             if data:

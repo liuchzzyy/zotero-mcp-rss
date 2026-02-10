@@ -132,6 +132,8 @@ zotero-mcp scan                            # Scan for unprocessed papers
 zotero-mcp update-metadata                 # Enhance metadata from APIs
 zotero-mcp deduplicate                     # Find and remove duplicates
 zotero-mcp deduplicate --dry-run           # Preview duplicates
+zotero-mcp pdf-find --item-key ABCD1234     # Find PDFs/SI for a single item
+zotero-mcp pdf-find --collection-name 00_INBOXS  # Batch find PDFs/SI by collection
 ```
 
 ### Updates & Maintenance
@@ -173,6 +175,10 @@ zotero-mcp setup-info                      # Show installation info
 - `zotero_batch_analyze_pdfs` - AI-powered batch analysis
 - `zotero_resume_workflow` - Resume interrupted workflow
 - `zotero_list_workflows` - View workflow states
+
+### PDF Discovery
+- `zotero_find_pdf_si` - Find PDFs and supporting information (single)
+- `zotero_find_pdf_si_batch` - Batch find PDFs and supporting information
 
 ## 🔧 Configuration
 

@@ -236,6 +236,9 @@ def load_config(
     relevant_prefixes = [
         "ZOTERO_",
         "DEEPSEEK_",
+        "OPENALEX_",
+        "POLITE_POOL_",
+        "API_TIMEOUT",
         "ENV_MODE",
     ]
     for key, value in os.environ.items():
@@ -301,6 +304,45 @@ def get_llm_config() -> dict[str, Any]:
     }
 
     return llm_config
+
+
+def get_openalex_config() -> dict[str, Any]:
+    """Build OpenAlex config from environment variables."""
+    config = load_config()
+    env = config.get("env", {})
+    email = env.get("OPENALEX_EMAIL", os.getenv("OPENALEX_EMAIL"))
+    if not email:
+        email = env.get("POLITE_POOL_EMAIL", os.getenv("POLITE_POOL_EMAIL"))
+    api_timeout = env.get("API_TIMEOUT", os.getenv("API_TIMEOUT"))
+    openalex_timeout = env.get("OPENALEX_TIMEOUT", os.getenv("OPENALEX_TIMEOUT"))
+    timeout_value = openalex_timeout or api_timeout or "45"
+    try:
+        timeout = float(timeout_value)
+    except (TypeError, ValueError):
+        timeout = 45.0
+
+    max_rps_value = env.get(
+        "OPENALEX_MAX_REQUESTS_PER_SECOND",
+        os.getenv("OPENALEX_MAX_REQUESTS_PER_SECOND", "10"),
+    )
+    try:
+        max_rps = int(max_rps_value)
+    except (TypeError, ValueError):
+        max_rps = 10
+
+    user_agent = env.get("OPENALEX_USER_AGENT", os.getenv("OPENALEX_USER_AGENT"))
+
+    return {
+        "email": email,
+        "api_key": env.get("OPENALEX_API_KEY", os.getenv("OPENALEX_API_KEY")),
+        "api_base": env.get(
+            "OPENALEX_API_BASE",
+            os.getenv("OPENALEX_API_BASE", "https://api.openalex.org"),
+        ),
+        "timeout": timeout,
+        "user_agent": user_agent,
+        "max_requests_per_second": max_rps,
+    }
 
 
 def get_pdf_max_pages() -> int:

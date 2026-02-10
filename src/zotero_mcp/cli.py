@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import json
 from pathlib import Path
+import re
 import shutil
 import sys
 
@@ -72,6 +73,106 @@ def _save_zotero_db_path_to_config(config_path: Path, db_path: str) -> None:
 
     except Exception as e:
         print(f"Warning: Could not save db_path to config: {e}")
+
+
+def _parse_item_keys(value: str | None) -> list[str]:
+    if not value:
+        return []
+    parts = re.split(r"[,\s;]+", value.strip())
+    return [part.strip().upper() for part in parts if part.strip()]
+
+
+def _add_pdf_find_common_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--item-key", help="Zotero item key (optional)")
+    parser.add_argument("--doi", help="DOI (optional)")
+    parser.add_argument("--title", help="Title (optional)")
+    parser.add_argument("--url", help="Landing URL (optional)")
+    parser.add_argument(
+        "--no-supplementary",
+        action="store_true",
+        help="Disable supporting information lookup",
+    )
+    parser.add_argument(
+        "--no-scihub",
+        action="store_true",
+        help="Disable Sci-Hub fallback links",
+    )
+    parser.add_argument(
+        "--scihub-base-url", help="Override Sci-Hub base URL"
+    )
+    parser.add_argument(
+        "--max-supplementary",
+        type=int,
+        default=10,
+        help="Max supplementary links to return (default: 10)",
+    )
+    parser.add_argument(
+        "--no-download-pdfs",
+        action="store_true",
+        help="Do not download PDFs",
+    )
+    parser.add_argument(
+        "--no-download-supplementary",
+        action="store_true",
+        help="Do not download supporting files",
+    )
+    parser.add_argument(
+        "--no-attach",
+        action="store_true",
+        help="Do not attach downloads to Zotero",
+    )
+    parser.add_argument(
+        "--max-pdf-downloads",
+        type=int,
+        default=1,
+        help="Maximum PDFs to download (default: 1)",
+    )
+    parser.add_argument(
+        "--max-supplementary-downloads",
+        type=int,
+        default=3,
+        help="Maximum supporting files to download (default: 3)",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview without downloading or uploading",
+    )
+    parser.add_argument(
+        "--response-format",
+        choices=["markdown", "json"],
+        default="markdown",
+        help="Output format (default: markdown)",
+    )
+
+
+def _add_pdf_find_batch_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--item-keys",
+        help="Comma/space separated Zotero item keys for batch mode",
+    )
+    parser.add_argument(
+        "--collection-name",
+        default=None,
+        help="Collection name to scan for batch mode",
+    )
+    parser.add_argument(
+        "--scan-limit",
+        type=int,
+        default=50,
+        help="Batch size for scanning items (default: 50)",
+    )
+    parser.add_argument(
+        "--treated-limit",
+        type=int,
+        default=50,
+        help="Maximum items to process (default: 50)",
+    )
+    parser.add_argument(
+        "--process-items-with-pdf",
+        action="store_true",
+        help="Also process items that already have PDF (for SI only)",
+    )
 
 
 def main():
@@ -236,6 +337,22 @@ Examples:
         action="store_true",
         help="Disable multi-modal analysis (text only)",
     )
+
+    # PDF finder command (single or batch depending on arguments)
+    pdf_find_parser = subparsers.add_parser(
+        "pdf-find",
+        help="Find PDFs/SI for single item or batch (auto-detect mode)",
+    )
+    _add_pdf_find_common_args(pdf_find_parser)
+    _add_pdf_find_batch_args(pdf_find_parser)
+
+    # PDF finder batch command (explicit)
+    pdf_find_batch_parser = subparsers.add_parser(
+        "pdf-find-batch",
+        help="Batch find PDFs and supporting information",
+    )
+    _add_pdf_find_common_args(pdf_find_batch_parser)
+    _add_pdf_find_batch_args(pdf_find_batch_parser)
 
     # Update metadata command
     update_metadata_parser = subparsers.add_parser(
@@ -487,6 +604,274 @@ Examples:
         except Exception as e:
             print(f"Error: {e}")
             sys.exit(1)
+
+    elif args.command in {"pdf-find", "pdf-find-batch"}:
+        load_config()
+        from zotero_mcp.models.common import (
+            FindPdfSiBatchItem,
+            FindPdfSiBatchResponse,
+            FindPdfSiResponse,
+            ResponseFormat,
+        )
+        from zotero_mcp.models.zotero.items import FindPdfSiInput
+        from zotero_mcp.models.responses import Formatters
+        from zotero_mcp.services.data_access import DataAccessService
+        from zotero_mcp.services.pdf_finder import PdfSiFinder
+        from zotero_mcp.utils.formatting.helpers import check_has_pdf
+
+        item_keys = _parse_item_keys(getattr(args, "item_keys", None))
+        has_batch_inputs = bool(item_keys) or bool(
+            getattr(args, "collection_name", None)
+        )
+        has_single_inputs = any(
+            [args.item_key, args.doi, args.title, args.url]
+        )
+        force_batch = args.command == "pdf-find-batch"
+
+        if has_batch_inputs and has_single_inputs:
+            print(
+                "Error: Provide either single-item inputs (--item-key/--doi/--title/--url) "
+                "or batch inputs (--item-keys/--collection-name), not both."
+            )
+            sys.exit(1)
+
+        include_supplementary = not args.no_supplementary
+        include_scihub = not args.no_scihub
+        download_pdfs = not args.no_download_pdfs
+        download_supplementary = not args.no_download_supplementary
+        attach_to_zotero = not args.no_attach
+        response_format = (
+            ResponseFormat.JSON
+            if args.response_format == "json"
+            else ResponseFormat.MARKDOWN
+        )
+
+        if force_batch or has_batch_inputs:
+            if not has_batch_inputs:
+                print(
+                    "Error: Batch mode requires --item-keys or --collection-name."
+                )
+                sys.exit(1)
+
+            async def run_pdf_find_batch():
+                data_service = DataAccessService()
+                finder = PdfSiFinder()
+
+                scanned = 0
+                processed = 0
+                skipped = 0
+                succeeded = 0
+                failed = 0
+                results: list[FindPdfSiBatchItem] = []
+
+                async def _process_item(item_key: str, title: str | None):
+                    nonlocal processed, succeeded, failed
+                    has_pdf = await check_has_pdf(data_service, item_key)
+                    if has_pdf and not args.process_items_with_pdf:
+                        return FindPdfSiBatchItem(
+                            item_key=item_key,
+                            title=title,
+                            skipped=True,
+                            success=True,
+                        )
+
+                    processed += 1
+                    try:
+                        pdfs, supplementary, _, downloads_meta = await finder.find(
+                            item_key=item_key,
+                            doi=None,
+                            title=title,
+                            url=None,
+                            include_supplementary=include_supplementary,
+                            include_scihub=include_scihub,
+                            scihub_base_url=args.scihub_base_url,
+                            max_supplementary=args.max_supplementary,
+                            download_pdfs=download_pdfs and not has_pdf,
+                            download_supplementary=download_supplementary,
+                            attach_to_zotero=attach_to_zotero,
+                            max_pdf_downloads=args.max_pdf_downloads,
+                            max_supplementary_downloads=args.max_supplementary_downloads,
+                            dry_run=args.dry_run,
+                            data_service=data_service,
+                        )
+                        succeeded += 1
+                        return FindPdfSiBatchItem(
+                            item_key=item_key,
+                            title=title,
+                            pdf_count=len(pdfs),
+                            supplementary_count=len(supplementary),
+                            attached_count=len(downloads_meta.get("attached", [])),
+                            success=True,
+                        )
+                    except Exception as exc:
+                        failed += 1
+                        return FindPdfSiBatchItem(
+                            item_key=item_key,
+                            title=title,
+                            success=False,
+                            error=str(exc),
+                        )
+
+                if item_keys:
+                    for item_key in item_keys:
+                        if processed >= args.treated_limit:
+                            break
+                        try:
+                            item = await data_service.get_item(item_key)
+                            title = (
+                                item.get("data", {}).get("title")
+                                if isinstance(item, dict)
+                                else None
+                            )
+                        except Exception:
+                            title = None
+                        scanned += 1
+                        result = await _process_item(item_key, title)
+                        if result.skipped:
+                            skipped += 1
+                        results.append(result)
+                else:
+                    collection_key = None
+                    collection_name = args.collection_name
+                    matches = await data_service.find_collection_by_name(
+                        name=collection_name, exact_match=True
+                    )
+                    if not matches:
+                        matches = await data_service.find_collection_by_name(
+                            name=collection_name, exact_match=False
+                        )
+                    if matches:
+                        match = matches[0]
+                        collection_key = (
+                            match.get("data", {}).get("key") or match.get("key")
+                        )
+                        collection_name = (
+                            match.get("data", {}).get("name") or collection_name
+                        )
+
+                    if not collection_key:
+                        response = FindPdfSiBatchResponse(
+                            success=False,
+                            error=f"Collection not found: {args.collection_name}",
+                            collection_name=args.collection_name,
+                            scan_limit=args.scan_limit,
+                            treated_limit=args.treated_limit,
+                        )
+                        text = Formatters.format_response(response, response_format)
+                        print(text)
+                        return
+
+                    offset = 0
+                    while processed < args.treated_limit:
+                        batch = await data_service.get_collection_items(
+                            collection_key,
+                            limit=args.scan_limit,
+                            start=offset,
+                        )
+                        if not batch:
+                            break
+                        scanned += len(batch)
+                        for item in batch:
+                            if processed >= args.treated_limit:
+                                break
+                            item_key = item.key
+                            title = item.title
+                            result = await _process_item(item_key, title)
+                            if result.skipped:
+                                skipped += 1
+                            results.append(result)
+                        offset += len(batch)
+
+                response = FindPdfSiBatchResponse(
+                    collection_key=None if item_keys else collection_key,
+                    collection_name=None if item_keys else collection_name,
+                    scan_limit=args.scan_limit,
+                    treated_limit=args.treated_limit,
+                    scanned=scanned,
+                    processed=processed,
+                    skipped=skipped,
+                    succeeded=succeeded,
+                    failed=failed,
+                    results=results,
+                )
+                text = Formatters.format_response(response, response_format)
+                print(text)
+
+            try:
+                asyncio.run(run_pdf_find_batch())
+            except Exception as e:
+                print(f"Error: {e}")
+                sys.exit(1)
+        else:
+            if not has_single_inputs:
+                print(
+                    "Error: Single mode requires --item-key, --doi, --title, or --url."
+                )
+                sys.exit(1)
+            try:
+                params = FindPdfSiInput(
+                    item_key=args.item_key,
+                    doi=args.doi,
+                    title=args.title,
+                    url=args.url,
+                    include_supplementary=include_supplementary,
+                    include_scihub=include_scihub,
+                    scihub_base_url=args.scihub_base_url,
+                    max_supplementary=args.max_supplementary,
+                    download_pdfs=download_pdfs,
+                    download_supplementary=download_supplementary,
+                    attach_to_zotero=attach_to_zotero,
+                    max_pdf_downloads=args.max_pdf_downloads,
+                    max_supplementary_downloads=args.max_supplementary_downloads,
+                    dry_run=args.dry_run,
+                    response_format=response_format,
+                )
+            except Exception as e:
+                print(f"Error: {e}")
+                sys.exit(1)
+
+            async def run_pdf_find():
+                data_service = DataAccessService()
+                finder = PdfSiFinder()
+                pdfs, supplementary, meta, downloads_meta = await finder.find(
+                    item_key=params.item_key,
+                    doi=params.doi,
+                    title=params.title,
+                    url=params.url,
+                    include_supplementary=params.include_supplementary,
+                    include_scihub=params.include_scihub,
+                    scihub_base_url=params.scihub_base_url,
+                    max_supplementary=params.max_supplementary,
+                    download_pdfs=params.download_pdfs,
+                    download_supplementary=params.download_supplementary,
+                    attach_to_zotero=params.attach_to_zotero,
+                    max_pdf_downloads=params.max_pdf_downloads,
+                    max_supplementary_downloads=params.max_supplementary_downloads,
+                    dry_run=params.dry_run,
+                    data_service=data_service,
+                )
+                response = FindPdfSiResponse(
+                    item_key=meta.get("item_key"),
+                    doi=meta.get("doi"),
+                    title=meta.get("title"),
+                    url=meta.get("url"),
+                    pdfs=pdfs,
+                    supplementary=supplementary,
+                    downloaded=downloads_meta.get("downloaded", []),
+                    attached=downloads_meta.get("attached", []),
+                    download_errors=downloads_meta.get("download_errors", []),
+                    attach_errors=downloads_meta.get("attach_errors", []),
+                    sources=meta.get("sources", []),
+                    warnings=meta.get("warnings", []),
+                )
+                text = Formatters.format_response(response, params.response_format)
+                print(text)
+
+            try:
+                asyncio.run(run_pdf_find())
+            except Exception as e:
+                print(f"Error: {e}")
+                sys.exit(1)
 
     elif args.command == "update-metadata":
         load_config()
