@@ -4,7 +4,7 @@ Pydantic models for collection management tools.
 
 from pydantic import Field
 
-from zotero_mcp.models.common import BaseInput, BaseResponse
+from zotero_mcp.models.common import BaseInput
 
 
 class CreateCollectionInput(BaseInput):
@@ -17,14 +17,6 @@ class CreateCollectionInput(BaseInput):
         default=None,
         description="Parent collection key. If None, creates a root collection.",
     )
-
-
-class CreateCollectionResponse(BaseResponse):
-    """Response for collection creation."""
-
-    key: str = Field(..., description="Key of the newly created collection")
-    name: str = Field(..., description="Name of the collection")
-    parent_key: str | None = Field(default=None, description="Parent collection key")
 
 
 class DeleteCollectionInput(BaseInput):

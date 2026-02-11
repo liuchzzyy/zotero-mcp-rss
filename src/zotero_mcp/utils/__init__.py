@@ -2,7 +2,6 @@
 Utility functions and helpers for Zotero MCP.
 """
 
-from .async_helpers import BatchLoader, cached_tool, tool_cache
 from .config import get_config, get_logger, log_task_end, log_task_start
 from .data import (
     DEFAULT_ANALYSIS_TEMPLATE_JSON,
@@ -27,8 +26,6 @@ from .system import (
     ValidationError,
     ZoteroMCPError,
     check_for_updates,
-    format_api_error,
-    handle_error,
     setup_zotero_mcp,
 )
 
@@ -41,8 +38,6 @@ __all__ = [
     "ValidationError",
     "DatabaseError",
     "ConfigurationError",
-    "handle_error",
-    "format_api_error",
     "setup_zotero_mcp",
     "check_for_updates",
     # Config
@@ -62,8 +57,4 @@ __all__ = [
     "clean_html",
     "is_local_mode",
     "DOI_PATTERN",
-    # Async helpers
-    "BatchLoader",
-    "cached_tool",
-    "tool_cache",
 ]

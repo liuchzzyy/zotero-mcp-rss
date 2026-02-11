@@ -28,25 +28,6 @@ class SearchMode(str, Enum):
     EVERYTHING = "everything"
 
 
-class PaginationParams(BaseModel):
-    """Common pagination parameters."""
-
-    model_config = ConfigDict(
-        str_strip_whitespace=True,
-        validate_assignment=True,
-    )
-
-    limit: int = Field(
-        default=20,
-        ge=1,
-        le=100,
-        description="Maximum number of results to return (1-100)",
-    )
-    offset: int = Field(
-        default=0, ge=0, description="Number of results to skip for pagination"
-    )
-
-
 class BaseInput(BaseModel):
     """Base class for all tool input models."""
 

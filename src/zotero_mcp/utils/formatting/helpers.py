@@ -152,30 +152,6 @@ def is_local_mode() -> bool:
     return value.lower() in {"true", "yes", "1"}
 
 
-def truncate_text(text: str, max_length: int = 500, suffix: str = "...") -> str:
-    """
-    Truncate text to a maximum length, preserving word boundaries.
-
-    Args:
-        text: Text to truncate.
-        max_length: Maximum length of the result (including suffix).
-        suffix: Suffix to append if text is truncated.
-
-    Returns:
-        Truncated text with suffix if it exceeded max_length.
-    """
-    if len(text) <= max_length:
-        return text
-
-    # Find the last space before max_length - len(suffix)
-    truncate_at = max_length - len(suffix)
-    last_space = text.rfind(" ", 0, truncate_at)
-
-    if last_space > 0:
-        return text[:last_space] + suffix
-    return text[:truncate_at] + suffix
-
-
 def normalize_item_key(key: str) -> str:
     """
     Normalize a Zotero item key.
@@ -195,19 +171,6 @@ def normalize_item_key(key: str) -> str:
     if not key.isalnum():
         raise ValueError(f"Invalid item key: {key}")
     return key
-
-
-def parse_tags(tags: list[dict[str, str]]) -> list[str]:
-    """
-    Parse Zotero tag objects into a list of tag names.
-
-    Args:
-        tags: List of tag objects from Zotero API.
-
-    Returns:
-        List of tag name strings.
-    """
-    return [tag.get("tag", "") for tag in tags if tag.get("tag")]
 
 
 async def _check_has_child_type(
@@ -232,31 +195,3 @@ async def check_has_pdf(data_service, item_key: str) -> bool:
     return await _check_has_child_type(
         data_service, item_key, "attachment", "application/pdf"
     )
-
-
-async def check_has_notes(data_service, item_key: str) -> bool:
-    """Check if an item has at least one note."""
-    return await _check_has_child_type(data_service, item_key, "note")
-
-
-async def check_has_tag(data_service, item_key: str, tag: str) -> bool:
-    """
-    Check if an item has a specific tag.
-
-    Args:
-        data_service: DataAccessService instance
-        item_key: Zotero item key
-        tag: Tag name to check for
-
-    Returns:
-        True if item has the tag, False otherwise
-    """
-    try:
-        item = await data_service.get_item(item_key)
-        if item:
-            item_data = item.get("data", {})
-            item_tags = [t.get("tag", "") for t in item_data.get("tags", [])]
-            return tag in item_tags
-        return False
-    except Exception:
-        return False

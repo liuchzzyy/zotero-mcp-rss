@@ -1,0 +1,28 @@
+name: 'Setup Zotero MCP'
+description: 'Setup Python, uv, and install dependencies for Zotero MCP'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Setup uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        enable-cache: true
+        cache-dependency-glob: 'uv.lock'
+        prune-cache: false
+
+    - name: Install dependencies
+      shell: bash
+      run: uv sync --all-groups
+
+    - name: Verify installation
+      shell: bash
+      run: uv run zotero-mcp version

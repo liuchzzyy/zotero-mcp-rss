@@ -8,8 +8,6 @@ from .helpers import (
     format_creators,
     is_local_mode,
     normalize_item_key,
-    parse_tags,
-    truncate_text,
 )
 from .markdown import markdown_to_html
 
@@ -22,6 +20,4 @@ __all__ = [
     "format_creators",
     "is_local_mode",
     "normalize_item_key",
-    "parse_tags",
-    "truncate_text",
 ]

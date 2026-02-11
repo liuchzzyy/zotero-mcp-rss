@@ -8,8 +8,6 @@ from .errors import (
     NotFoundError,
     ValidationError,
     ZoteroMCPError,
-    format_api_error,
-    handle_error,
 )
 from .setup import setup_zotero_mcp
 from .updater import check_for_updates
@@ -23,8 +21,6 @@ __all__ = [
     "ValidationError",
     "DatabaseError",
     "ConfigurationError",
-    "handle_error",
-    "format_api_error",
     # Setup
     "setup_zotero_mcp",
     # Updater

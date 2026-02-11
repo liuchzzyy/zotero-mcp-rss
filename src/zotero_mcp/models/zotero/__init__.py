@@ -8,7 +8,6 @@ from .annotations import (
 )
 from .collections import (
     CreateCollectionInput,
-    CreateCollectionResponse,
     DeleteCollectionInput,
     MoveCollectionInput,
     RenameCollectionInput,
@@ -46,7 +45,6 @@ __all__ = [
     "GetBundleInput",
     # Collections
     "CreateCollectionInput",
-    "CreateCollectionResponse",
     "DeleteCollectionInput",
     "MoveCollectionInput",
     "RenameCollectionInput",

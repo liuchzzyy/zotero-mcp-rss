@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from zotero_mcp.formatters import JSONFormatter, MarkdownFormatter
+from zotero_mcp.formatters import MarkdownFormatter
 from zotero_mcp.models.common import ResponseFormat
 from zotero_mcp.models.common.responses import (
     AnnotationsResponse,
@@ -32,7 +32,6 @@ from zotero_mcp.models.workflow.batch import BatchGetMetadataResponse
 class Formatters:
     """Format response models into text outputs."""
 
-    _json = JSONFormatter()
     _md = MarkdownFormatter()
     _max_inline_json_chars = 20000
 

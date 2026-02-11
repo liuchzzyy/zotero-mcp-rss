@@ -89,12 +89,3 @@ def get_provider_capability(provider: str) -> LLMCapability:
         )
 
     return PROVIDER_CAPABILITIES[provider]
-
-
-def is_multimodal_provider(provider: str) -> bool:
-    """Check if provider supports multi-modal input."""
-    try:
-        cap = get_provider_capability(provider)
-        return cap.is_multimodal()
-    except ValueError:
-        return False

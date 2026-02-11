@@ -15,7 +15,7 @@ on:
       treated_limit:
         description: "Maximum total items to scan"
         required: false
-        default: "50"
+        default: "100"
         type: choice
         options: ["1", "50", "100", "200", "500"]
       dry_run:
@@ -49,32 +49,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Setup uv
-        uses: astral-sh/setup-uv@v4
-        with:
-          enable-cache: true
-          cache-dependency-glob: "uv.lock"
-          prune-cache: false
-
-      - name: Install dependencies
-        run: uv sync --all-groups
-
-      - name: Verify installation
-        run: uv run zotero-mcp version
+      - name: Setup Zotero MCP
+        uses: ./.github/actions/setup-zotero-mcp
 
       - name: Run deduplication
+        id: run-dedup
         run: |
           ARGS=(
             --scan-limit "${{ github.event.inputs.scan_limit || '200' }}"
-            --treated-limit "${{ github.event.inputs.treated_limit || '50' }}"
+            --treated-limit "${{ github.event.inputs.treated_limit || '100' }}"
             --trash-collection "${{ github.event.inputs.trash_collection || '06_TRASHES' }}"
           )
 
@@ -86,7 +69,13 @@ jobs:
           fi
 
           echo "Command: zotero-mcp deduplicate ${ARGS[*]}"
+          START_TIME=$(date +%s)
           uv run zotero-mcp deduplicate "${ARGS[@]}" 2>&1 | tee dedup.log
+          EXIT_CODE=${PIPESTATUS[0]}
+          END_TIME=$(date +%s)
+          echo "duration=$((END_TIME - START_TIME))" >> $GITHUB_OUTPUT
+          echo "exit_code=$EXIT_CODE" >> $GITHUB_OUTPUT
+          exit $EXIT_CODE
 
       - name: Upload logs
         if: always()
@@ -97,20 +86,67 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
 
-      - name: Summary
+      - name: Generate Summary
         if: always()
         run: |
+          # Determine status badge
+          if [ "${{ steps.run-dedup.outputs.exit_code }}" = "0" ]; then
+            BADGE_COLOR="brightgreen"
+            STATUS="Success"
+          else
+            BADGE_COLOR="red"
+            STATUS="Failed"
+          fi
+
           echo "## Deduplicate Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- Run: ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Scan limit: ${{ github.event.inputs.scan_limit || '200' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Treated limit: ${{ github.event.inputs.treated_limit || '50' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Collection: ${{ github.event.inputs.collection || 'All' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Trash collection: ${{ github.event.inputs.trash_collection || '06_TRASHES' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Dry Run: ${{ github.event.inputs.dry_run || 'false' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "![Status](https://img.shields.io/badge/Status-${STATUS}-${BADGE_COLOR})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "| Parameter | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Run | #${{ github.run_number }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Scan limit | ${{ github.event.inputs.scan_limit || '200' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Treated limit | ${{ github.event.inputs.treated_limit || '100' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Collection | ${{ github.event.inputs.collection || 'All' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Trash collection | ${{ github.event.inputs.trash_collection || '06_TRASHES' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dry Run | ${{ github.event.inputs.dry_run || 'false' }} |" >> $GITHUB_STEP_SUMMARY
+
+          # Extract statistics from log
+          if [ -f dedup.log ]; then
+            SCANNED=$(grep -oE 'Scanned: [0-9]+' dedup.log | tail -1 | grep -oE '[0-9]+' || echo "0")
+            DUPLICATES=$(grep -oE 'Duplicates found: [0-9]+' dedup.log | tail -1 | grep -oE '[0-9]+' || echo "0")
+            MOVED=$(grep -oE 'Moved: [0-9]+' dedup.log | tail -1 | grep -oE '[0-9]+' || echo "0")
+
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Statistics" >> $GITHUB_STEP_SUMMARY
+            echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Scanned | ${SCANNED} |" >> $GITHUB_STEP_SUMMARY
+            echo "| Duplicates found | ${DUPLICATES} |" >> $GITHUB_STEP_SUMMARY
+            echo "| Moved to trash | ${MOVED} |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Duration
+          if [ -n "${{ steps.run-dedup.outputs.duration }}" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Duration:** ${{ steps.run-dedup.outputs.duration }} seconds" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Log tail
           if [ -f dedup.log ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### Last 30 lines" >> $GITHUB_STEP_SUMMARY
+            echo "<details>" >> $GITHUB_STEP_SUMMARY
+            echo "<summary>Last 25 lines</summary>" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
-            tail -30 dedup.log >> $GITHUB_STEP_SUMMARY
+            tail -25 dedup.log >> $GITHUB_STEP_SUMMARY
             echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "</details>" >> $GITHUB_STEP_SUMMARY
           fi
+
+      - name: Notify on failure
+        if: failure() && github.event_name == 'schedule'
+        run: |
+          echo "::warning::Deduplicate workflow failed. Check the logs for details."
+          # Add webhook notification here if configured
