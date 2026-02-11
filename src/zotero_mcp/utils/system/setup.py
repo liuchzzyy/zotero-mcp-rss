@@ -12,6 +12,7 @@ from pathlib import Path
 import shutil
 import sys
 
+from dotenv import load_dotenv
 
 def find_executable():
     """Find the full path to the zotero-mcp executable."""
@@ -92,7 +93,7 @@ def setup_semantic_search(
     # Configure update frequency
     print("\n=== Database Update Configuration ===")
     print("Configure how often the semantic search database is updated:")
-    print("1. Manual - Update only when you run 'zotero-mcp update-db'")
+    print("1. Manual - Update only when you run 'zotero-mcp semantic-db-update'")
     print("2. Auto - Automatically update on server startup")
     print("3. Daily - Automatically update once per day")
     print("4. Every N days - Automatically update every N days")
@@ -292,16 +293,20 @@ def write_standalone_config(
 
 def main(cli_args=None):
     """Main function to run the setup helper."""
+    load_dotenv()
     parser = argparse.ArgumentParser(
         description="Configure zotero-mcp for Opencode CLI and standalone usage"
     )
     parser.add_argument(
         "--no-local",
         action="store_true",
+        default=True,
         help="Configure for Zotero Web API instead of local API",
     )
     parser.add_argument(
-        "--api-key", help="Zotero API key (only needed with --no-local)"
+        "--zotero-api-key",
+        default=os.getenv("ZOTERO_API_KEY"),
+        help="Zotero API key (only needed with --no-local)",
     )
     parser.add_argument(
         "--library-id", help="Zotero library ID (only needed with --no-local)"
@@ -320,6 +325,7 @@ def main(cli_args=None):
     parser.add_argument(
         "--semantic-config-only",
         action="store_true",
+        default=True,
         help="Only configure semantic search, skip Zotero setup",
     )
 
@@ -348,7 +354,7 @@ def main(cli_args=None):
             if save_semantic_search_config(new_semantic_config, semantic_config_path):
                 print("\nSemantic search configuration complete!")
                 print(f"Configuration saved to: {semantic_config_path}")
-                print("\nTo initialize the database, run: zotero-mcp update-db")
+                print("\nTo initialize the database, run: zotero-mcp semantic-db-update")
                 return 0
             else:
                 print("\nSemantic search configuration failed.")
@@ -366,7 +372,7 @@ def main(cli_args=None):
 
     # Update config
     use_local = not args.no_local
-    api_key = args.api_key
+    api_key = getattr(args, "zotero_api_key", None)
     library_id = args.library_id
     library_type = args.library_type
 
@@ -435,10 +441,10 @@ def main(cli_args=None):
             print(
                 "\nNote: You changed semantic search settings. Consider rebuilding the DB:"
             )
-            print("  zotero-mcp update-db --force-rebuild")
+            print("  zotero-mcp semantic-db-update --force-rebuild")
         else:
             print("\nTo initialize the semantic search database, run:")
-            print("  zotero-mcp update-db")
+            print("  zotero-mcp semantic-db-update")
 
         if use_local:
             print(

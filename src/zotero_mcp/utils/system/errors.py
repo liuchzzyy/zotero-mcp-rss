@@ -121,7 +121,7 @@ def handle_error(
     if "chromadb" in error_str or "embedding" in error_str:
         return (
             "Error: Semantic search database error. "
-            "Try running 'zotero-mcp update-db --force-rebuild' to rebuild the database."
+            "Try running 'zotero-mcp semantic-db-update --force-rebuild' to rebuild the database."
         )
 
     # Generic error

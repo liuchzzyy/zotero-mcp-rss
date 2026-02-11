@@ -5,6 +5,7 @@ Command-line interface for Zotero MCP server.
 import argparse
 import asyncio
 import json
+import os
 from pathlib import Path
 import re
 import shutil
@@ -88,23 +89,12 @@ def _add_pdf_find_common_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--title", help="Title (optional)")
     parser.add_argument("--url", help="Landing URL (optional)")
     parser.add_argument(
-        "--no-supplementary",
-        action="store_true",
-        help="Disable supporting information lookup",
-    )
-    parser.add_argument(
         "--no-scihub",
         action="store_true",
         help="Disable Sci-Hub fallback links",
     )
     parser.add_argument(
         "--scihub-base-url", help="Override Sci-Hub base URL"
-    )
-    parser.add_argument(
-        "--max-supplementary",
-        type=int,
-        default=10,
-        help="Max supplementary links to return (default: 10)",
     )
     parser.add_argument(
         "--no-download-pdfs",
@@ -120,18 +110,6 @@ def _add_pdf_find_common_args(parser: argparse.ArgumentParser) -> None:
         "--no-attach",
         action="store_true",
         help="Do not attach downloads to Zotero",
-    )
-    parser.add_argument(
-        "--max-pdf-downloads",
-        type=int,
-        default=1,
-        help="Maximum PDFs to download (default: 1)",
-    )
-    parser.add_argument(
-        "--max-supplementary-downloads",
-        type=int,
-        default=3,
-        help="Maximum supporting files to download (default: 3)",
     )
     parser.add_argument(
         "--dry-run",
@@ -189,9 +167,14 @@ def main():
     setup_parser.add_argument(
         "--no-local",
         action="store_true",
+        default=True,
         help="Configure for Zotero Web API instead of local API",
     )
-    setup_parser.add_argument("--api-key", help="Zotero API key")
+    setup_parser.add_argument(
+        "--zotero-api-key",
+        default=os.getenv("ZOTERO_API_KEY"),
+        help="Zotero API key (default: from .env or environment)",
+    )
     setup_parser.add_argument("--library-id", help="Zotero library ID")
     setup_parser.add_argument(
         "--library-type",
@@ -207,12 +190,13 @@ def main():
     setup_parser.add_argument(
         "--semantic-config-only",
         action="store_true",
+        default=True,
         help="Only configure semantic search",
     )
 
     # Update database command
     update_db_parser = subparsers.add_parser(
-        "update-db", help="Update semantic search database"
+        "semantic-db-update", help="Update semantic search database"
     )
     update_db_parser.add_argument(
         "--force-rebuild", action="store_true", help="Force complete rebuild"
@@ -220,16 +204,19 @@ def main():
     update_db_parser.add_argument(
         "--scan-limit",
         type=int,
-        default=100,
-        help="Number of items to fetch per batch from API (default: 100)",
+        default=500,
+        help="Number of items to fetch per batch from API (default: 500)",
     )
     update_db_parser.add_argument(
         "--treated-limit",
         type=int,
-        help="Maximum total number of items to process",
+        default=100,
+        help="Maximum total number of items to process (default: 100)",
     )
     update_db_parser.add_argument(
-        "--fulltext", action="store_true", help="Extract fulltext content"
+        "--no-fulltext",
+        action="store_true",
+        help="Disable fulltext extraction (default: enabled)",
     )
     update_db_parser.add_argument(
         "--config-path", help="Path to semantic search config"
@@ -237,20 +224,26 @@ def main():
     update_db_parser.add_argument("--db-path", help="Path to Zotero database file")
 
     # Database status command
-    db_status_parser = subparsers.add_parser("db-status", help="Show database status")
+    db_status_parser = subparsers.add_parser("semantic-db-status", help="Show database status")
     db_status_parser.add_argument(
         "--config-path", help="Path to semantic search config"
     )
 
     # DB inspect command
     inspect_parser = subparsers.add_parser(
-        "db-inspect", help="Inspect indexed documents"
+        "semantic-db-inspect", help="Inspect indexed documents"
     )
     inspect_parser.add_argument(
         "--limit", type=int, default=20, help="How many records to show"
     )
     inspect_parser.add_argument(
         "--filter", dest="filter_text", help="Filter by title/creator"
+    )
+    inspect_parser.add_argument(
+        "--filter-field",
+        choices=["doi", "title", "author"],
+        default="title",
+        help="Field to filter by (default: title)",
     )
     inspect_parser.add_argument(
         "--show-documents", action="store_true", help="Show document text"
@@ -345,14 +338,6 @@ Examples:
     )
     _add_pdf_find_common_args(pdf_find_parser)
     _add_pdf_find_batch_args(pdf_find_parser)
-
-    # PDF finder batch command (explicit)
-    pdf_find_batch_parser = subparsers.add_parser(
-        "pdf-find-batch",
-        help="Batch find PDFs and supporting information",
-    )
-    _add_pdf_find_common_args(pdf_find_batch_parser)
-    _add_pdf_find_batch_args(pdf_find_batch_parser)
 
     # Update metadata command
     update_metadata_parser = subparsers.add_parser(
@@ -480,7 +465,7 @@ Examples:
 
         sys.exit(setup_main(args))
 
-    elif args.command == "update-db":
+    elif args.command == "semantic-db-update":
         # Ensure environment is loaded
         load_config()
         from zotero_mcp.services.zotero.semantic_search import create_semantic_search
@@ -505,7 +490,7 @@ Examples:
                 force_full_rebuild=args.force_rebuild,
                 scan_limit=args.scan_limit,
                 treated_limit=args.treated_limit,
-                extract_fulltext=args.fulltext,
+                extract_fulltext=not args.no_fulltext,
             )
 
             print("\nUpdate Complete:")
@@ -516,7 +501,7 @@ Examples:
             print(f"Error: {e}")
             sys.exit(1)
 
-    elif args.command == "db-status":
+    elif args.command == "semantic-db-status":
         load_config()
         from zotero_mcp.services.zotero.semantic_search import create_semantic_search
 
@@ -528,7 +513,7 @@ Examples:
             print(f"Error: {e}")
             sys.exit(1)
 
-    elif args.command == "db-inspect":
+    elif args.command == "semantic-db-inspect":
         load_config()
         from zotero_mcp.services.zotero.semantic_search import create_semantic_search
 
@@ -541,8 +526,15 @@ Examples:
                 print(f"Count: {col.count()}")
                 return
 
+            where = None
+            if args.filter_text:
+                field_map = {"doi": "doi", "title": "title", "author": "creators"}
+                target_field = field_map[args.filter_field]
+                where = {target_field: {"$contains": args.filter_text}}
+
             results = col.get(
                 limit=args.limit,
+                where=where,
                 include=(
                     ["metadatas", "documents"] if args.show_documents else ["metadatas"]
                 ),
@@ -605,7 +597,7 @@ Examples:
             print(f"Error: {e}")
             sys.exit(1)
 
-    elif args.command in {"pdf-find", "pdf-find-batch"}:
+    elif args.command == "pdf-find":
         load_config()
         from zotero_mcp.models.common import (
             FindPdfSiBatchItem,
@@ -626,7 +618,6 @@ Examples:
         has_single_inputs = any(
             [args.item_key, args.doi, args.title, args.url]
         )
-        force_batch = args.command == "pdf-find-batch"
 
         if has_batch_inputs and has_single_inputs:
             print(
@@ -635,10 +626,10 @@ Examples:
             )
             sys.exit(1)
 
-        include_supplementary = not args.no_supplementary
         include_scihub = not args.no_scihub
         download_pdfs = not args.no_download_pdfs
         download_supplementary = not args.no_download_supplementary
+        # Treated count is based on whether we need any download
         attach_to_zotero = not args.no_attach
         response_format = (
             ResponseFormat.JSON
@@ -646,7 +637,7 @@ Examples:
             else ResponseFormat.MARKDOWN
         )
 
-        if force_batch or has_batch_inputs:
+        if has_batch_inputs:
             if not has_batch_inputs:
                 print(
                     "Error: Batch mode requires --item-keys or --collection-name."
@@ -667,14 +658,19 @@ Examples:
                 async def _process_item(item_key: str, title: str | None):
                     nonlocal processed, succeeded, failed
                     has_pdf = await check_has_pdf(data_service, item_key)
-                    if has_pdf and not args.process_items_with_pdf:
+                    needs_pdf = download_pdfs and (
+                        not has_pdf or args.process_items_with_pdf
+                    )
+                    needs_si = download_supplementary
+                    needs_processing = needs_pdf or needs_si
+                    if not needs_processing:
                         return FindPdfSiBatchItem(
                             item_key=item_key,
                             title=title,
                             skipped=True,
                             success=True,
+                            error="No downloads requested",
                         )
-
                     processed += 1
                     try:
                         pdfs, supplementary, _, downloads_meta = await finder.find(
@@ -682,15 +678,11 @@ Examples:
                             doi=None,
                             title=title,
                             url=None,
-                            include_supplementary=include_supplementary,
                             include_scihub=include_scihub,
                             scihub_base_url=args.scihub_base_url,
-                            max_supplementary=args.max_supplementary,
-                            download_pdfs=download_pdfs and not has_pdf,
+                            download_pdfs=needs_pdf,
                             download_supplementary=download_supplementary,
                             attach_to_zotero=attach_to_zotero,
-                            max_pdf_downloads=args.max_pdf_downloads,
-                            max_supplementary_downloads=args.max_supplementary_downloads,
                             dry_run=args.dry_run,
                             data_service=data_service,
                         )
@@ -762,10 +754,15 @@ Examples:
                         return
 
                     offset = 0
+                    effective_scan_limit = args.scan_limit
+                    if args.treated_limit:
+                        effective_scan_limit = min(
+                            args.scan_limit, args.treated_limit
+                        )
                     while processed < args.treated_limit:
                         batch = await data_service.get_collection_items(
                             collection_key,
-                            limit=args.scan_limit,
+                            limit=effective_scan_limit,
                             start=offset,
                         )
                         if not batch:
@@ -814,15 +811,11 @@ Examples:
                     doi=args.doi,
                     title=args.title,
                     url=args.url,
-                    include_supplementary=include_supplementary,
                     include_scihub=include_scihub,
                     scihub_base_url=args.scihub_base_url,
-                    max_supplementary=args.max_supplementary,
                     download_pdfs=download_pdfs,
                     download_supplementary=download_supplementary,
                     attach_to_zotero=attach_to_zotero,
-                    max_pdf_downloads=args.max_pdf_downloads,
-                    max_supplementary_downloads=args.max_supplementary_downloads,
                     dry_run=args.dry_run,
                     response_format=response_format,
                 )
@@ -833,20 +826,43 @@ Examples:
             async def run_pdf_find():
                 data_service = DataAccessService()
                 finder = PdfSiFinder()
+                has_pdf = False
+                if params.item_key:
+                    try:
+                        has_pdf = await check_has_pdf(data_service, params.item_key)
+                    except Exception:
+                        has_pdf = False
+                needs_pdf = params.download_pdfs and (not has_pdf or not params.item_key)
+                needs_si = params.download_supplementary
+                needs_processing = needs_pdf or needs_si
+                if not needs_processing:
+                    response = FindPdfSiResponse(
+                        item_key=params.item_key,
+                        doi=params.doi,
+                        title=params.title,
+                        url=params.url,
+                        pdfs=[],
+                        supplementary=[],
+                        downloaded=[],
+                        attached=[],
+                        download_errors=[],
+                        attach_errors=[],
+                        sources=[],
+                        warnings=["No downloads requested"],
+                    )
+                    text = Formatters.format_response(response, params.response_format)
+                    print(text)
+                    return
                 pdfs, supplementary, meta, downloads_meta = await finder.find(
                     item_key=params.item_key,
                     doi=params.doi,
                     title=params.title,
                     url=params.url,
-                    include_supplementary=params.include_supplementary,
                     include_scihub=params.include_scihub,
                     scihub_base_url=params.scihub_base_url,
-                    max_supplementary=params.max_supplementary,
                     download_pdfs=params.download_pdfs,
                     download_supplementary=params.download_supplementary,
                     attach_to_zotero=params.attach_to_zotero,
-                    max_pdf_downloads=params.max_pdf_downloads,
-                    max_supplementary_downloads=params.max_supplementary_downloads,
                     dry_run=params.dry_run,
                     data_service=data_service,
                 )

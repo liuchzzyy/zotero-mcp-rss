@@ -295,11 +295,6 @@ class PromptHandler:
                             required=False,
                         ),
                         PromptArgument(
-                            name="include_supplementary",
-                            description="Include supporting info (true/false)",
-                            required=False,
-                        ),
-                        PromptArgument(
                             name="include_scihub",
                             description="Include Sci-Hub link (true/false)",
                             required=False,
@@ -307,11 +302,6 @@ class PromptHandler:
                         PromptArgument(
                             name="scihub_base_url",
                             description="Sci-Hub base URL (optional)",
-                            required=False,
-                        ),
-                        PromptArgument(
-                            name="max_supplementary",
-                            description="Max supporting links",
                             required=False,
                         ),
                         PromptArgument(
@@ -327,16 +317,6 @@ class PromptHandler:
                         PromptArgument(
                             name="attach_to_zotero",
                             description="Attach to Zotero (true/false)",
-                            required=False,
-                        ),
-                        PromptArgument(
-                            name="max_pdf_downloads",
-                            description="Max PDFs to download",
-                            required=False,
-                        ),
-                        PromptArgument(
-                            name="max_supplementary_downloads",
-                            description="Max supporting files to download",
                             required=False,
                         ),
                         PromptArgument(
@@ -371,11 +351,6 @@ class PromptHandler:
                             required=False,
                         ),
                         PromptArgument(
-                            name="include_supplementary",
-                            description="Include supporting info (true/false)",
-                            required=False,
-                        ),
-                        PromptArgument(
                             name="include_scihub",
                             description="Include Sci-Hub link (true/false)",
                             required=False,
@@ -383,11 +358,6 @@ class PromptHandler:
                         PromptArgument(
                             name="scihub_base_url",
                             description="Sci-Hub base URL (optional)",
-                            required=False,
-                        ),
-                        PromptArgument(
-                            name="max_supplementary",
-                            description="Max supporting links",
                             required=False,
                         ),
                         PromptArgument(
@@ -403,16 +373,6 @@ class PromptHandler:
                         PromptArgument(
                             name="attach_to_zotero",
                             description="Attach to Zotero (true/false)",
-                            required=False,
-                        ),
-                        PromptArgument(
-                            name="max_pdf_downloads",
-                            description="Max PDFs to download",
-                            required=False,
-                        ),
-                        PromptArgument(
-                            name="max_supplementary_downloads",
-                            description="Max supporting files to download",
                             required=False,
                         ),
                         PromptArgument(
