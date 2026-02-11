@@ -15,6 +15,7 @@ from zotero_mcp.services.zotero.metadata_service import MetadataService
 logger = logging.getLogger(__name__)
 
 AI_METADATA_TAG = "AI元数据"
+_SKIPPED_ITEM_TYPES = {"attachment", "note", "annotation"}
 
 # Mapping from enhanced metadata keys to Zotero item data keys
 _METADATA_FIELD_MAP = {
@@ -106,6 +107,16 @@ class MetadataUpdateService:
                 }
 
             item_data = item.get("data", {})
+            item_type = item_data.get("itemType", "")
+
+            if item_type in _SKIPPED_ITEM_TYPES:
+                logger.info(f"  Skipping unsupported item type: {item_type}")
+                return {
+                    "success": True,
+                    "updated": False,
+                    "message": f"Skipped unsupported item type: {item_type}",
+                    "source": "none",
+                }
 
             # Check if already processed
             tag_names = _extract_tag_names(item_data.get("tags", []))
@@ -308,6 +319,9 @@ class MetadataUpdateService:
                 # Quick check: skip if already has AI元数据 tag
                 tag_names = _extract_tag_names(item.tags or [])
                 if AI_METADATA_TAG in tag_names:
+                    skipped += 1
+                    continue
+                if item.item_type in _SKIPPED_ITEM_TYPES:
                     skipped += 1
                     continue
 
