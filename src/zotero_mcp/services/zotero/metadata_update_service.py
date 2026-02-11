@@ -35,6 +35,21 @@ _METADATA_FIELD_MAP = {
     "edition": "edition",
     "place": "place",
 }
+_PERIODICAL_ITEM_TYPES = {
+    "journalArticle",
+    "magazineArticle",
+    "newspaperArticle",
+    "conferencePaper",
+    "preprint",
+}
+_PERIODICAL_ONLY_FIELDS = {
+    "publicationTitle",
+    "journalAbbreviation",
+    "volume",
+    "issue",
+    "pages",
+    "ISSN",
+}
 
 # Key fields to check for changes between current and updated data
 _KEY_FIELDS = [
@@ -406,10 +421,16 @@ class MetadataUpdateService:
         Overwrites existing fields with API data (except title).
         """
         updated = current_data.copy()
+        current_item_type = updated.get("itemType", "")
 
         # Apply simple field mappings (overwrite with API data)
         for meta_key, zotero_key in _METADATA_FIELD_MAP.items():
             if enhanced_metadata.get(meta_key):
+                if (
+                    zotero_key in _PERIODICAL_ONLY_FIELDS
+                    and current_item_type not in _PERIODICAL_ITEM_TYPES
+                ):
+                    continue
                 updated[zotero_key] = enhanced_metadata[meta_key]
 
         # Authors (overwrite with API data)

@@ -59,3 +59,36 @@ async def test_update_all_items_skips_unsupported_item_types_before_processing()
     assert result["skipped"] == 2
     service.update_item_metadata.assert_awaited_once_with("A1", dry_run=True)
 
+
+def test_build_updated_item_data_skips_periodical_fields_for_book():
+    """Book items should not be assigned journal-only fields."""
+    item_service = AsyncMock()
+    metadata_service = AsyncMock()
+    service = MetadataUpdateService(item_service, metadata_service)
+
+    current = {
+        "itemType": "book",
+        "title": "Handbook",
+        "creators": [],
+    }
+    enhanced = {
+        "journal": "Choice Reviews",
+        "journal_abbrev": "Choice",
+        "volume": "33",
+        "issue": "5",
+        "pages": "12-14",
+        "issn": "1234-5678",
+        "publisher": "Test Publisher",
+        "year": 2024,
+    }
+
+    updated = service._build_updated_item_data(current, enhanced)
+
+    assert "publicationTitle" not in updated
+    assert "journalAbbreviation" not in updated
+    assert "volume" not in updated
+    assert "issue" not in updated
+    assert "pages" not in updated
+    assert "ISSN" not in updated
+    assert updated["publisher"] == "Test Publisher"
+    assert updated["date"] == "2024"
