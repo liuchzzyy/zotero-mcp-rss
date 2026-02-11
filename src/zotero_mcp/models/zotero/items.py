@@ -4,7 +4,7 @@ Pydantic models for item-related tools.
 
 from typing import Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field
 
 from zotero_mcp.models.common import BaseInput, OutputFormat, PaginatedInput
 
@@ -112,80 +112,3 @@ class GetBundleInput(BaseInput):
     )
 
 
-class FindPdfSiInput(BaseInput):
-    """Input for zotero_find_pdf_si tool."""
-
-    item_key: str | None = Field(
-        default=None, description="Zotero item key (optional)"
-    )
-    doi: str | None = Field(default=None, description="DOI (optional)")
-    title: str | None = Field(default=None, description="Title (optional)")
-    url: str | None = Field(default=None, description="Landing URL (optional)")
-    include_scihub: bool = Field(
-        default=True, description="Whether to include Sci-Hub link when DOI exists"
-    )
-    scihub_base_url: str | None = Field(
-        default=None,
-        description="Optional Sci-Hub base URL (overrides env SCIHUB_BASE_URL)",
-    )
-    download_pdfs: bool = Field(
-        default=True, description="Download discovered PDFs"
-    )
-    download_supplementary: bool = Field(
-        default=True, description="Download supporting information files"
-    )
-    attach_to_zotero: bool = Field(
-        default=True, description="Attach downloaded files to Zotero item"
-    )
-    dry_run: bool = Field(
-        default=False, description="Preview without downloading or uploading"
-    )
-
-    @model_validator(mode="after")
-    def _require_identifier(self) -> "FindPdfSiInput":
-        if not (self.item_key or self.doi or self.title or self.url):
-            raise ValueError(
-                "Provide at least one of item_key, doi, title, or url."
-            )
-        return self
-
-
-class FindPdfSiBatchInput(BaseInput):
-    """Input for zotero_find_pdf_si_batch tool."""
-
-    collection_name: str = Field(
-        default="00_INBOXS",
-        description="Collection name to scan for missing PDFs",
-    )
-    scan_limit: int = Field(
-        default=50, ge=1, le=200, description="Batch size for scanning items"
-    )
-    treated_limit: int = Field(
-        default=50,
-        ge=1,
-        le=1000,
-        description="Maximum items to process (excluding skipped items)",
-    )
-    process_items_with_pdf: bool = Field(
-        default=False,
-        description="Also scan items that already have PDF (for SI only)",
-    )
-    include_scihub: bool = Field(
-        default=True, description="Include Sci-Hub links when DOI exists"
-    )
-    scihub_base_url: str | None = Field(
-        default=None,
-        description="Optional Sci-Hub base URL (overrides env)",
-    )
-    download_pdfs: bool = Field(
-        default=True, description="Download discovered PDFs"
-    )
-    download_supplementary: bool = Field(
-        default=True, description="Download supporting information files"
-    )
-    attach_to_zotero: bool = Field(
-        default=True, description="Attach downloaded files to Zotero item"
-    )
-    dry_run: bool = Field(
-        default=False, description="Preview without downloading or uploading"
-    )

@@ -17,9 +17,6 @@ from zotero_mcp.models.common import (
     CollectionsResponse,
     DatabaseStatusResponse,
     DatabaseUpdateResponse,
-    FindPdfSiBatchItem,
-    FindPdfSiBatchResponse,
-    FindPdfSiResponse,
     FulltextResponse,
     ItemDetailResponse,
     NoteCreationResponse,
@@ -41,8 +38,6 @@ from zotero_mcp.models.schemas import (
     DeleteCollectionInput,
     EmptyInput,
     FindCollectionInput,
-    FindPdfSiBatchInput,
-    FindPdfSiInput,
     GetAnnotationsInput,
     GetBundleInput,
     GetChildrenInput,
@@ -201,16 +196,6 @@ class ToolHandler:
                 name=ToolName.GET_BUNDLE,
                 description="Get comprehensive item bundle",
                 inputSchema=GetBundleInput.model_json_schema(),
-            ),
-            Tool(
-                name=ToolName.FIND_PDF_SI,
-                description="Find PDFs and supporting information",
-                inputSchema=FindPdfSiInput.model_json_schema(),
-            ),
-            Tool(
-                name=ToolName.FIND_PDF_SI_BATCH,
-                description="Batch find PDFs and supporting information",
-                inputSchema=FindPdfSiBatchInput.model_json_schema(),
             ),
             # Annotations & notes
             Tool(
@@ -680,176 +665,6 @@ class ToolHandler:
                         annotations=annotations,
                         fulltext=bundle.get("fulltext"),
                     )
-                case ToolName.FIND_PDF_SI:
-                    params = FindPdfSiInput(**args)
-                    from zotero_mcp.services.pdf_finder import PdfSiFinder
-
-                    finder = PdfSiFinder()
-                    pdfs, supplementary, meta, downloads_meta = await finder.find(
-                        item_key=params.item_key,
-                        doi=params.doi,
-                        title=params.title,
-                        url=params.url,
-                        include_scihub=params.include_scihub,
-                        scihub_base_url=params.scihub_base_url,
-                        download_pdfs=params.download_pdfs,
-                        download_supplementary=params.download_supplementary,
-                        attach_to_zotero=params.attach_to_zotero,
-                        dry_run=params.dry_run,
-                        data_service=data_service,
-                    )
-                    response = FindPdfSiResponse(
-                        item_key=meta.get("item_key"),
-                        doi=meta.get("doi"),
-                        title=meta.get("title"),
-                        url=meta.get("url"),
-                        pdfs=pdfs,
-                        supplementary=supplementary,
-                        downloaded=downloads_meta.get("downloaded", []),
-                        attached=downloads_meta.get("attached", []),
-                        download_errors=downloads_meta.get("download_errors", []),
-                        attach_errors=downloads_meta.get("attach_errors", []),
-                        sources=meta.get("sources", []),
-                        warnings=meta.get("warnings", []),
-                    )
-                case ToolName.FIND_PDF_SI_BATCH:
-                    params = FindPdfSiBatchInput(**args)
-                    from zotero_mcp.services.pdf_finder import PdfSiFinder
-                    from zotero_mcp.utils.formatting.helpers import check_has_pdf
-
-                    finder = PdfSiFinder()
-
-                    collection_key = None
-                    collection_name = params.collection_name
-                    matches = await data_service.find_collection_by_name(
-                        name=collection_name, exact_match=True
-                    )
-                    if not matches:
-                        matches = await data_service.find_collection_by_name(
-                            name=collection_name, exact_match=False
-                        )
-                    if matches:
-                        match = matches[0]
-                        collection_key = (
-                            match.get("data", {}).get("key") or match.get("key")
-                        )
-                        collection_name = (
-                            match.get("data", {}).get("name") or collection_name
-                        )
-
-                    if not collection_key:
-                        response = FindPdfSiBatchResponse(
-                            success=False,
-                            error=f"Collection not found: {params.collection_name}",
-                            collection_name=params.collection_name,
-                            scan_limit=params.scan_limit,
-                            treated_limit=params.treated_limit,
-                        )
-                    else:
-                        scanned = 0
-                        processed = 0
-                        skipped = 0
-                        succeeded = 0
-                        failed = 0
-                        results: list[FindPdfSiBatchItem] = []
-                        offset = 0
-
-                        while processed < params.treated_limit:
-                            batch = await data_service.get_collection_items(
-                                collection_key,
-                                limit=params.scan_limit,
-                                start=offset,
-                            )
-                            if not batch:
-                                break
-                            scanned += len(batch)
-
-                            for item in batch:
-                                if processed >= params.treated_limit:
-                                    break
-                                item_key = item.key
-                                title = item.title
-
-                                has_pdf = await check_has_pdf(data_service, item_key)
-                                needs_pdf = params.download_pdfs and (
-                                    not has_pdf or params.process_items_with_pdf
-                                )
-                                needs_si = params.download_supplementary
-                                needs_processing = needs_pdf or needs_si
-                                if not needs_processing:
-                                    skipped += 1
-                                    results.append(
-                                        FindPdfSiBatchItem(
-                                            item_key=item_key,
-                                            title=title,
-                                            skipped=True,
-                                            success=True,
-                                            error="No downloads requested",
-                                        )
-                                    )
-                                    continue
-
-                                processed += 1
-                                try:
-                                    download_pdfs = needs_pdf
-                                    pdfs, supplementary, _, downloads_meta = (
-                                        await finder.find(
-                                            item_key=item_key,
-                                            doi=None,
-                                            title=title,
-                                            url=None,
-                                            include_scihub=params.include_scihub,
-                                            scihub_base_url=params.scihub_base_url,
-                                            download_pdfs=download_pdfs,
-                                            download_supplementary=params.download_supplementary,
-                                            attach_to_zotero=params.attach_to_zotero,
-                                            dry_run=params.dry_run,
-                                            data_service=data_service,
-                                        )
-                                    )
-                                    attached_count = len(
-                                        downloads_meta.get("attached", [])
-                                    )
-                                    results.append(
-                                        FindPdfSiBatchItem(
-                                            item_key=item_key,
-                                            title=title,
-                                            pdf_count=len(pdfs),
-                                            supplementary_count=len(supplementary),
-                                            attached_count=attached_count,
-                                            skipped=False,
-                                            success=True,
-                                        )
-                                    )
-                                    succeeded += 1
-                                except Exception as exc:
-                                    failed += 1
-                                    results.append(
-                                        FindPdfSiBatchItem(
-                                            item_key=item_key,
-                                            title=title,
-                                            skipped=False,
-                                            success=False,
-                                            error=str(exc),
-                                        )
-                                    )
-
-                            if len(batch) < params.scan_limit:
-                                break
-                            offset += params.scan_limit
-
-                        response = FindPdfSiBatchResponse(
-                            collection_key=collection_key,
-                            collection_name=collection_name,
-                            scan_limit=params.scan_limit,
-                            treated_limit=params.treated_limit,
-                            scanned=scanned,
-                            processed=processed,
-                            skipped=skipped,
-                            succeeded=succeeded,
-                            failed=failed,
-                            results=results,
-                        )
                 case ToolName.GET_ANNOTATIONS:
                     params = GetAnnotationsInput(**args)
                     if not params.item_key:

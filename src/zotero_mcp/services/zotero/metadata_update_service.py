@@ -319,8 +319,11 @@ class MetadataUpdateService:
             if treated_limit and total_processed + processed >= treated_limit:
                 break
 
-            items = await self.item_service.get_collection_items(
-                coll_key, limit=scan_limit, start=offset
+            items = await async_retry_with_backoff(
+                lambda c=coll_key, l=scan_limit, o=offset: self.item_service.get_collection_items(
+                    c, limit=l, start=o
+                ),
+                description=f"Scan collection {coll_key} (offset {offset})",
             )
             if not items:
                 break

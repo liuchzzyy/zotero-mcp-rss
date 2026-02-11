@@ -14,8 +14,6 @@ from .collections import (
     RenameCollectionInput,
 )
 from .items import (
-    FindPdfSiBatchInput,
-    FindPdfSiInput,
     GetBundleInput,
     GetChildrenInput,
     GetCollectionsInput,
@@ -46,8 +44,6 @@ __all__ = [
     "GetChildrenInput",
     "GetCollectionsInput",
     "GetBundleInput",
-    "FindPdfSiInput",
-    "FindPdfSiBatchInput",
     # Collections
     "CreateCollectionInput",
     "CreateCollectionResponse",

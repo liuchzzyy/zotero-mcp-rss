@@ -14,8 +14,6 @@ from zotero_mcp.models.common.responses import (
     CollectionsResponse,
     DatabaseStatusResponse,
     DatabaseUpdateResponse,
-    FindPdfSiBatchResponse,
-    FindPdfSiResponse,
     FulltextResponse,
     ItemDetailResponse,
     NoteCreationResponse,
@@ -157,102 +155,6 @@ class Formatters:
                 lines.extend(
                     ["", "## Fulltext (excerpt)", "", response.fulltext[:2000]]
                 )
-            return "\n".join(lines)
-
-        if isinstance(response, FindPdfSiResponse):
-            lines = ["# PDF & Supporting Information", ""]
-            if response.item_key:
-                lines.append(f"**Item:** `{response.item_key}`")
-            if response.title:
-                lines.append(f"**Title:** {response.title}")
-            if response.doi:
-                lines.append(f"**DOI:** {response.doi}")
-            if response.url:
-                lines.append(f"**URL:** {response.url}")
-            if response.sources:
-                lines.append(f"**Sources:** {', '.join(response.sources)}")
-            if response.warnings:
-                lines.append("")
-                lines.append("## Warnings")
-                for warning in response.warnings:
-                    lines.append(f"- {warning}")
-
-            lines.append("")
-            lines.append("## PDFs")
-            if response.pdfs:
-                for link in response.pdfs:
-                    label = link.title or link.filename or "PDF"
-                    source = link.source
-                    location = link.url or link.path or "N/A"
-                    lines.append(f"- {label} ({source}) {location}")
-            else:
-                lines.append("No PDF links found.")
-
-            lines.append("")
-            lines.append("## Supporting Information")
-            if response.supplementary:
-                for link in response.supplementary:
-                    label = link.title or link.filename or "Supporting file"
-                    source = link.source
-                    location = link.url or link.path or "N/A"
-                    lines.append(f"- {label} ({source}) {location}")
-            else:
-                lines.append("No supporting information found.")
-
-            if response.downloaded:
-                lines.append("")
-                lines.append("## Downloaded")
-                for link in response.downloaded:
-                    label = link.title or link.filename or "Downloaded file"
-                    location = link.path or link.url or "N/A"
-                    lines.append(f"- {label} {location}")
-
-            if response.attached:
-                lines.append("")
-                lines.append("## Attached")
-                for link in response.attached:
-                    label = link.title or link.filename or "Attachment"
-                    key = f" ({link.attachment_key})" if link.attachment_key else ""
-                    lines.append(f"- {label}{key}")
-
-            if response.download_errors or response.attach_errors:
-                lines.append("")
-                lines.append("## Errors")
-                for err in response.download_errors:
-                    lines.append(f"- {err}")
-                for err in response.attach_errors:
-                    lines.append(f"- {err}")
-            return "\n".join(lines)
-
-        if isinstance(response, FindPdfSiBatchResponse):
-            lines = [
-                "# Batch PDF & Supporting Information",
-                "",
-                f"**Collection:** {response.collection_name or 'N/A'}",
-                f"**Collection Key:** {response.collection_key or 'N/A'}",
-                f"**Scan Limit:** {response.scan_limit}",
-                f"**Treated Limit:** {response.treated_limit}",
-                f"**Scanned:** {response.scanned}",
-                f"**Processed:** {response.processed}",
-                f"**Skipped:** {response.skipped}",
-                f"**Succeeded:** {response.succeeded}",
-                f"**Failed:** {response.failed}",
-            ]
-            if response.results:
-                lines.append("")
-                lines.append("## Results")
-                for item in response.results[:100]:
-                    status = (
-                        "skipped"
-                        if item.skipped
-                        else ("ok" if item.success else "failed")
-                    )
-                    extra = f" - {item.error}" if item.error else ""
-                    lines.append(
-                        f"- {item.title or 'Untitled'} (`{item.item_key}`) {status} "
-                        f"pdf={item.pdf_count} si={item.supplementary_count} "
-                        f"attached={item.attached_count}{extra}"
-                    )
             return "\n".join(lines)
 
         if isinstance(response, DatabaseStatusResponse):
