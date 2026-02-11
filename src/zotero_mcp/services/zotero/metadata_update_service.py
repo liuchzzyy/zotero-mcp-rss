@@ -185,11 +185,12 @@ class MetadataUpdateService:
             }
 
         except Exception as e:
-            logger.error(f"  Error updating item {item_key}: {e}")
+            err_text = str(e).strip() or repr(e)
+            logger.error(f"  Error updating item {item_key}: {err_text}")
             return {
                 "success": False,
                 "updated": False,
-                "message": f"Error: {str(e)}",
+                "message": f"Error: {err_text}",
                 "source": "none",
             }
 

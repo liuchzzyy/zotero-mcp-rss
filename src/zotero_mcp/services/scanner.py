@@ -250,6 +250,7 @@ class GlobalScanner:
 
             processed_count = 0
             failed_count = 0
+            skipped_no_fulltext = 0
 
             # Fetch full bundles for candidates
             candidate_keys = [item.key for item in candidates]
@@ -267,6 +268,12 @@ class GlobalScanner:
                 if not bundle:
                     failed_count += 1
                     logger.warning(f"  ✗ Failed to fetch bundle for {item.key}")
+                    continue
+                if not bundle.get("fulltext"):
+                    skipped_no_fulltext += 1
+                    logger.info(
+                        f"  ⊘ Skipped {item.key}: no fulltext available for analysis"
+                    )
                     continue
 
                 try:
@@ -301,9 +308,11 @@ class GlobalScanner:
                 "candidates": len(candidates),
                 "processed": processed_count,
                 "failed": failed_count,
+                "skipped_no_fulltext": skipped_no_fulltext,
                 "message": (
                     f"Processed {processed_count}, "
-                    f"failed {failed_count} "
+                    f"failed {failed_count}, "
+                    f"skipped_no_fulltext {skipped_no_fulltext} "
                     f"out of {len(candidates)} candidates"
                 ),
             }
