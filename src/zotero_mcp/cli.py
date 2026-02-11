@@ -526,25 +526,38 @@ Examples:
                 print(f"Count: {col.count()}")
                 return
 
-            where = None
+            include = (
+                ["metadatas", "documents"] if args.show_documents else ["metadatas"]
+            )
+
             if args.filter_text:
                 field_map = {"doi": "doi", "title": "title", "author": "creators"}
                 target_field = field_map[args.filter_field]
-                where = {target_field: {"$contains": args.filter_text}}
-
-            results = col.get(
-                limit=args.limit,
-                where=where,
-                include=(
-                    ["metadatas", "documents"] if args.show_documents else ["metadatas"]
-                ),
-            )
-
-            metadatas = results.get("metadatas") or []
-            for i, meta in enumerate(metadatas):
-                print(f"- {meta.get('title', 'Untitled')}")
-                if args.show_documents and results["documents"]:
-                    print(f"  {results['documents'][i][:100]}...")
+                needle = args.filter_text.lower()
+                # ChromaDB metadata where doesn't support $contains,
+                # so fetch a larger batch and filter client-side.
+                fetch_limit = max(args.limit * 10, 500)
+                results = col.get(limit=fetch_limit, include=include)
+                metadatas = results.get("metadatas") or []
+                documents = results.get("documents") or []
+                shown = 0
+                for i, meta in enumerate(metadatas):
+                    val = meta.get(target_field, "")
+                    if needle not in str(val).lower():
+                        continue
+                    print(f"- {meta.get('title', 'Untitled')}")
+                    if args.show_documents and documents:
+                        print(f"  {documents[i][:100]}...")
+                    shown += 1
+                    if shown >= args.limit:
+                        break
+            else:
+                results = col.get(limit=args.limit, include=include)
+                metadatas = results.get("metadatas") or []
+                for i, meta in enumerate(metadatas):
+                    print(f"- {meta.get('title', 'Untitled')}")
+                    if args.show_documents and results.get("documents"):
+                        print(f"  {results['documents'][i][:100]}...")
 
         except Exception as e:
             print(f"Error: {e}")
