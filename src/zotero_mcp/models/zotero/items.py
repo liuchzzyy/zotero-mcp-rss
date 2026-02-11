@@ -121,18 +121,12 @@ class FindPdfSiInput(BaseInput):
     doi: str | None = Field(default=None, description="DOI (optional)")
     title: str | None = Field(default=None, description="Title (optional)")
     url: str | None = Field(default=None, description="Landing URL (optional)")
-    include_supplementary: bool = Field(
-        default=True, description="Whether to include supporting information"
-    )
     include_scihub: bool = Field(
         default=True, description="Whether to include Sci-Hub link when DOI exists"
     )
     scihub_base_url: str | None = Field(
         default=None,
         description="Optional Sci-Hub base URL (overrides env SCIHUB_BASE_URL)",
-    )
-    max_supplementary: int = Field(
-        default=10, ge=0, le=50, description="Max supplementary links to return"
     )
     download_pdfs: bool = Field(
         default=True, description="Download discovered PDFs"
@@ -142,12 +136,6 @@ class FindPdfSiInput(BaseInput):
     )
     attach_to_zotero: bool = Field(
         default=True, description="Attach downloaded files to Zotero item"
-    )
-    max_pdf_downloads: int = Field(
-        default=1, ge=0, le=5, description="Maximum PDFs to download"
-    )
-    max_supplementary_downloads: int = Field(
-        default=3, ge=0, le=20, description="Maximum supplementary files to download"
     )
     dry_run: bool = Field(
         default=False, description="Preview without downloading or uploading"
@@ -182,18 +170,12 @@ class FindPdfSiBatchInput(BaseInput):
         default=False,
         description="Also scan items that already have PDF (for SI only)",
     )
-    include_supplementary: bool = Field(
-        default=True, description="Include supporting information links"
-    )
     include_scihub: bool = Field(
         default=True, description="Include Sci-Hub links when DOI exists"
     )
     scihub_base_url: str | None = Field(
         default=None,
         description="Optional Sci-Hub base URL (overrides env)",
-    )
-    max_supplementary: int = Field(
-        default=10, ge=0, le=50, description="Max supplementary links to return"
     )
     download_pdfs: bool = Field(
         default=True, description="Download discovered PDFs"
@@ -203,12 +185,6 @@ class FindPdfSiBatchInput(BaseInput):
     )
     attach_to_zotero: bool = Field(
         default=True, description="Attach downloaded files to Zotero item"
-    )
-    max_pdf_downloads: int = Field(
-        default=1, ge=0, le=5, description="Maximum PDFs to download"
-    )
-    max_supplementary_downloads: int = Field(
-        default=3, ge=0, le=20, description="Maximum supplementary files to download"
     )
     dry_run: bool = Field(
         default=False, description="Preview without downloading or uploading"

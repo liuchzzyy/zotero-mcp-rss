@@ -690,15 +690,11 @@ class ToolHandler:
                         doi=params.doi,
                         title=params.title,
                         url=params.url,
-                        include_supplementary=params.include_supplementary,
                         include_scihub=params.include_scihub,
                         scihub_base_url=params.scihub_base_url,
-                        max_supplementary=params.max_supplementary,
                         download_pdfs=params.download_pdfs,
                         download_supplementary=params.download_supplementary,
                         attach_to_zotero=params.attach_to_zotero,
-                        max_pdf_downloads=params.max_pdf_downloads,
-                        max_supplementary_downloads=params.max_supplementary_downloads,
                         dry_run=params.dry_run,
                         data_service=data_service,
                     )
@@ -775,7 +771,12 @@ class ToolHandler:
                                 title = item.title
 
                                 has_pdf = await check_has_pdf(data_service, item_key)
-                                if has_pdf and not params.process_items_with_pdf:
+                                needs_pdf = params.download_pdfs and (
+                                    not has_pdf or params.process_items_with_pdf
+                                )
+                                needs_si = params.download_supplementary
+                                needs_processing = needs_pdf or needs_si
+                                if not needs_processing:
                                     skipped += 1
                                     results.append(
                                         FindPdfSiBatchItem(
@@ -783,30 +784,25 @@ class ToolHandler:
                                             title=title,
                                             skipped=True,
                                             success=True,
+                                            error="No downloads requested",
                                         )
                                     )
                                     continue
 
                                 processed += 1
                                 try:
-                                    download_pdfs = (
-                                        params.download_pdfs and not has_pdf
-                                    )
+                                    download_pdfs = needs_pdf
                                     pdfs, supplementary, _, downloads_meta = (
                                         await finder.find(
                                             item_key=item_key,
                                             doi=None,
                                             title=title,
                                             url=None,
-                                            include_supplementary=params.include_supplementary,
                                             include_scihub=params.include_scihub,
                                             scihub_base_url=params.scihub_base_url,
-                                            max_supplementary=params.max_supplementary,
                                             download_pdfs=download_pdfs,
                                             download_supplementary=params.download_supplementary,
                                             attach_to_zotero=params.attach_to_zotero,
-                                            max_pdf_downloads=params.max_pdf_downloads,
-                                            max_supplementary_downloads=params.max_supplementary_downloads,
                                             dry_run=params.dry_run,
                                             data_service=data_service,
                                         )

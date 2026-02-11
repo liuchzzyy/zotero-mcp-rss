@@ -55,6 +55,10 @@ _DEFAULT_SUPPORTING_EXTENSIONS = {
     ".ppt",
 }
 
+_DEFAULT_MAX_PDF_DOWNLOADS = 1
+_DEFAULT_MAX_SUPPLEMENTARY_DOWNLOADS = 5
+_DEFAULT_MAX_SUPPLEMENTARY_LINKS = 5
+
 
 def _normalize_doi(value: str | None) -> str | None:
     if not value:
@@ -195,15 +199,11 @@ class PdfSiFinder:
         doi: str | None,
         title: str | None,
         url: str | None,
-        include_supplementary: bool,
         include_scihub: bool,
         scihub_base_url: str | None,
-        max_supplementary: int,
         download_pdfs: bool,
         download_supplementary: bool,
         attach_to_zotero: bool,
-        max_pdf_downloads: int,
-        max_supplementary_downloads: int,
         dry_run: bool,
         data_service: Any,
     ) -> tuple[list[FileLink], list[FileLink], dict[str, Any], dict[str, Any]]:
@@ -290,7 +290,7 @@ class PdfSiFinder:
                 if is_pdf and not is_supporting:
                     pdfs.append(link)
                     sources.add("zotero_attachment")
-                elif include_supplementary and is_supporting:
+                elif is_supporting:
                     supplementary.append(link)
                     sources.add("zotero_attachment")
 
@@ -343,17 +343,16 @@ class PdfSiFinder:
             elif resolved_doi and not scihub_base:
                 warnings.append("Sci-Hub base URL not configured.")
 
-        if include_supplementary:
-            landing_url = resolved_url or (
-                f"https://doi.org/{resolved_doi}" if resolved_doi else None
+        landing_url = resolved_url or (
+            f"https://doi.org/{resolved_doi}" if resolved_doi else None
+        )
+        if landing_url:
+            scraped = await self._scrape_supporting_links(
+                landing_url, max_items=_DEFAULT_MAX_SUPPLEMENTARY_LINKS
             )
-            if landing_url:
-                scraped = await self._scrape_supporting_links(
-                    landing_url, max_items=max_supplementary
-                )
-                if scraped:
-                    supplementary.extend(scraped)
-                    sources.add("landing_page")
+            if scraped:
+                supplementary.extend(scraped)
+                sources.add("landing_page")
 
         pdfs = self._dedupe_links(pdfs)
         supplementary = self._dedupe_links(supplementary)
@@ -373,7 +372,7 @@ class PdfSiFinder:
                     links=pdfs,
                     item_key=resolved_item_key,
                     data_service=data_service,
-                    max_files=max_pdf_downloads,
+                    max_files=_DEFAULT_MAX_PDF_DOWNLOADS,
                     kind="pdf",
                     dry_run=dry_run,
                     attach_to_zotero=attach_to_zotero,
@@ -388,7 +387,7 @@ class PdfSiFinder:
                     links=supplementary,
                     item_key=resolved_item_key,
                     data_service=data_service,
-                    max_files=max_supplementary_downloads,
+                    max_files=_DEFAULT_MAX_SUPPLEMENTARY_DOWNLOADS,
                     kind="supplementary",
                     dry_run=dry_run,
                     attach_to_zotero=attach_to_zotero,
