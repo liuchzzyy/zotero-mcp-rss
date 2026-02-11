@@ -70,6 +70,8 @@ def test_build_updated_item_data_skips_periodical_fields_for_book():
         "itemType": "book",
         "title": "Handbook",
         "creators": [],
+        "publisher": "",
+        "date": "",
     }
     enhanced = {
         "journal": "Choice Reviews",
@@ -92,3 +94,34 @@ def test_build_updated_item_data_skips_periodical_fields_for_book():
     assert "ISSN" not in updated
     assert updated["publisher"] == "Test Publisher"
     assert updated["date"] == "2024"
+
+
+def test_build_updated_item_data_only_updates_existing_item_fields():
+    """Should avoid writing fields that are invalid for the current item type."""
+    item_service = AsyncMock()
+    metadata_service = AsyncMock()
+    service = MetadataUpdateService(item_service, metadata_service)
+
+    current = {
+        "itemType": "computerProgram",
+        "title": "Tool",
+        "creators": [],
+        "date": "",
+        "url": "",
+        "tags": [],
+    }
+    enhanced = {
+        "language": "en",  # invalid for computerProgram in Zotero API
+        "publisher": "X",
+        "journal": "J",
+        "year": 2025,
+        "url": "https://doi.org/10.1/xyz",
+    }
+
+    updated = service._build_updated_item_data(current, enhanced)
+
+    assert "language" not in updated
+    assert "publisher" not in updated
+    assert "publicationTitle" not in updated
+    assert updated["date"] == "2025"
+    assert updated["url"] == "https://doi.org/10.1/xyz"

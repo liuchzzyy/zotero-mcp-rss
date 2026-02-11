@@ -426,6 +426,8 @@ class MetadataUpdateService:
         # Apply simple field mappings (overwrite with API data)
         for meta_key, zotero_key in _METADATA_FIELD_MAP.items():
             if enhanced_metadata.get(meta_key):
+                if zotero_key not in updated:
+                    continue
                 if (
                     zotero_key in _PERIODICAL_ONLY_FIELDS
                     and current_item_type not in _PERIODICAL_ITEM_TYPES
@@ -439,13 +441,14 @@ class MetadataUpdateService:
 
         # Date/Year (overwrite with API data)
         if enhanced_metadata.get("year"):
-            updated["date"] = str(enhanced_metadata["year"])
+            if "date" in updated:
+                updated["date"] = str(enhanced_metadata["year"])
 
         # URL (prefer DOI URLs over other URLs)
         if enhanced_metadata.get("url"):
             enhanced_url = enhanced_metadata["url"]
             current_url = updated.get("url", "")
-            if not current_url or "doi.org" in enhanced_url:
+            if "url" in updated and (not current_url or "doi.org" in enhanced_url):
                 updated["url"] = enhanced_url
 
         # Build "Extra" field for additional metadata
