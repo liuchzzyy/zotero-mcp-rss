@@ -1,0 +1,116 @@
+name: Deduplicate Items
+
+on:
+  schedule:
+    # Daily 23:05 Beijing Time (15:05 UTC)
+    - cron: "5 15 * * *"
+  workflow_dispatch:
+    inputs:
+      scan_limit:
+        description: "Items per batch from API"
+        required: false
+        default: "200"
+        type: choice
+        options: ["10", "100", "200", "500"]
+      treated_limit:
+        description: "Maximum total items to scan"
+        required: false
+        default: "50"
+        type: choice
+        options: ["1", "50", "100", "200", "500"]
+      dry_run:
+        description: "Preview mode"
+        required: false
+        default: false
+        type: boolean
+      collection:
+        description: "Limit to collection key (optional)"
+        required: false
+        type: string
+      trash_collection:
+        description: "Trash collection name"
+        required: false
+        default: "06_TRASHES"
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ZOTERO_LIBRARY_ID: ${{ secrets.ZOTERO_LIBRARY_ID }}
+  ZOTERO_API_KEY: ${{ secrets.ZOTERO_API_KEY }}
+  ZOTERO_LOCAL: "false"
+  ENV_MODE: production
+
+jobs:
+  deduplicate:
+    name: Move Duplicate Items to Trash
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          prune-cache: false
+
+      - name: Install dependencies
+        run: uv sync --all-groups
+
+      - name: Verify installation
+        run: uv run zotero-mcp version
+
+      - name: Run deduplication
+        run: |
+          ARGS=(
+            --scan-limit "${{ github.event.inputs.scan_limit || '200' }}"
+            --treated-limit "${{ github.event.inputs.treated_limit || '50' }}"
+            --trash-collection "${{ github.event.inputs.trash_collection || '06_TRASHES' }}"
+          )
+
+          if [ -n "${{ github.event.inputs.collection }}" ]; then
+            ARGS+=(--collection "${{ github.event.inputs.collection }}")
+          fi
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            ARGS+=(--dry-run)
+          fi
+
+          echo "Command: zotero-mcp deduplicate ${ARGS[*]}"
+          uv run zotero-mcp deduplicate "${ARGS[@]}" 2>&1 | tee dedup.log
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deduplicate-logs-${{ github.run_number }}
+          path: dedup.log
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Deduplicate Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Run: ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Scan limit: ${{ github.event.inputs.scan_limit || '200' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Treated limit: ${{ github.event.inputs.treated_limit || '50' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Collection: ${{ github.event.inputs.collection || 'All' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Trash collection: ${{ github.event.inputs.trash_collection || '06_TRASHES' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Dry Run: ${{ github.event.inputs.dry_run || 'false' }}" >> $GITHUB_STEP_SUMMARY
+          if [ -f dedup.log ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Last 30 lines" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -30 dedup.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi

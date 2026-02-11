@@ -1,0 +1,133 @@
+name: Note Update
+
+on:
+  schedule:
+    # Daily 01:05 Beijing Time (17:05 UTC previous day)
+    - cron: "5 17 * * *"
+  workflow_dispatch:
+    inputs:
+      scan_limit:
+        description: "Items per batch from API"
+        required: false
+        default: "50"
+        type: choice
+        options: ["50", "100", "200"]
+      treated_limit:
+        description: "Maximum total items to process"
+        required: false
+        default: "10"
+        type: choice
+        options: ["1", "10", "20", "50"]
+      source_collection:
+        description: "Collection scanned with highest priority"
+        required: false
+        default: "00_INBOXS"
+        type: string
+      target_collection:
+        description: "Collection to move processed items to"
+        required: false
+        default: "01_SHORTTERMS"
+        type: string
+      llm_provider:
+        description: "LLM provider for scan command"
+        required: false
+        default: "deepseek"
+        type: choice
+        options: ["auto", "deepseek", "openai", "gemini", "claude-cli"]
+      multimodal:
+        description: "Enable multimodal extraction"
+        required: false
+        default: false
+        type: boolean
+      dry_run:
+        description: "Preview mode (no write)"
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ZOTERO_LIBRARY_ID: ${{ secrets.ZOTERO_LIBRARY_ID }}
+  ZOTERO_API_KEY: ${{ secrets.ZOTERO_API_KEY }}
+  DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+  ZOTERO_LOCAL: "false"
+  ENV_MODE: production
+
+jobs:
+  global-analysis:
+    name: Update Analysis Notes
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          prune-cache: false
+
+      - name: Install dependencies
+        run: uv sync --all-groups
+
+      - name: Verify installation
+        run: uv run zotero-mcp version
+
+      - name: Run global scan
+        run: |
+          ARGS=(
+            --scan-limit "${{ github.event.inputs.scan_limit || '50' }}"
+            --treated-limit "${{ github.event.inputs.treated_limit || '10' }}"
+            --source-collection "${{ github.event.inputs.source_collection || '00_INBOXS' }}"
+            --target-collection "${{ github.event.inputs.target_collection || '01_SHORTTERMS' }}"
+            --llm-provider "${{ github.event.inputs.llm_provider || 'deepseek' }}"
+          )
+
+          if [ "${{ github.event.inputs.multimodal || 'false' }}" = "false" ]; then
+            ARGS+=(--no-multimodal)
+          fi
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            ARGS+=(--dry-run)
+          fi
+
+          echo "Command: zotero-mcp scan ${ARGS[*]}"
+          uv run zotero-mcp scan "${ARGS[@]}" 2>&1 | tee scan-output.log
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: global-analysis-logs-${{ github.run_number }}
+          path: scan-output.log
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Note Update Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Run: ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Source: ${{ github.event.inputs.source_collection || '00_INBOXS' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Target: ${{ github.event.inputs.target_collection || '01_SHORTTERMS' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- LLM: ${{ github.event.inputs.llm_provider || 'deepseek' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Multimodal: ${{ github.event.inputs.multimodal || 'false' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Dry Run: ${{ github.event.inputs.dry_run || 'false' }}" >> $GITHUB_STEP_SUMMARY
+          if [ -f scan-output.log ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Last 20 lines" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -20 scan-output.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi

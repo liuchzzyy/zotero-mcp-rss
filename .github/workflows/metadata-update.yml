@@ -1,0 +1,114 @@
+name: Metadata Update
+
+on:
+  schedule:
+    # Daily 22:05 Beijing Time (14:05 UTC)
+    - cron: "5 14 * * *"
+  workflow_dispatch:
+    inputs:
+      collection:
+        description: "Limit to collection key (optional)"
+        required: false
+        type: string
+      scan_limit:
+        description: "Items per batch from API"
+        required: false
+        default: "200"
+        type: choice
+        options: ["10", "100", "200", "500"]
+      treated_limit:
+        description: "Maximum items to process"
+        required: false
+        default: "100"
+        type: choice
+        options: ["1", "100", "200", "500", "1000"]
+      item_key:
+        description: "Update a specific item by key"
+        required: false
+        type: string
+      dry_run:
+        description: "Preview mode"
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ZOTERO_LIBRARY_ID: ${{ secrets.ZOTERO_LIBRARY_ID }}
+  ZOTERO_API_KEY: ${{ secrets.ZOTERO_API_KEY }}
+  ZOTERO_LOCAL: "false"
+  ENV_MODE: production
+
+jobs:
+  metadata-update:
+    name: Update Item Metadata
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+          prune-cache: false
+
+      - name: Install dependencies
+        run: uv sync --all-groups
+
+      - name: Verify installation
+        run: uv run zotero-mcp version
+
+      - name: Run metadata update
+        run: |
+          ARGS=()
+          if [ -n "${{ github.event.inputs.collection }}" ]; then
+            ARGS+=(--collection "${{ github.event.inputs.collection }}")
+          fi
+          if [ -n "${{ github.event.inputs.item_key }}" ]; then
+            ARGS+=(--item-key "${{ github.event.inputs.item_key }}")
+          fi
+          ARGS+=(--scan-limit "${{ github.event.inputs.scan_limit || '200' }}")
+          ARGS+=(--treated-limit "${{ github.event.inputs.treated_limit || '100' }}")
+
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            ARGS+=(--dry-run)
+          fi
+
+          echo "Command: zotero-mcp update-metadata ${ARGS[*]}"
+          uv run zotero-mcp update-metadata "${ARGS[@]}" 2>&1 | tee metadata-update.log
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: metadata-update-logs-${{ github.run_number }}
+          path: metadata-update.log
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Metadata Update Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Run: ${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Collection: ${{ github.event.inputs.collection || 'All' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Item key: ${{ github.event.inputs.item_key || 'None' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Dry Run: ${{ github.event.inputs.dry_run || 'false' }}" >> $GITHUB_STEP_SUMMARY
+          if [ -f metadata-update.log ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Last 30 lines" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -30 metadata-update.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
