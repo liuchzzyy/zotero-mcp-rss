@@ -80,17 +80,32 @@ class OpenAlexWork:
     @classmethod
     def from_api_response(cls, data: dict[str, Any]) -> "OpenAlexWork":
         """Parse an OpenAlex API response into an OpenAlexWork object."""
+        if not isinstance(data, dict):
+            raise TypeError("OpenAlex response item must be a dict")
+
+        def _safe_dict(value: Any) -> dict[str, Any]:
+            return value if isinstance(value, dict) else {}
+
+        def _safe_list(value: Any) -> list[Any]:
+            return value if isinstance(value, list) else []
+
         # Extract DOI
-        doi_url = data.get("doi", "")
+        doi_url = data.get("doi") or ""
+        if not isinstance(doi_url, str):
+            doi_url = str(doi_url)
         doi = doi_url.split("doi.org/")[-1] if "doi.org/" in doi_url else ""
 
         # Extract title
-        title = data.get("title", "") or data.get("display_name", "")
+        title = data.get("title") or data.get("display_name") or ""
+        if not isinstance(title, str):
+            title = str(title)
 
         # Extract authors
         authors = []
-        for authorship in data.get("authorships", []):
-            author_data = authorship.get("author", {})
+        for authorship in _safe_list(data.get("authorships")):
+            if not isinstance(authorship, dict):
+                continue
+            author_data = _safe_dict(authorship.get("author"))
             name = author_data.get("display_name", "")
             if name:
                 authors.append(name)
@@ -98,15 +113,17 @@ class OpenAlexWork:
         # Extract journal from primary_location
         journal = None
         journal_abbrev = None
-        primary_location = data.get("primary_location", {})
+        primary_location = _safe_dict(data.get("primary_location"))
         if primary_location:
-            source = primary_location.get("source", {})
+            source = _safe_dict(primary_location.get("source"))
             if source:
                 journal = source.get("display_name")
                 # Extract abbreviated title if available
                 abbrevs = source.get("abbreviated_title", [])
                 if abbrevs and isinstance(abbrevs, list):
                     journal_abbrev = abbrevs[0] if abbrevs else None
+                elif isinstance(abbrevs, str):
+                    journal_abbrev = abbrevs
 
         # Extract year
         year = data.get("publication_year")
@@ -123,11 +140,15 @@ class OpenAlexWork:
         # Extract abstract from inverted index and clean
         abstract = None
         abstract_inverted_index = data.get("abstract_inverted_index")
-        if abstract_inverted_index:
+        if isinstance(abstract_inverted_index, dict) and abstract_inverted_index:
             try:
                 word_positions = []
                 for word, positions in abstract_inverted_index.items():
+                    if not isinstance(positions, list):
+                        continue
                     for pos in positions:
+                        if not isinstance(pos, int):
+                            continue
                         word_positions.append((pos, word))
                 word_positions.sort(key=lambda x: x[0])
                 abstract_text = " ".join([wp[1] for wp in word_positions])
@@ -162,7 +183,7 @@ class OpenAlexWork:
 
         # Extract concepts (subjects/keywords)
         subjects = []
-        for concept in data.get("concepts", []):
+        for concept in _safe_list(data.get("concepts")):
             if (
                 isinstance(concept, dict) and concept.get("score", 0) > 0.3
             ):  # Filter by relevance
@@ -170,7 +191,7 @@ class OpenAlexWork:
 
         # Extract funders from grants
         funders = []
-        for grant in data.get("grants", []):
+        for grant in _safe_list(data.get("grants")):
             if isinstance(grant, dict):
                 funder = grant.get("funder")
                 if isinstance(funder, dict):
@@ -185,15 +206,18 @@ class OpenAlexWork:
 
         # PDF URL - OpenAlex doesn't typically provide direct PDF links
         pdf_url = None
-        locations = data.get("locations", [])
+        locations = _safe_list(data.get("locations"))
         for location in locations:
             if isinstance(location, dict):
                 source = location.get("source")
-                if isinstance(source, dict) and source.get("type") == "pdf":
-                    landing_url = location.get("landing_url") or location.get("pdf_url")
-                    if landing_url:
-                        pdf_url = landing_url
-                        break
+                landing_url = location.get("landing_url") or location.get("pdf_url")
+                if (
+                    isinstance(source, dict)
+                    and source.get("type") == "pdf"
+                    and landing_url
+                ):
+                    pdf_url = landing_url
+                    break
 
         return cls(
             doi=doi,
