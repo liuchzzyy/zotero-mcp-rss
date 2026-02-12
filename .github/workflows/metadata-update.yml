@@ -58,18 +58,24 @@ jobs:
 
       - name: Run metadata update
         id: run-update
+        env:
+          INPUT_COLLECTION: ${{ github.event.inputs.collection }}
+          INPUT_ITEM_KEY: ${{ github.event.inputs.item_key }}
+          INPUT_SCAN_LIMIT: ${{ github.event.inputs.scan_limit || '200' }}
+          INPUT_TREATED_LIMIT: ${{ github.event.inputs.treated_limit || '200' }}
+          INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
         run: |
           ARGS=()
-          if [ -n "${{ github.event.inputs.collection }}" ]; then
-            ARGS+=(--collection "${{ github.event.inputs.collection }}")
+          if [ -n "$INPUT_COLLECTION" ]; then
+            ARGS+=(--collection "$INPUT_COLLECTION")
           fi
-          if [ -n "${{ github.event.inputs.item_key }}" ]; then
-            ARGS+=(--item-key "${{ github.event.inputs.item_key }}")
+          if [ -n "$INPUT_ITEM_KEY" ]; then
+            ARGS+=(--item-key "$INPUT_ITEM_KEY")
           fi
-          ARGS+=(--scan-limit "${{ github.event.inputs.scan_limit || '200' }}")
-          ARGS+=(--treated-limit "${{ github.event.inputs.treated_limit || '200' }}")
+          ARGS+=(--scan-limit "$INPUT_SCAN_LIMIT")
+          ARGS+=(--treated-limit "$INPUT_TREATED_LIMIT")
 
-          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+          if [ "$INPUT_DRY_RUN" = "true" ]; then
             ARGS+=(--dry-run)
           fi
 
@@ -91,74 +97,38 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
 
-      - name: Generate Summary
+      - name: Extract metrics
         if: always()
+        id: metrics
         run: |
-          # Determine status badge
-          if [ "${{ steps.run-update.outputs.exit_code }}" = "0" ]; then
-            BADGE_COLOR="brightgreen"
-            STATUS="Success"
-          else
-            BADGE_COLOR="red"
-            STATUS="Failed"
-          fi
-
-          echo "## Metadata Update Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "![Status](https://img.shields.io/badge/Status-${STATUS}-${BADGE_COLOR})" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Configuration" >> $GITHUB_STEP_SUMMARY
-          echo "| Parameter | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|-----------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Run | #${{ github.run_number }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Collection | ${{ github.event.inputs.collection || 'All' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Item key | ${{ github.event.inputs.item_key || 'None' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Scan limit | ${{ github.event.inputs.scan_limit || '200' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Treated limit | ${{ github.event.inputs.treated_limit || '200' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Dry Run | ${{ github.event.inputs.dry_run || 'false' }} |" >> $GITHUB_STEP_SUMMARY
-
-          # Extract statistics from log
           if [ -f metadata-update.log ]; then
             SCANNED=$(grep -oE 'Scanned: [0-9]+' metadata-update.log | tail -1 | grep -oE '[0-9]+' || echo "0")
             UPDATED=$(grep -oE 'Updated: [0-9]+' metadata-update.log | tail -1 | grep -oE '[0-9]+' || echo "0")
             SKIPPED=$(grep -oE 'Skipped: [0-9]+' metadata-update.log | tail -1 | grep -oE '[0-9]+' || echo "0")
             FAILED=$(grep -oE 'Failed: [0-9]+' metadata-update.log | tail -1 | grep -oE '[0-9]+' || echo "0")
-
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### Statistics" >> $GITHUB_STEP_SUMMARY
-            echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
-            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-            echo "| Scanned | ${SCANNED} |" >> $GITHUB_STEP_SUMMARY
-            echo "| Updated | ${UPDATED} |" >> $GITHUB_STEP_SUMMARY
-            echo "| Skipped | ${SKIPPED} |" >> $GITHUB_STEP_SUMMARY
-            echo "| Failed | ${FAILED} |" >> $GITHUB_STEP_SUMMARY
+            echo "json={\"Scanned\":\"${SCANNED}\",\"Updated\":\"${UPDATED}\",\"Skipped\":\"${SKIPPED}\",\"Failed\":\"${FAILED}\"}" >> $GITHUB_OUTPUT
+          else
+            echo "json={}" >> $GITHUB_OUTPUT
           fi
 
-          # Duration
-          if [ -n "${{ steps.run-update.outputs.duration }}" ]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Duration:** ${{ steps.run-update.outputs.duration }} seconds" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          # Log tail
-          if [ -f metadata-update.log ]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "<details>" >> $GITHUB_STEP_SUMMARY
-            echo "<summary>Last 25 lines</summary>" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            tail -25 metadata-update.log >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "</details>" >> $GITHUB_STEP_SUMMARY
-          fi
+      - name: Generate Summary
+        if: always()
+        uses: ./.github/actions/generate-summary
+        with:
+          title: "Metadata Update Summary"
+          exit_code: ${{ steps.run-update.outputs.exit_code }}
+          duration: ${{ steps.run-update.outputs.duration }}
+          log_file: metadata-update.log
+          config_table: |
+            | Run | #${{ github.run_number }} |
+            | Collection | ${{ github.event.inputs.collection || 'All' }} |
+            | Item key | ${{ github.event.inputs.item_key || 'None' }} |
+            | Scan limit | ${{ github.event.inputs.scan_limit || '200' }} |
+            | Treated limit | ${{ github.event.inputs.treated_limit || '200' }} |
+            | Dry Run | ${{ github.event.inputs.dry_run || 'false' }} |
+          metrics: ${{ steps.metrics.outputs.json }}
 
       - name: Notify on failure
         if: failure() && github.event_name == 'schedule'
         run: |
           echo "::warning::Metadata update workflow failed. Check the logs for details."
-          # Add webhook notification here if configured
-          # if [ -n "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
-          #   curl -X POST -H 'Content-type: application/json' \
-          #     --data '{"text":"Metadata Update workflow failed. Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}' \
-          #     ${{ secrets.SLACK_WEBHOOK_URL }}
-          # fi

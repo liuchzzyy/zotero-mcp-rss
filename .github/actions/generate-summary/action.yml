@@ -1,0 +1,95 @@
+name: 'Generate Workflow Summary'
+description: 'Generate a standardized job summary for Zotero MCP workflows'
+
+inputs:
+  title:
+    description: 'Summary title (e.g. "Deduplicate Summary")'
+    required: true
+  exit_code:
+    description: 'Exit code from the main run step'
+    required: true
+  duration:
+    description: 'Duration in seconds'
+    required: false
+    default: ''
+  log_file:
+    description: 'Path to log file'
+    required: false
+    default: ''
+  config_table:
+    description: 'Markdown table rows for configuration (one "| Key | Value |" per line)'
+    required: false
+    default: ''
+  metrics:
+    description: 'JSON object of metric name -> value pairs (e.g. {"Scanned":"10","Updated":"5"})'
+    required: false
+    default: '{}'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Write summary
+      shell: bash
+      env:
+        INPUT_TITLE: ${{ inputs.title }}
+        INPUT_EXIT_CODE: ${{ inputs.exit_code }}
+        INPUT_DURATION: ${{ inputs.duration }}
+        INPUT_LOG_FILE: ${{ inputs.log_file }}
+        INPUT_CONFIG_TABLE: ${{ inputs.config_table }}
+        INPUT_METRICS: ${{ inputs.metrics }}
+      run: |
+        # Determine status badge
+        if [ "$INPUT_EXIT_CODE" = "0" ]; then
+          BADGE_COLOR="brightgreen"
+          STATUS="Success"
+        else
+          BADGE_COLOR="red"
+          STATUS="Failed"
+        fi
+
+        echo "## ${INPUT_TITLE}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "![Status](https://img.shields.io/badge/Status-${STATUS}-${BADGE_COLOR})" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        # Configuration table
+        if [ -n "$INPUT_CONFIG_TABLE" ]; then
+          echo "### Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "| Parameter | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "$INPUT_CONFIG_TABLE" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+        fi
+
+        # Statistics from log file
+        if [ -n "$INPUT_LOG_FILE" ] && [ -f "$INPUT_LOG_FILE" ]; then
+          # Parse metrics JSON and extract from log
+          echo "$INPUT_METRICS" | python3 -c "
+        import sys, json
+        metrics = json.load(sys.stdin)
+        if metrics:
+            print('### Statistics')
+            print('| Metric | Count |')
+            print('|--------|-------|')
+            for name, value in metrics.items():
+                print(f'| {name} | {value} |')
+          " >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+        fi
+
+        # Duration
+        if [ -n "$INPUT_DURATION" ]; then
+          echo "**Duration:** ${INPUT_DURATION} seconds" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+        fi
+
+        # Log tail (collapsible)
+        if [ -n "$INPUT_LOG_FILE" ] && [ -f "$INPUT_LOG_FILE" ]; then
+          echo "<details>" >> $GITHUB_STEP_SUMMARY
+          echo "<summary>Last 25 lines</summary>" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -25 "$INPUT_LOG_FILE" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "</details>" >> $GITHUB_STEP_SUMMARY
+        fi
