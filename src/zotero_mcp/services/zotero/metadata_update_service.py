@@ -5,7 +5,9 @@ This service enhances Zotero items by fetching complete metadata from
 Crossref and OpenAlex APIs and updating items with missing information.
 """
 
+import html
 import logging
+import re
 from typing import Any
 
 from zotero_mcp.services.common.retry import async_retry_with_backoff
@@ -84,6 +86,44 @@ def _extract_tag_names(tags: list) -> list[str]:
     if isinstance(tags[0], dict):
         return [t.get("tag", "") for t in tags]
     return tags
+
+
+def _clean_html_title(title: str) -> str:
+    """
+    Clean HTML tags and entities from a title.
+
+    Removes HTML tags (like <strong>, <sub>, <sup>) and decodes
+    HTML entities (&amp;, &lt;, etc.) to prepare titles for
+    metadata API searches.
+
+    Args:
+        title: Title string that may contain HTML.
+
+    Returns:
+        Cleaned title string without HTML tags or entities.
+
+    Examples:
+        >>> _clean_html_title("<strong>Tuning</strong> Co–Co")
+        'Tuning Co–Co'
+        >>> _clean_html_title("H&lt;sub&gt;2&lt;/sub&gt;O")
+        'H₂O'
+    """
+    if not title:
+        return ""
+
+    # Remove HTML tags
+    cleaned = re.sub(r"<[^>]+>", "", title)
+
+    # Decode HTML entities
+    try:
+        cleaned = html.unescape(cleaned)
+    except Exception:
+        pass
+
+    # Clean up extra whitespace
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+
+    return cleaned
 
 
 class MetadataUpdateService:
@@ -320,8 +360,8 @@ class MetadataUpdateService:
                 break
 
             items = await async_retry_with_backoff(
-                lambda c=coll_key, l=scan_limit, o=offset: self.item_service.get_collection_items(
-                    c, limit=l, start=o
+                lambda c=coll_key, limit=scan_limit, start=offset: self.item_service.get_collection_items(
+                    c, limit=limit, start=start
                 ),
                 description=f"Scan collection {coll_key} (offset {offset})",
             )
@@ -372,8 +412,12 @@ class MetadataUpdateService:
                 return self._metadata_to_dict(metadata)
 
         if title:
-            logger.debug(f"  Looking up by title: {title[:50]}")
-            metadata = await self.metadata_service.lookup_metadata(title=title)
+            # Clean HTML tags and entities from title before searching
+            clean_title = _clean_html_title(title)
+            if clean_title != title:
+                logger.info(f"  Cleaned HTML from title: '{title[:40]}...' -> '{clean_title[:40]}...'")
+            logger.debug(f"  Looking up by title: {clean_title[:50]}")
+            metadata = await self.metadata_service.lookup_metadata(title=clean_title)
             if metadata:
                 return self._metadata_to_dict(metadata)
 
@@ -422,9 +466,18 @@ class MetadataUpdateService:
         Build updated item data by merging current and enhanced metadata.
 
         Overwrites existing fields with API data (except title).
+        Also cleans HTML tags from the title field.
         """
         updated = current_data.copy()
         current_item_type = updated.get("itemType", "")
+
+        # Clean HTML tags from current title if present
+        current_title = updated.get("title", "")
+        if current_title and "<" in current_title:
+            clean_title = _clean_html_title(current_title)
+            if clean_title != current_title:
+                logger.info(f"  Cleaning HTML from title: '{current_title[:40]}...' -> '{clean_title[:40]}...'")
+                updated["title"] = clean_title
 
         # Apply simple field mappings (overwrite with API data)
         for meta_key, zotero_key in _METADATA_FIELD_MAP.items():
