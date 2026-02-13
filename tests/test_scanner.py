@@ -44,6 +44,7 @@ async def test_scan_skips_items_without_fulltext_instead_of_failing():
         result = await scanner.scan_and_process(
             scan_limit=10,
             treated_limit=1,
+            target_collection="01_SHORTTERMS",
             source_collection="00_INBOXS",
             dry_run=False,
         )

@@ -25,8 +25,7 @@ on:
         type: string
       target_collection:
         description: "Collection to move processed items to"
-        required: false
-        default: "01_SHORTTERMS"
+        required: true
         type: string
       llm_provider:
         description: "LLM provider for scan command"
@@ -76,7 +75,7 @@ jobs:
           INPUT_SCAN_LIMIT: ${{ github.event.inputs.scan_limit || '50' }}
           INPUT_TREATED_LIMIT: ${{ github.event.inputs.treated_limit || '20' }}
           INPUT_SOURCE_COLLECTION: ${{ github.event.inputs.source_collection || '00_INBOXS' }}
-          INPUT_TARGET_COLLECTION: ${{ github.event.inputs.target_collection || '01_SHORTTERMS' }}
+          INPUT_TARGET_COLLECTION: ${{ github.event.inputs.target_collection }}
           INPUT_LLM_PROVIDER: ${{ github.event.inputs.llm_provider || 'deepseek' }}
           INPUT_MULTIMODAL: ${{ github.event.inputs.multimodal || 'false' }}
           INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
@@ -119,11 +118,12 @@ jobs:
         id: metrics
         run: |
           if [ -f scan-output.log ]; then
-            SCANNED=$(grep -oE 'Scanned: [0-9]+' scan-output.log | tail -1 | grep -oE '[0-9]+' || echo "0")
-            PROCESSED=$(grep -oE 'Processed: [0-9]+' scan-output.log | tail -1 | grep -oE '[0-9]+' || echo "0")
-            SKIPPED=$(grep -oE 'Skipped: [0-9]+' scan-output.log | tail -1 | grep -oE '[0-9]+' || echo "0")
-            FAILED=$(grep -oE 'Failed: [0-9]+' scan-output.log | tail -1 | grep -oE '[0-9]+' || echo "0")
-            echo "json={\"Scanned\":\"${SCANNED}\",\"Processed\":\"${PROCESSED}\",\"Skipped\":\"${SKIPPED}\",\"Failed\":\"${FAILED}\"}" >> $GITHUB_OUTPUT
+            TOTAL_SCANNED=$(grep -E '^[[:space:]]+Total scanned:' scan-output.log | tail -1 | awk -F': ' '{print $NF}' || echo "0")
+            CANDIDATES=$(grep -E '^[[:space:]]+Candidates:' scan-output.log | tail -1 | awk -F': ' '{print $NF}' || echo "0")
+            PROCESSED=$(grep -E '^[[:space:]]+Processed:' scan-output.log | tail -1 | awk -F': ' '{print $NF}' || echo "0")
+            FAILED=$(grep -E '^[[:space:]]+Failed:' scan-output.log | tail -1 | awk -F': ' '{print $NF}' || echo "0")
+            SKIPPED_NO_FULLTEXT=$(grep -oE 'skipped_no_fulltext [0-9]+' scan-output.log | tail -1 | awk '{print $2}' || echo "0")
+            echo "json={\"Total scanned\":\"${TOTAL_SCANNED}\",\"Candidates\":\"${CANDIDATES}\",\"Processed\":\"${PROCESSED}\",\"Failed\":\"${FAILED}\",\"Skipped(no fulltext)\":\"${SKIPPED_NO_FULLTEXT}\"}" >> $GITHUB_OUTPUT
           else
             echo "json={}" >> $GITHUB_OUTPUT
           fi
@@ -139,7 +139,7 @@ jobs:
           config_table: |
             | Run | #${{ github.run_number }} |
             | Source | ${{ github.event.inputs.source_collection || '00_INBOXS' }} |
-            | Target | ${{ github.event.inputs.target_collection || '01_SHORTTERMS' }} |
+            | Target | ${{ github.event.inputs.target_collection }} |
             | LLM | ${{ github.event.inputs.llm_provider || 'deepseek' }} |
             | Multimodal | ${{ github.event.inputs.multimodal || 'false' }} |
             | Dry Run | ${{ github.event.inputs.dry_run || 'false' }} |

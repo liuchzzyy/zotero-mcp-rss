@@ -66,7 +66,7 @@ class GlobalScanner:
         self,
         scan_limit: int = 100,
         treated_limit: int = 20,
-        target_collection: str | None = "01_SHORTTERMS",
+        target_collection: str = "",
         dry_run: bool = False,
         llm_provider: str = "auto",
         source_collection: str | None = "00_INBOXS",
@@ -94,6 +94,15 @@ class GlobalScanner:
             Scan results with statistics
         """
         try:
+            if not target_collection:
+                return {
+                    "total_scanned": 0,
+                    "candidates": 0,
+                    "processed": 0,
+                    "failed": 0,
+                    "error": "target_collection is required",
+                }
+
             candidates = []
             total_scanned = 0
             scanned_keys = set()  # Track already scanned items to avoid duplicates

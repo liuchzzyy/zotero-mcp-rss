@@ -567,6 +567,9 @@ class WorkflowService:
                     html_note=html_note,
                     llm_client=llm_client,
                 )
+                # Mark parent item as analyzed to avoid reprocessing in global scanner.
+                if note_key:
+                    await self.data_service.add_tags_to_item(item.key, ["AI分析"])
                 if move_to_collection and note_key:
                     await self._move_to_collection(item, move_to_collection)
 

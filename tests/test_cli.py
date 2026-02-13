@@ -68,7 +68,7 @@ def test_scan_limit_and_treated_limit_defaults():
 
 
 def test_collection_defaults():
-    """Test that collection defaults are correctly documented."""
+    """Test that source default and required target collection are documented."""
     result = subprocess.run(
         [sys.executable, "-m", "zotero_mcp.cli", "scan", "--help"],
         capture_output=True,
@@ -77,9 +77,10 @@ def test_collection_defaults():
 
     assert result.returncode == 0
 
-    # Check default collection values (allow for line breaks)
+    # Target collection is required (no default)
     assert "Move items to this collection after analysis" in result.stdout
-    assert "01_SHORTTERMS" in result.stdout
+    assert "(required)" in result.stdout
+    assert "--target-collection TARGET_COLLECTION" in result.stdout
     assert "Collection to scan first" in result.stdout
     assert "00_INBOXS" in result.stdout
 
