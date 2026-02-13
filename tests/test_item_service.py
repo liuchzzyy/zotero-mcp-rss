@@ -60,3 +60,58 @@ async def test_get_collections(item_service, mock_api_client):
     assert len(collections) == 1
     assert collections[0]["key"] == "COLL1"
     mock_api_client.get_collections.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_create_items_skips_library_duplicate_by_doi(
+    item_service, mock_api_client, monkeypatch
+):
+    monkeypatch.delenv("ZOTERO_PRECREATE_DEDUP", raising=False)
+    mock_api_client.search_items.return_value = [
+        {"data": {"DOI": "10.1000/xyz", "title": "Existing", "date": "2024"}}
+    ]
+
+    result = await item_service.create_items(
+        [{"itemType": "journalArticle", "title": "New", "DOI": "10.1000/xyz"}]
+    )
+
+    assert result["created"] == 0
+    assert result["failed_count"] == 0
+    assert result["skipped_duplicates"] == 1
+    mock_api_client.create_items.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_create_items_skips_intra_batch_duplicates(item_service, mock_api_client):
+    mock_api_client.search_items.return_value = []
+    mock_api_client.create_items.return_value = {"successful": {"0": "AAA"}, "failed": {}}
+
+    result = await item_service.create_items(
+        [
+            {"itemType": "journalArticle", "title": "Paper A", "DOI": "10.1000/abc"},
+            {"itemType": "journalArticle", "title": "Paper A Copy", "DOI": "10.1000/abc"},
+        ]
+    )
+
+    assert result["created"] == 1
+    assert result["failed_count"] == 0
+    assert result["skipped_duplicates"] == 1
+    mock_api_client.create_items.assert_awaited_once_with(
+        [{"itemType": "journalArticle", "title": "Paper A", "DOI": "10.1000/abc"}]
+    )
+
+
+@pytest.mark.asyncio
+async def test_create_item_uses_precreate_dedup(item_service, mock_api_client):
+    mock_api_client.search_items.return_value = [
+        {"data": {"DOI": "10.2000/dup", "title": "Existing", "date": "2023"}}
+    ]
+
+    result = await item_service.create_item(
+        {"itemType": "journalArticle", "title": "Single", "DOI": "10.2000/dup"}
+    )
+
+    assert result["created"] == 0
+    assert result["failed_count"] == 0
+    assert result["skipped_duplicates"] == 1
+    mock_api_client.create_items.assert_not_called()
