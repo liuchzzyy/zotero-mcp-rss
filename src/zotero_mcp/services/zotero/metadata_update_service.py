@@ -79,6 +79,26 @@ _KEY_FIELDS = [
 ]
 
 
+def _has_value(value: Any) -> bool:
+    """Whether a metadata value should be treated as present."""
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return bool(value.strip())
+    if isinstance(value, (list, dict, set, tuple)):
+        return len(value) > 0
+    return True
+
+
+def _to_extra_text(value: Any) -> str:
+    """Serialize metadata value for Zotero extra field."""
+    if isinstance(value, list):
+        return ", ".join(str(v) for v in value if _has_value(v))
+    if isinstance(value, dict):
+        return ", ".join(f"{k}={v}" for k, v in value.items() if _has_value(v))
+    return str(value)
+
+
 def _extract_tag_names(tags: list) -> list[str]:
     """Extract tag names from either dict or string format."""
     if not tags:
@@ -277,7 +297,10 @@ class MetadataUpdateService:
             dry_run: If True, preview changes without applying them
 
         Returns:
-            Dict with statistics (total, updated, skipped, failed)
+            Dict with statistics:
+            - total: parent/top-level items scanned
+            - processed_candidates: candidate parent items actually processed
+            - updated/skipped/failed/ai_metadata_tagged
         """
         logger.info(
             f"Starting metadata update "
@@ -289,6 +312,7 @@ class MetadataUpdateService:
         updated = 0
         skipped = 0
         failed = 0
+        ai_metadata_tagged = 0
         total_processed = 0
         total_scanned = 0
 
@@ -304,7 +328,7 @@ class MetadataUpdateService:
                 logger.info(f"Reached treated_limit ({treated_limit}), stopping scan")
                 break
 
-            scanned, proc, upd, skip, fail = await self._process_collection(
+            scanned, proc, upd, skip, fail, ai_tagged = await self._process_collection(
                 coll_key=coll_key,
                 scan_limit=scan_limit,
                 treated_limit=treated_limit,
@@ -316,22 +340,29 @@ class MetadataUpdateService:
             updated += upd
             skipped += skip
             failed += fail
+            ai_metadata_tagged += ai_tagged
 
             logger.info(
                 f"  Progress: {total_processed} processed, {updated} updated, "
-                f"{skipped} skipped (scanned: {total_scanned})"
+                f"{skipped} skipped, {ai_metadata_tagged} with '{AI_METADATA_TAG}' "
+                f"(items scanned: {total_scanned})"
             )
 
         logger.info(
             f"Metadata update complete: {updated} updated, "
-            f"{skipped} skipped, {failed} failed (scanned: {total_scanned})"
+            f"{skipped} skipped, {failed} failed, "
+            f"{ai_metadata_tagged} with '{AI_METADATA_TAG}' "
+            f"(items scanned: {total_scanned})"
         )
 
         return {
+            "items": total_scanned,
             "total": total_scanned,
+            "processed_candidates": total_processed,
             "updated": updated,
             "skipped": skipped,
             "failed": failed,
+            "ai_metadata_tagged": ai_metadata_tagged,
         }
 
     async def _process_collection(
@@ -341,18 +372,26 @@ class MetadataUpdateService:
         treated_limit: int | None,
         total_processed: int,
         dry_run: bool,
-    ) -> tuple[int, int, int, int, int]:
+    ) -> tuple[int, int, int, int, int, int]:
         """
         Process a single collection for metadata updates.
 
         Returns:
-            Tuple of (scanned, processed, updated, skipped, failed)
+            Tuple of (
+                scanned_parent,
+                processed,
+                updated,
+                skipped,
+                failed,
+                ai_metadata_tagged,
+            )
         """
         scanned = 0
         processed = 0
         updated = 0
         skipped = 0
         failed = 0
+        ai_metadata_tagged = 0
         offset = 0
 
         while True:
@@ -368,9 +407,12 @@ class MetadataUpdateService:
             if not items:
                 break
 
-            scanned += len(items)
+            parent_items = [
+                item for item in items if item.item_type not in _SKIPPED_ITEM_TYPES
+            ]
+            scanned += len(parent_items)
 
-            for item in items:
+            for item in parent_items:
                 if treated_limit and total_processed + processed >= treated_limit:
                     break
 
@@ -378,9 +420,7 @@ class MetadataUpdateService:
                 tag_names = _extract_tag_names(item.tags or [])
                 if AI_METADATA_TAG in tag_names:
                     skipped += 1
-                    continue
-                if item.item_type in _SKIPPED_ITEM_TYPES:
-                    skipped += 1
+                    ai_metadata_tagged += 1
                     continue
 
                 processed += 1
@@ -399,7 +439,14 @@ class MetadataUpdateService:
 
             offset += scan_limit
 
-        return scanned, processed, updated, skipped, failed
+        return (
+            scanned,
+            processed,
+            updated,
+            skipped,
+            failed,
+            ai_metadata_tagged,
+        )
 
     async def _fetch_enhanced_metadata(
         self, doi: str, title: str, url: str
@@ -410,6 +457,9 @@ class MetadataUpdateService:
             metadata = await self.metadata_service.get_metadata_by_doi(doi)
             if metadata:
                 return self._metadata_to_dict(metadata)
+            # Optimization: when DOI is provided, avoid extra title/URL fallbacks.
+            # A valid DOI should uniquely identify a record if the source indexes it.
+            return None
 
         if title:
             # Clean HTML tags and entities from title before searching
@@ -465,11 +515,16 @@ class MetadataUpdateService:
         """
         Build updated item data by merging current and enhanced metadata.
 
-        Overwrites existing fields with API data (except title).
-        Also cleans HTML tags from the title field.
+        Source-specific merge strategy:
+        - crossref: overwrite existing mapped fields
+        - openalex: only fill missing mapped fields
+        Any metadata not applied to standard Zotero fields is appended to "extra".
         """
         updated = current_data.copy()
         current_item_type = updated.get("itemType", "")
+        source = str(enhanced_metadata.get("source", "")).lower()
+        overwrite_mode = source == "crossref"
+        applied_meta_keys: set[str] = set()
 
         # Clean HTML tags from current title if present
         current_title = updated.get("title", "")
@@ -479,35 +534,70 @@ class MetadataUpdateService:
                 logger.info(f"  Cleaning HTML from title: '{current_title[:40]}...' -> '{clean_title[:40]}...'")
                 updated["title"] = clean_title
 
-        # Apply simple field mappings (overwrite with API data)
+        # Apply simple field mappings according to source strategy.
         for meta_key, zotero_key in _METADATA_FIELD_MAP.items():
-            if enhanced_metadata.get(meta_key):
-                if zotero_key not in updated:
-                    continue
-                if (
-                    zotero_key in _PERIODICAL_ONLY_FIELDS
-                    and current_item_type not in _PERIODICAL_ITEM_TYPES
-                ):
-                    continue
-                updated[zotero_key] = enhanced_metadata[meta_key]
+            meta_value = enhanced_metadata.get(meta_key)
+            if not _has_value(meta_value):
+                continue
+            if zotero_key not in updated:
+                continue
+            if (
+                zotero_key in _PERIODICAL_ONLY_FIELDS
+                and current_item_type not in _PERIODICAL_ITEM_TYPES
+            ):
+                continue
+            current_value = updated.get(zotero_key)
+            should_apply = overwrite_mode or not _has_value(current_value)
+            if should_apply:
+                updated[zotero_key] = meta_value
+                applied_meta_keys.add(meta_key)
 
-        # Authors (overwrite with API data)
-        if enhanced_metadata.get("authors"):
-            updated["creators"] = self._convert_authors(enhanced_metadata["authors"])
+        # Title: crossref overwrites; openalex supplements when missing.
+        if _has_value(enhanced_metadata.get("title")) and "title" in updated:
+            should_apply_title = overwrite_mode or not _has_value(updated.get("title"))
+            if should_apply_title:
+                updated["title"] = str(enhanced_metadata["title"]).strip()
+                applied_meta_keys.add("title")
 
-        # Date/Year (overwrite with API data)
-        if enhanced_metadata.get("year"):
-            if "date" in updated:
+        # Authors: crossref overwrites; openalex supplements when missing.
+        if _has_value(enhanced_metadata.get("authors")):
+            current_creators = updated.get("creators", [])
+            should_apply_authors = overwrite_mode or not _has_value(current_creators)
+            if should_apply_authors:
+                updated["creators"] = self._convert_authors(enhanced_metadata["authors"])
+                applied_meta_keys.add("authors")
+
+        # Date/Year: crossref overwrites; openalex supplements when missing.
+        if _has_value(enhanced_metadata.get("year")) and "date" in updated:
+            should_apply_year = overwrite_mode or not _has_value(updated.get("date"))
+            if should_apply_year:
                 updated["date"] = str(enhanced_metadata["year"])
+                applied_meta_keys.add("year")
 
-        # URL (prefer DOI URLs over other URLs)
-        if enhanced_metadata.get("url"):
-            enhanced_url = enhanced_metadata["url"]
-            current_url = updated.get("url", "")
-            if "url" in updated and (not current_url or "doi.org" in enhanced_url):
-                updated["url"] = enhanced_url
+        # URL: crossref overwrites; openalex supplements when missing.
+        if _has_value(enhanced_metadata.get("url")) and "url" in updated:
+            should_apply_url = overwrite_mode or not _has_value(updated.get("url"))
+            if should_apply_url:
+                updated["url"] = enhanced_metadata["url"]
+                applied_meta_keys.add("url")
 
-        # Build "Extra" field for additional metadata
+        # Item type: crossref can overwrite generic type; openalex only supplements.
+        current_type = updated.get("itemType", "")
+        enhanced_type = enhanced_metadata.get("item_type", "")
+        if _has_value(enhanced_type):
+            if overwrite_mode:
+                if current_type in ("", "document") or current_type != enhanced_type:
+                    updated["itemType"] = enhanced_type
+                    applied_meta_keys.add("item_type")
+            else:
+                if current_type in ("", "document"):
+                    updated["itemType"] = enhanced_type
+                    applied_meta_keys.add("item_type")
+
+        # Build "Extra" field:
+        # 1) keep existing extra
+        # 2) keep explicit extended metadata lines
+        # 3) append unmatched non-empty metadata entries
         extra_parts = []
         existing_extra = updated.get("extra", "")
         if existing_extra:
@@ -515,23 +605,34 @@ class MetadataUpdateService:
 
         if enhanced_metadata.get("citation_count") is not None:
             extra_parts.append(f"Citation Count: {enhanced_metadata['citation_count']}")
+            applied_meta_keys.add("citation_count")
         for subject in enhanced_metadata.get("subjects", []):
             extra_parts.append(f"Subject: {subject}")
+        if enhanced_metadata.get("subjects"):
+            applied_meta_keys.add("subjects")
         for funder in enhanced_metadata.get("funders", []):
             extra_parts.append(f"Funder: {funder}")
+        if enhanced_metadata.get("funders"):
+            applied_meta_keys.add("funders")
         if enhanced_metadata.get("pdf_url"):
             extra_parts.append(f"Full-text PDF: {enhanced_metadata['pdf_url']}")
+            applied_meta_keys.add("pdf_url")
+
+        ignored_meta_keys = {"source", "raw_data"}
+        for meta_key, meta_value in enhanced_metadata.items():
+            if meta_key in ignored_meta_keys or meta_key in applied_meta_keys:
+                continue
+            if not _has_value(meta_value):
+                continue
+            value_text = _to_extra_text(meta_value)
+            if value_text:
+                label = meta_key.replace("_", " ").title()
+                extra_parts.append(f"{label}: {value_text}")
 
         if extra_parts:
             updated["extra"] = "\n".join(extra_parts)
         elif "extra" in updated:
             del updated["extra"]
-
-        # Item type (overwrite if current is generic)
-        current_type = updated.get("itemType", "")
-        enhanced_type = enhanced_metadata.get("item_type", "")
-        if current_type in ("", "document") and enhanced_type:
-            updated["itemType"] = enhanced_type
 
         return updated
 

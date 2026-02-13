@@ -560,9 +560,17 @@ Examples:
                         dry_run=args.dry_run,
                     )
                     print("\n=== Metadata Update Results ===")
-                    print(f"  Total processed: {result['total']}")
+                    print(f"  Items: {result.get('items', result['total'])}")
+                    if "processed_candidates" in result:
+                        print(
+                            f"  Candidates processed: {result['processed_candidates']}"
+                        )
                     print(f"  Updated: {result['updated']}")
                     print(f"  Skipped: {result['skipped']}")
+                    if "ai_metadata_tagged" in result:
+                        print(
+                            f"  AI元数据-tagged (skipped): {result['ai_metadata_tagged']}"
+                        )
                     print(f"  Failed: {result['failed']}")
                     if args.dry_run:
                         print("  Mode: DRY RUN (no changes were applied)")
