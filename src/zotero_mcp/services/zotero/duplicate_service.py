@@ -33,6 +33,7 @@ def _item_to_dict(item: SearchResultItem) -> dict[str, Any]:
     return {
         "key": item.key,
         "data": {
+            "itemType": item.item_type,
             "DOI": item.doi,
             "title": item.title,
             "url": getattr(item, "url", None),
@@ -62,6 +63,8 @@ class DuplicateDetectionService:
 
     def __init__(self, item_service: ItemService):
         self.item_service = item_service
+        # Child records should not participate in duplicate grouping.
+        self._excluded_item_types = {"note", "attachment", "annotation"}
 
     async def find_and_remove_duplicates(
         self,
@@ -233,10 +236,11 @@ class DuplicateDetectionService:
             existing_duplicate_keys.update(g.duplicate_keys)
 
         already_grouped = existing_primary_keys | existing_duplicate_keys
+        candidate_items = [item for item in items if self._is_parent_item(item)]
 
         # Group by DOI (highest priority)
         doi_groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
-        for item in items:
+        for item in candidate_items:
             item_key = item.get("key", "")
             if item_key in already_grouped:
                 continue
@@ -253,7 +257,7 @@ class DuplicateDetectionService:
 
         # Group by title (second priority)
         title_groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
-        for item in items:
+        for item in candidate_items:
             item_key = item.get("key", "")
             if item_key in processed_keys:
                 continue
@@ -269,7 +273,7 @@ class DuplicateDetectionService:
 
         # Group by URL (lowest priority)
         url_groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
-        for item in items:
+        for item in candidate_items:
             item_key = item.get("key", "")
             if item_key in processed_keys:
                 continue
@@ -301,6 +305,11 @@ class DuplicateDetectionService:
             "groups": duplicate_groups,
             "cross_folder_copies": cross_folder_copies,
         }
+
+    def _is_parent_item(self, item: dict[str, Any]) -> bool:
+        """Only include top-level bibliographic items in deduplication."""
+        item_type = (item.get("data", {}).get("itemType") or "").strip().lower()
+        return item_type not in self._excluded_item_types
 
     def _create_duplicate_group(
         self, items: list[dict[str, Any]], match_reason: str, match_value: str

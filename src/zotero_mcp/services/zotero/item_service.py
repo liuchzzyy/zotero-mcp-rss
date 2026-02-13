@@ -6,14 +6,61 @@ Handles CRUD operations for Zotero items, collections, and tags.
 
 import asyncio
 import logging
+import os
+import re
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 from zotero_mcp.clients.zotero import LocalDatabaseClient, ZoteroAPIClient, ZoteroItem
 from zotero_mcp.models.common import SearchResultItem
 from zotero_mcp.utils.async_helpers.cache import ResponseCache
-from zotero_mcp.utils.formatting.helpers import format_creators
+from zotero_mcp.utils.formatting.helpers import clean_title, format_creators
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_doi(raw_doi: str | None) -> str:
+    """Normalize DOI for exact duplicate matching."""
+    if not raw_doi:
+        return ""
+    doi = raw_doi.strip().lower()
+    doi = doi.replace("https://doi.org/", "").replace("http://doi.org/", "")
+    doi = doi.replace("doi:", "").strip()
+    return doi
+
+
+def _normalize_url(raw_url: str | None) -> str:
+    """Normalize URL for duplicate matching."""
+    if not raw_url:
+        return ""
+    url = raw_url.strip()
+    try:
+        parts = urlsplit(url)
+    except Exception:
+        return url.rstrip("/").lower()
+
+    scheme = (parts.scheme or "https").lower()
+    netloc = parts.netloc.lower()
+    path = re.sub(r"/+$", "", parts.path or "")
+    # Ignore query/fragment to reduce noisy URL variants from feeds.
+    return urlunsplit((scheme, netloc, path, "", ""))
+
+
+def _normalize_title(raw_title: str | None) -> str:
+    """Normalize title for duplicate matching."""
+    if not raw_title:
+        return ""
+    title = clean_title(raw_title).lower()
+    title = re.sub(r"\s+", " ", title).strip()
+    return title
+
+
+def _extract_year(raw_date: str | None) -> str:
+    """Extract publication year from Zotero date string."""
+    if not raw_date:
+        return ""
+    match = re.search(r"\b(19|20)\d{2}\b", raw_date)
+    return match.group(0) if match else ""
 
 
 class ItemService:
@@ -269,13 +316,153 @@ class ItemService:
 
     async def create_items(self, items: list[dict[str, Any]]) -> dict[str, Any]:
         """Create new items."""
-        return await self.api_client.create_items(items)
+        if not items:
+            return {
+                "successful": {},
+                "failed": {},
+                "created": 0,
+                "failed_count": 0,
+                "skipped_duplicates": 0,
+            }
+
+        dedup_enabled = os.getenv("ZOTERO_PRECREATE_DEDUP", "true").lower() in {
+            "1",
+            "true",
+            "yes",
+        }
+        if not dedup_enabled:
+            return await self.api_client.create_items(items)
+
+        filtered_items, skipped_count = await self._filter_items_before_create(items)
+        if not filtered_items:
+            logger.info(
+                f"Skipped all {len(items)} items as duplicates before create"
+            )
+            return {
+                "successful": {},
+                "failed": {},
+                "created": 0,
+                "failed_count": 0,
+                "skipped_duplicates": skipped_count,
+            }
+
+        result = await self.api_client.create_items(filtered_items)
+        if not isinstance(result, dict):
+            return {
+                "successful": {},
+                "failed": {},
+                "created": len(filtered_items),
+                "failed_count": 0,
+                "skipped_duplicates": skipped_count,
+            }
+
+        successful = result.get("successful", {})
+        failed = result.get("failed", {})
+        created = len(successful) if isinstance(successful, dict) else 0
+        failed_count = len(failed) if isinstance(failed, dict) else 0
+
+        result["created"] = created
+        result["failed_count"] = failed_count
+        result["skipped_duplicates"] = skipped_count
+
+        logger.info(
+            f"Create items summary: created={created}, failed={failed_count}, "
+            f"skipped_duplicates={skipped_count}"
+        )
+        return result
 
     async def create_item(self, item: dict[str, Any]) -> dict[str, Any]:
         """Create a single item."""
         if not isinstance(item, dict) or not item:
             raise ValueError("Item payload must be a non-empty dict")
-        return await self.api_client.create_items([item])
+        return await self.create_items([item])
+
+    async def _filter_items_before_create(
+        self, items: list[dict[str, Any]]
+    ) -> tuple[list[dict[str, Any]], int]:
+        """
+        Filter out probable duplicates before creating new items.
+
+        Priority: DOI > URL > title (+year when available).
+        """
+        filtered: list[dict[str, Any]] = []
+        skipped_count = 0
+
+        seen_doi: set[str] = set()
+        seen_url: set[str] = set()
+        seen_title_year: set[tuple[str, str]] = set()
+
+        for item in items:
+            data = item.get("data", item) if isinstance(item, dict) else {}
+
+            doi = _normalize_doi(data.get("DOI"))
+            url = _normalize_url(data.get("url"))
+            title = _normalize_title(data.get("title"))
+            year = _extract_year(data.get("date"))
+
+            # Intra-batch duplicate check.
+            if doi and doi in seen_doi:
+                skipped_count += 1
+                continue
+            if url and url in seen_url:
+                skipped_count += 1
+                continue
+            if title and (title, year) in seen_title_year:
+                skipped_count += 1
+                continue
+
+            # Library-level duplicate check.
+            if await self._exists_duplicate_in_library(doi, url, title, year):
+                skipped_count += 1
+                continue
+
+            filtered.append(item)
+            if doi:
+                seen_doi.add(doi)
+            if url:
+                seen_url.add(url)
+            if title:
+                seen_title_year.add((title, year))
+
+        return filtered, skipped_count
+
+    async def _exists_duplicate_in_library(
+        self,
+        doi: str,
+        url: str,
+        title: str,
+        year: str,
+    ) -> bool:
+        """Check if a likely duplicate already exists in the library."""
+        if doi:
+            found = await self.api_client.search_items(doi, qmode="everything", limit=25)
+            for entry in found:
+                entry_data = entry.get("data", {})
+                if _normalize_doi(entry_data.get("DOI")) == doi:
+                    return True
+
+        if url:
+            found = await self.api_client.search_items(url, qmode="everything", limit=25)
+            for entry in found:
+                entry_data = entry.get("data", {})
+                if _normalize_url(entry_data.get("url")) == url:
+                    return True
+
+        if title:
+            found = await self.api_client.search_items(
+                title, qmode="titleCreatorYear", limit=25
+            )
+            for entry in found:
+                entry_data = entry.get("data", {})
+                if _normalize_title(entry_data.get("title")) != title:
+                    continue
+                existing_year = _extract_year(entry_data.get("date"))
+                # If both sides have year, require year equality to reduce false positives.
+                if year and existing_year and year != existing_year:
+                    continue
+                return True
+
+        return False
 
     async def get_item_bundle(
         self,
