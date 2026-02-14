@@ -12,7 +12,7 @@ runs:
     - name: Setup uv
       uses: astral-sh/setup-uv@v4
       with:
-        enable-cache: true
+        enable-cache: false
 
     - name: Install dependencies
       shell: bash
