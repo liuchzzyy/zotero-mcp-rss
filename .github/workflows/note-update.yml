@@ -25,7 +25,8 @@ on:
         type: string
       target_collection:
         description: "Collection to move processed items to"
-        required: true
+        required: false
+        default: "01_SHORTTERMS"
         type: string
       llm_provider:
         description: "LLM provider for scan command"
@@ -75,7 +76,7 @@ jobs:
           INPUT_SCAN_LIMIT: ${{ github.event.inputs.scan_limit || '50' }}
           INPUT_TREATED_LIMIT: ${{ github.event.inputs.treated_limit || '20' }}
           INPUT_SOURCE_COLLECTION: ${{ github.event.inputs.source_collection || '00_INBOXS' }}
-          INPUT_TARGET_COLLECTION: ${{ github.event.inputs.target_collection }}
+          INPUT_TARGET_COLLECTION: ${{ github.event.inputs.target_collection || '01_SHORTTERMS' }}
           INPUT_LLM_PROVIDER: ${{ github.event.inputs.llm_provider || 'deepseek' }}
           INPUT_MULTIMODAL: ${{ github.event.inputs.multimodal || 'false' }}
           INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
@@ -139,7 +140,7 @@ jobs:
           config_table: |
             | Run | #${{ github.run_number }} |
             | Source | ${{ github.event.inputs.source_collection || '00_INBOXS' }} |
-            | Target | ${{ github.event.inputs.target_collection }} |
+            | Target | ${{ github.event.inputs.target_collection || '01_SHORTTERMS' }} |
             | LLM | ${{ github.event.inputs.llm_provider || 'deepseek' }} |
             | Multimodal | ${{ github.event.inputs.multimodal || 'false' }} |
             | Dry Run | ${{ github.event.inputs.dry_run || 'false' }} |
