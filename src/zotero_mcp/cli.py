@@ -313,6 +313,32 @@ Examples:
         help="Name of collection to move duplicates to (default: '06_TRASHES')",
     )
 
+    # Clean empty items command
+    clean_empty_parser = subparsers.add_parser(
+        "clean-empty", help="Find and delete empty items (no title, no attachments)"
+    )
+    clean_empty_parser.add_argument(
+        "--collection",
+        help="Limit to specific collection (by name)",
+    )
+    clean_empty_parser.add_argument(
+        "--scan-limit",
+        type=int,
+        default=500,
+        help="Number of items to fetch per batch from API (default: 500)",
+    )
+    clean_empty_parser.add_argument(
+        "--treated-limit",
+        type=int,
+        default=100,
+        help="Maximum total number of items to delete (default: 100)",
+    )
+    clean_empty_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview empty items without deleting",
+    )
+
     # Version command
     subparsers.add_parser("version", help="Print version information")
 
@@ -646,6 +672,102 @@ Examples:
                 sys.exit(1)
 
         asyncio.run(deduplicate())
+
+    elif args.command == "clean-empty":
+        load_config()
+        from zotero_mcp.services.data_access import DataAccessService
+
+        async def clean_empty() -> None:
+            data_service = DataAccessService()
+
+            # Resolve collections to scan
+            if args.collection:
+                matches = await data_service.find_collection_by_name(
+                    args.collection, exact_match=True
+                )
+                if not matches:
+                    print(f"Collection not found: {args.collection}")
+                    sys.exit(1)
+                collections = matches
+            else:
+                collections = await data_service.get_collections()
+
+            candidates: list[tuple[str, str, str]] = []  # (key, title, collection_name)
+            total_scanned = 0
+
+            for col in collections:
+                col_key = col.get("key", "")
+                col_name = col.get("data", {}).get("name", col.get("name", "Unknown"))
+                offset = 0
+
+                while len(candidates) < args.treated_limit:
+                    items = await data_service.get_collection_items(
+                        col_key, limit=args.scan_limit, start=offset
+                    )
+                    if not items:
+                        break
+
+                    for item in items:
+                        total_scanned += 1
+                        # Skip child item types (attachments, notes)
+                        if item.item_type in ("attachment", "note"):
+                            continue
+                        title = item.title or ""
+                        if title.strip() and title.strip() != "Untitled":
+                            continue
+
+                        # Check for children (attachments, notes)
+                        try:
+                            children = await data_service.get_item_children(
+                                item.key
+                            )
+                        except Exception:
+                            continue
+                        if children:
+                            continue
+
+                        candidates.append((item.key, title or "(empty)", col_name))
+                        if len(candidates) >= args.treated_limit:
+                            break
+
+                    if len(items) < args.scan_limit:
+                        break
+                    offset += args.scan_limit
+
+                if len(candidates) >= args.treated_limit:
+                    break
+
+            print("\n=== Clean Empty Items ===")
+            print(f"  Total scanned: {total_scanned}")
+            print(f"  Empty items found: {len(candidates)}")
+
+            if not candidates:
+                print("  No empty items to clean.")
+                return
+
+            print("\n  Empty items:")
+            for key, title, col_name in candidates:
+                print(f"    - [{col_name}] {key}: {title}")
+
+            if args.dry_run:
+                print("\n  Mode: DRY RUN (no items were deleted)")
+                return
+
+            deleted = 0
+            failed = 0
+            for key, _title, _col_name in candidates:
+                try:
+                    await data_service.delete_item(key)
+                    deleted += 1
+                except Exception as e:
+                    print(f"  Failed to delete {key}: {e}")
+                    failed += 1
+
+            print(f"\n  Deleted: {deleted}")
+            if failed:
+                print(f"  Failed: {failed}")
+
+        asyncio.run(clean_empty())
 
     elif args.command == "serve":
         load_config()
