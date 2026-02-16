@@ -146,7 +146,9 @@ def main():
     update_db_parser.add_argument("--db-path", help="Path to Zotero database file")
 
     # Database status command
-    db_status_parser = subparsers.add_parser("semantic-db-status", help="Show database status")
+    db_status_parser = subparsers.add_parser(
+        "semantic-db-status", help="Show database status"
+    )
     db_status_parser.add_argument(
         "--config-path", help="Path to semantic search config"
     )
@@ -306,11 +308,6 @@ Examples:
         "--dry-run",
         action="store_true",
         help="Preview duplicates without deleting",
-    )
-    dedup_parser.add_argument(
-        "--trash-collection",
-        default="06_TRASHES",
-        help="Name of collection to move duplicates to (default: '06_TRASHES')",
     )
 
     # Clean empty items command
@@ -657,19 +654,15 @@ Examples:
                     scan_limit=args.scan_limit,
                     treated_limit=args.treated_limit,
                     dry_run=args.dry_run,
-                    trash_collection=args.trash_collection,
                 )
                 print("\n=== Deduplication Results ===")
                 print(f"  Total scanned: {result['total_scanned']}")
                 print(f"  Duplicates found: {result['duplicates_found']}")
-                print(
-                    f"  Cross-folder copies (skipped): {result.get('cross_folder_copies', 0)}"
-                )
-                print(
-                    f"  Duplicates moved to {args.trash_collection}: {result['duplicates_removed']}"
-                )
+                cross_folder = result.get('cross_folder_copies', 0)
+                print(f"  Cross-folder copies (skipped): {cross_folder}")
+                print(f"  Duplicates deleted: {result['duplicates_removed']}")
                 if result.get("dry_run"):
-                    print("  Mode: DRY RUN (no items were moved)")
+                    print("  Mode: DRY RUN (no items were deleted)")
                 print(f"  Duplicate groups: {len(result.get('groups', []))}")
 
                 if result.get("groups"):
@@ -683,19 +676,22 @@ Examples:
                         print(f"  [{i}] 匹配类型: {match_name}")
                         print(f"      匹配值: {group.match_value[:60]}...")
                         print(f"      ✅ 保留: {group.primary_key} (信息最全)")
-                        # Note: duplicate_keys may include notes/attachments that will be skipped
-                        total_to_move = len(group.duplicate_keys)
-                        if total_to_move > 0:
-                            print(f"      🗑️  准备移动到垃圾箱: {total_to_move} 个条目")
+                        # Note: duplicate_keys may include notes/attachments
+                        # that will be skipped
+                        total_to_delete = len(group.duplicate_keys)
+                        if total_to_delete > 0:
+                            print(f"      🗑️  准备删除: {total_to_delete} 个条目")
                         else:
-                            print("      ⊘ 无需移动（仅保留条目）")
-                        if total_to_move <= 3:
+                            print("      ⊘ 无需删除（仅保留条目）")
+                        if total_to_delete <= 3:
                             for dup_key in group.duplicate_keys:
                                 print(f"         - {dup_key}")
                         else:
-                            print(
-                                f"         - {group.duplicate_keys[0]} 等 {len(group.duplicate_keys)} 个条目"
+                            msg = (
+                                f"- {group.duplicate_keys[0]} 等 "
+                                f"{len(group.duplicate_keys)} 个条目"
                             )
+                            print(f"         {msg}")
                         print()
 
             except Exception as e:
@@ -749,9 +745,7 @@ Examples:
 
                         # Check for children (attachments, notes)
                         try:
-                            children = await data_service.get_item_children(
-                                item.key
-                            )
+                            children = await data_service.get_item_children(item.key)
                         except Exception:
                             continue
                         if children:
@@ -836,7 +830,9 @@ Examples:
 
                 try:
                     while limit is None or len(items_updated) < limit:
-                        remaining = limit - len(items_updated) if limit else args.batch_size
+                        remaining = (
+                            limit - len(items_updated) if limit else args.batch_size
+                        )
                         batch_size = min(args.batch_size, remaining)
                         items = await data_service.get_collection_items(
                             col_key, limit=batch_size, start=offset
@@ -852,13 +848,31 @@ Examples:
                             existing_tags = item_data.get("tags", [])
 
                             # Filter tags: keep only those starting with prefix
-                            kept_tags = [t for t in existing_tags if isinstance(t, dict) and t.get("tag", "").startswith(keep_prefix)]
-                            removed_tags = [t for t in existing_tags if isinstance(t, dict) and not t.get("tag", "").startswith(keep_prefix)]
+                            kept_tags = [
+                                t
+                                for t in existing_tags
+                                if isinstance(t, dict)
+                                and t.get("tag", "").startswith(keep_prefix)
+                            ]
+                            removed_tags = [
+                                t
+                                for t in existing_tags
+                                if isinstance(t, dict)
+                                and not t.get("tag", "").startswith(keep_prefix)
+                            ]
 
                             if removed_tags:
                                 removed_count = len(removed_tags)
                                 total_tags_removed += removed_count
-                                items_updated.append((item.key, item.title or "(no title)", col_name, len(kept_tags), removed_count))
+                                items_updated.append(
+                                    (
+                                        item.key,
+                                        item.title or "(no title)",
+                                        col_name,
+                                        len(kept_tags),
+                                        removed_count,
+                                    )
+                                )
 
                                 if not args.dry_run:
                                     # Update item with only kept tags
@@ -872,7 +886,9 @@ Examples:
                             break
                         offset += batch_size
                 except Exception as e:
-                    print(f"  Warning: Error processing collection '{col_name}' ({col_key}): {e}")
+                    print(
+                        f"  Warning: Error processing collection '{col_name}' ({col_key}): {e}"
+                    )
                     continue
 
             print("\n=== Clean Tags ===")
@@ -886,7 +902,9 @@ Examples:
                 return
 
             print("\n  Items with tags removed:")
-            for key, title, col_name, kept, removed in items_updated[:20]:  # Show first 20
+            for key, title, col_name, kept, removed in items_updated[
+                :20
+            ]:  # Show first 20
                 short_title = (title[:40] + "...") if len(title) > 40 else title
                 print(f"    - [{col_name}] {key[:8]}...: '{short_title}'")
                 print(f"      Kept: {kept}, Removed: {removed}")
