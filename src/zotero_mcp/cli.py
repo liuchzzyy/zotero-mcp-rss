@@ -339,6 +339,37 @@ Examples:
         help="Preview empty items without deleting",
     )
 
+    # Clean tags command
+    clean_tags_parser = subparsers.add_parser(
+        "clean-tags", help="Remove all tags except those starting with 'AI'"
+    )
+    clean_tags_parser.add_argument(
+        "--collection",
+        help="Limit to specific collection (by name)",
+    )
+    clean_tags_parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=50,
+        help="Number of items to process per batch (default: 50)",
+    )
+    clean_tags_parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Maximum total number of items to process (default: no limit)",
+    )
+    clean_tags_parser.add_argument(
+        "--keep-prefix",
+        default="AI",
+        help="Keep tags starting with this prefix (default: 'AI')",
+    )
+    clean_tags_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview changes without updating",
+    )
+
     # Version command
     subparsers.add_parser("version", help="Print version information")
 
@@ -768,6 +799,105 @@ Examples:
                 print(f"  Failed: {failed}")
 
         asyncio.run(clean_empty())
+
+    elif args.command == "clean-tags":
+        load_config()
+        from zotero_mcp.clients.zotero.api_client import get_zotero_client
+        from zotero_mcp.services.data_access import DataAccessService
+
+        async def clean_tags() -> None:
+            api_client = get_zotero_client()
+            data_service = DataAccessService()
+
+            # Resolve collections to scan
+            if args.collection:
+                matches = await data_service.find_collection_by_name(
+                    args.collection, exact_match=True
+                )
+                if not matches:
+                    print(f"Collection not found: {args.collection}")
+                    sys.exit(1)
+                collections = matches
+            else:
+                collections = await data_service.get_collections()
+
+            keep_prefix = args.keep_prefix
+            items_updated: list[tuple[str, str, str, int, int]] = []
+            total_scanned = 0
+            total_tags_removed = 0
+            limit = args.limit
+
+            for col in collections:
+                if limit and len(items_updated) >= limit:
+                    break
+                col_key = col.get("key", "")
+                col_name = col.get("data", {}).get("name", col.get("name", "Unknown"))
+                offset = 0
+
+                try:
+                    while limit is None or len(items_updated) < limit:
+                        remaining = limit - len(items_updated) if limit else args.batch_size
+                        batch_size = min(args.batch_size, remaining)
+                        items = await data_service.get_collection_items(
+                            col_key, limit=batch_size, start=offset
+                        )
+                        if not items:
+                            break
+
+                        for item in items:
+                            total_scanned += 1
+                            # Get full item data with tags
+                            full_item = await api_client.get_item(item.key)
+                            item_data = full_item.get("data", {})
+                            existing_tags = item_data.get("tags", [])
+
+                            # Filter tags: keep only those starting with prefix
+                            kept_tags = [t for t in existing_tags if isinstance(t, dict) and t.get("tag", "").startswith(keep_prefix)]
+                            removed_tags = [t for t in existing_tags if isinstance(t, dict) and not t.get("tag", "").startswith(keep_prefix)]
+
+                            if removed_tags:
+                                removed_count = len(removed_tags)
+                                total_tags_removed += removed_count
+                                items_updated.append((item.key, item.title or "(no title)", col_name, len(kept_tags), removed_count))
+
+                                if not args.dry_run:
+                                    # Update item with only kept tags
+                                    full_item["data"]["tags"] = kept_tags
+                                    await api_client.update_item(full_item)
+
+                            if limit and len(items_updated) >= limit:
+                                break
+
+                        if len(items) < batch_size:
+                            break
+                        offset += batch_size
+                except Exception as e:
+                    print(f"  Warning: Error processing collection '{col_name}' ({col_key}): {e}")
+                    continue
+
+            print("\n=== Clean Tags ===")
+            print(f"  Keep prefix: '{keep_prefix}'")
+            print(f"  Total items scanned: {total_scanned}")
+            print(f"  Items updated: {len(items_updated)}")
+            print(f"  Total tags removed: {total_tags_removed}")
+
+            if not items_updated:
+                print("  No items needed tag cleanup.")
+                return
+
+            print("\n  Items with tags removed:")
+            for key, title, col_name, kept, removed in items_updated[:20]:  # Show first 20
+                short_title = (title[:40] + "...") if len(title) > 40 else title
+                print(f"    - [{col_name}] {key[:8]}...: '{short_title}'")
+                print(f"      Kept: {kept}, Removed: {removed}")
+
+            if len(items_updated) > 20:
+                print(f"    ... and {len(items_updated) - 20} more")
+
+            if args.dry_run:
+                print("\n  Mode: DRY RUN (no items were updated)")
+
+        asyncio.run(clean_tags())
 
     elif args.command == "serve":
         load_config()
