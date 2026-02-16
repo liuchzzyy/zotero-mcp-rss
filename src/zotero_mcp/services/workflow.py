@@ -591,9 +591,7 @@ class WorkflowService:
                     html_note=html_note,
                     llm_client=llm_client,
                 )
-                # Mark parent item as analyzed to avoid reprocessing in global scanner.
-                if note_key:
-                    await self.data_service.add_tags_to_item(item.key, ["AI分析"])
+                # Tags are already added to parent item in _save_note method
                 if move_to_collection and note_key:
                     await self._move_to_collection(item, move_to_collection)
 
@@ -814,7 +812,7 @@ class WorkflowService:
         self, item: Any, html_note: str, llm_client: Any
     ) -> str | None:
         """Save note to item and return note key."""
-        # Generate tags: AI分析 + LLM provider name
+        # Generate tags: AI分析 + LLM provider name (on parent item, not note)
         provider_map = {
             "deepseek": "DeepSeek",
             "claude-cli": "Claude",
@@ -826,13 +824,17 @@ class WorkflowService:
             if llm_client.provider == "claude-cli"
             else llm_client.provider.capitalize(),
         )
-        note_tags = ["AI分析", provider_name]
+        # Note has no tags; tags will be added to parent item
+        note_tags: list[str] = []
 
         result = await self.data_service.create_note(
             parent_key=item.key,
             content=html_note,
             tags=note_tags,
         )
+
+        # Add tags to parent item instead of note
+        await self.data_service.add_tags_to_item(item.key, ["AI分析", provider_name])
 
         # Extract note key
         if isinstance(result, dict):
