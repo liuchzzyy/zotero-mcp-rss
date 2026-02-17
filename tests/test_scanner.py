@@ -29,7 +29,10 @@ async def test_scan_skips_items_without_fulltext_instead_of_failing():
     workflow_service._analyze_single_item = AsyncMock()
 
     with (
-        patch("zotero_mcp.services.scanner.get_data_service", return_value=data_service),
+        patch(
+            "zotero_mcp.services.scanner.get_data_service",
+            return_value=data_service,
+        ),
         patch(
             "zotero_mcp.services.scanner.get_workflow_service",
             return_value=workflow_service,
@@ -54,3 +57,25 @@ async def test_scan_skips_items_without_fulltext_instead_of_failing():
     assert result["failed"] == 0
     assert result["skipped_no_fulltext"] == 1
     assert "skipped_no_fulltext 1" in result["message"]
+
+
+@pytest.mark.asyncio
+async def test_scan_rejects_invalid_limits():
+    with (
+        patch("zotero_mcp.services.scanner.get_data_service", return_value=AsyncMock()),
+        patch(
+            "zotero_mcp.services.scanner.get_workflow_service",
+            return_value=MagicMock(),
+        ),
+    ):
+        scanner = GlobalScanner()
+        result = await scanner.scan_and_process(
+            scan_limit=0,
+            treated_limit=1,
+            target_collection="01_SHORTTERMS",
+        )
+
+    assert result["error"] == "invalid scanner parameters"
+    assert result["operation"] == "global_scan"
+    assert result["status"] == "validation_error"
+    assert result["success"] is False

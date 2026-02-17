@@ -10,6 +10,14 @@ Scans library for items needing AI analysis with priority strategy:
 import logging
 from typing import Any
 
+from pydantic import ValidationError
+
+from zotero_mcp.models.operations import ScannerRunParams
+from zotero_mcp.services.common.operation_result import (
+    operation_error,
+    operation_success,
+)
+from zotero_mcp.services.common.pagination import iter_offset_batches
 from zotero_mcp.services.data_access import get_data_service
 from zotero_mcp.services.workflow import get_workflow_service
 from zotero_mcp.utils.async_helpers.batch_loader import BatchLoader
@@ -57,8 +65,8 @@ class GlobalScanner:
             )
             return has_pdf
         except Exception as e:
-            # Handle 400 error: "/children can only be called on PDF, EPUB, and snapshot attachments"
-            # If we can't get children, the item likely doesn't have a PDF attachment
+            # "/children" on non-attachment items may fail with 400.
+            # If so, treat as no PDF attachment.
             logger.debug(f"  ⊘ Skipping {item.key}: cannot fetch children ({e})")
             return False
 
@@ -85,7 +93,7 @@ class GlobalScanner:
         Args:
             scan_limit: Number of items to fetch per batch from API
             treated_limit: Maximum total number of items to process
-            target_collection: Collection name to move items after analysis (default: 01_SHORTTERMS)
+            target_collection: Collection name to move items after analysis
             dry_run: Preview only, no changes
             llm_provider: LLM provider for analysis (auto/claude-cli)
             source_collection: Priority collection to scan first (default: 00_INBOXS)
@@ -94,43 +102,69 @@ class GlobalScanner:
             Scan results with statistics
         """
         try:
-            if not target_collection:
-                return {
-                    "total_scanned": 0,
+            params = ScannerRunParams(
+                scan_limit=scan_limit,
+                treated_limit=treated_limit,
+                target_collection=target_collection,
+                dry_run=dry_run,
+                llm_provider=llm_provider,
+                source_collection=source_collection,
+                include_multimodal=include_multimodal,
+            )
+            if not params.target_collection:
+                metrics = {
+                    "scanned": 0,
                     "candidates": 0,
                     "processed": 0,
+                    "updated": 0,
+                    "skipped": 0,
                     "failed": 0,
-                    "error": "target_collection is required",
+                    "removed": 0,
                 }
+                return operation_error(
+                    "global_scan",
+                    "target_collection is required",
+                    metrics=metrics,
+                    status="validation_error",
+                    extra={
+                        "total_scanned": 0,
+                        "candidates": 0,
+                        "processed": 0,
+                        "failed": 0,
+                    },
+                )
 
             candidates = []
             total_scanned = 0
             scanned_keys = set()  # Track already scanned items to avoid duplicates
+            collections: list[dict[str, Any]] = []
 
             # Stage 1: Scan source collection (e.g., 00_INBOXS)
-            if source_collection:
-                logger.info(f"Stage 1: Scanning collection '{source_collection}'")
+            if params.source_collection:
+                logger.info(
+                    f"Stage 1: Scanning collection '{params.source_collection}'"
+                )
                 collections = await self.data_service.find_collection_by_name(
-                    source_collection, exact_match=True
+                    params.source_collection, exact_match=True
                 )
 
                 if collections:
                     collection_key = collections[0]["key"]
                     coll_name = collections[0].get("data", {}).get("name", "")
 
-                    # Keep fetching batches from this collection until treated_limit or exhausted
-                    offset = 0
-                    while len(candidates) < treated_limit:
-                        items = await self.data_service.get_collection_items(
-                            collection_key, limit=scan_limit, start=offset
-                        )
-
-                        if not items:
-                            break  # No more items in this collection
-
+                    # Fetch from source collection until exhausted or reaching cap.
+                    async for offset, items in iter_offset_batches(
+                        lambda start, limit: self.data_service.get_collection_items(
+                            collection_key, limit=limit, start=start
+                        ),
+                        batch_size=params.scan_limit,
+                    ):
+                        if len(candidates) >= params.treated_limit:
+                            break
                         total_scanned += len(items)
                         logger.info(
-                            f"Fetched {len(items)} items from '{coll_name}' (offset: {offset})"
+                            "Fetched "
+                            f"{len(items)} items from '{coll_name}' (offset: {offset})"
                         )
 
                         # Find candidates in this batch
@@ -139,29 +173,27 @@ class GlobalScanner:
                             if await self._check_item_needs_analysis(item):
                                 candidates.append(item)
                                 logger.info(
-                                    f"  ✓ Candidate: {item.title[:60]}... (key: {item.key})"
+                                    "  ✓ Candidate: "
+                                    f"{item.title[:60]}... (key: {item.key})"
                                 )
-                                if len(candidates) >= treated_limit:
+                                if len(candidates) >= params.treated_limit:
                                     break
-
-                        # If we got fewer items than scan_limit, we've exhausted the collection
-                        if len(items) < scan_limit:
-                            logger.info(f"  Collection '{coll_name}' fully scanned")
-                            break
-
-                        offset += scan_limit
+                    if len(candidates) < params.treated_limit:
+                        logger.info(f"  Collection '{coll_name}' fully scanned")
                 else:
                     logger.warning(
-                        f"Collection '{source_collection}' not found, skipping to Stage 2"
+                        f"Collection '{params.source_collection}' not found, "
+                        "skipping to Stage 2"
                     )
             else:
                 logger.info("No source collection specified, skipping to Stage 2")
 
             # Stage 2: If need more candidates, scan other collections in order
-            if len(candidates) < treated_limit:
-                remaining_needed = treated_limit - len(candidates)
+            if len(candidates) < params.treated_limit:
+                remaining_needed = params.treated_limit - len(candidates)
                 logger.info(
-                    f"Stage 2: Need {remaining_needed} more items, scanning collections in order"
+                    "Stage 2: Need "
+                    f"{remaining_needed} more items, scanning collections in order"
                 )
 
                 # Get collections sorted by name (00_INBOXS, 01_*, 02_*, etc.)
@@ -169,12 +201,12 @@ class GlobalScanner:
 
                 # Skip source_collection if specified
                 source_key = None
-                if source_collection and collections:
+                if params.source_collection and collections:
                     source_key = collections[0]["key"]
 
                 for coll in sorted_collections:
                     # Check if we've reached the limit
-                    if len(candidates) >= treated_limit:
+                    if len(candidates) >= params.treated_limit:
                         break
 
                     coll_key = coll["key"]
@@ -186,17 +218,24 @@ class GlobalScanner:
 
                     logger.info(f"Scanning collection: {coll_name}")
 
-                    # Keep fetching batches from this collection until treated_limit or exhausted
-                    offset = 0
+                    # Fetch this collection until exhausted or reaching cap.
                     collection_candidates = 0
-                    while len(candidates) < treated_limit:
-                        items = await self.data_service.get_collection_items(
-                            coll_key, limit=scan_limit, start=offset
+
+                    async def _fetch_collection_page(
+                        start: int,
+                        limit: int,
+                        collection_key: str = coll_key,
+                    ):
+                        return await self.data_service.get_collection_items(
+                            collection_key, limit=limit, start=start
                         )
 
-                        if not items:
-                            break  # No more items in this collection
-
+                    async for _, items in iter_offset_batches(
+                        _fetch_collection_page,
+                        batch_size=params.scan_limit,
+                    ):
+                        if len(candidates) >= params.treated_limit:
+                            break
                         total_scanned += len(items)
 
                         # Find candidates in this batch
@@ -210,16 +249,11 @@ class GlobalScanner:
                                 candidates.append(item)
                                 collection_candidates += 1
                                 logger.info(
-                                    f"  ✓ Candidate: {item.title[:60]}... (key: {item.key})"
+                                    "  ✓ Candidate: "
+                                    f"{item.title[:60]}... (key: {item.key})"
                                 )
-                                if len(candidates) >= treated_limit:
+                                if len(candidates) >= params.treated_limit:
                                     break
-
-                        # If we got fewer items than scan_limit, we've exhausted this collection
-                        if len(items) < scan_limit:
-                            break
-
-                        offset += scan_limit
 
                     logger.info(
                         f"  Collection '{coll_name}': {total_scanned} items scanned, "
@@ -227,35 +261,63 @@ class GlobalScanner:
                     )
 
             logger.info(
-                f"Scan complete: found {len(candidates)} candidates out of {total_scanned} total items"
+                "Scan complete: found "
+                f"{len(candidates)} candidates out of {total_scanned} total items"
             )
 
             if not candidates:
-                return {
-                    "total_scanned": total_scanned,
+                metrics = {
+                    "scanned": total_scanned,
                     "candidates": 0,
                     "processed": 0,
+                    "updated": 0,
+                    "skipped": 0,
                     "failed": 0,
-                    "message": "No items need analysis (all have AI分析 tag or no PDF)",
+                    "removed": 0,
                 }
+                return operation_success(
+                    "global_scan",
+                    metrics,
+                    message="No items need analysis (all have AI分析 tag or no PDF)",
+                    extra={
+                        "total_scanned": total_scanned,
+                        "candidates": 0,
+                        "processed": 0,
+                        "failed": 0,
+                    },
+                )
 
-            if dry_run:
+            if params.dry_run:
                 titles = [item.title for item in candidates]
-                return {
-                    "total_scanned": total_scanned,
+                metrics = {
+                    "scanned": total_scanned,
                     "candidates": len(candidates),
                     "processed": 0,
+                    "updated": 0,
+                    "skipped": 0,
                     "failed": 0,
-                    "dry_run": True,
-                    "items": titles,
-                    "message": f"[DRY RUN] Would process {len(candidates)} items",
+                    "removed": 0,
                 }
+                return operation_success(
+                    "global_scan",
+                    metrics,
+                    message=f"[DRY RUN] Would process {len(candidates)} items",
+                    dry_run=True,
+                    extra={
+                        "total_scanned": total_scanned,
+                        "candidates": len(candidates),
+                        "processed": 0,
+                        "failed": 0,
+                        "dry_run": True,
+                        "items": titles,
+                    },
+                )
 
             # Stage 3: Process candidates
             logger.info(f"Starting AI analysis of {len(candidates)} items...")
             from zotero_mcp.clients.llm import get_llm_client
 
-            llm_client = get_llm_client(provider=llm_provider)
+            llm_client = get_llm_client(provider=params.llm_provider)
 
             processed_count = 0
             failed_count = 0
@@ -267,7 +329,7 @@ class GlobalScanner:
                 candidate_keys,
                 include_fulltext=True,
                 include_annotations=True,
-                include_multimodal=include_multimodal,
+                include_multimodal=params.include_multimodal,
             )
             full_bundle_map = {b["metadata"]["key"]: b for b in full_bundles}
 
@@ -294,8 +356,8 @@ class GlobalScanner:
                         template=None,
                         dry_run=False,
                         delete_old_notes=True,
-                        move_to_collection=target_collection,
-                        include_multimodal=include_multimodal,
+                        move_to_collection=params.target_collection,
+                        include_multimodal=params.include_multimodal,
                     )
 
                     if result.success and not result.skipped:
@@ -312,26 +374,56 @@ class GlobalScanner:
                     failed_count += 1
                     logger.error(f"  ✗ Error analyzing {item.key}: {e}")
 
-            return {
-                "total_scanned": total_scanned,
+            metrics = {
+                "scanned": total_scanned,
                 "candidates": len(candidates),
                 "processed": processed_count,
+                "updated": processed_count,
+                "skipped": skipped_no_fulltext,
                 "failed": failed_count,
-                "skipped_no_fulltext": skipped_no_fulltext,
-                "message": (
+                "removed": 0,
+            }
+            return operation_success(
+                "global_scan",
+                metrics,
+                message=(
                     f"Processed {processed_count}, "
                     f"failed {failed_count}, "
                     f"skipped_no_fulltext {skipped_no_fulltext} "
                     f"out of {len(candidates)} candidates"
                 ),
-            }
+                extra={
+                    "total_scanned": total_scanned,
+                    "candidates": len(candidates),
+                    "processed": processed_count,
+                    "failed": failed_count,
+                    "skipped_no_fulltext": skipped_no_fulltext,
+                },
+            )
 
+        except ValidationError as e:
+            logger.error(f"Invalid scanner parameters: {e}")
+            return operation_error(
+                "global_scan",
+                "invalid scanner parameters",
+                status="validation_error",
+                details=e.errors(),
+                extra={
+                    "total_scanned": 0,
+                    "candidates": 0,
+                    "processed": 0,
+                    "failed": 0,
+                },
+            )
         except Exception as e:
             logger.error(f"Error during scan: {e}")
-            return {
-                "total_scanned": 0,
-                "candidates": 0,
-                "processed": 0,
-                "failed": 0,
-                "error": str(e),
-            }
+            return operation_error(
+                "global_scan",
+                str(e),
+                extra={
+                    "total_scanned": 0,
+                    "candidates": 0,
+                    "processed": 0,
+                    "failed": 0,
+                },
+            )

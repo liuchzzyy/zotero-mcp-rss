@@ -32,16 +32,21 @@ def obfuscate_config_for_display(config: dict) -> dict:
         return config
 
     obfuscated = config.copy()
-    sensitive_keys = [
+    exact_sensitive_keys = {
         "ZOTERO_API_KEY",
         "ZOTERO_LIBRARY_ID",
         "API_KEY",
         "LIBRARY_ID",
-    ]
+        "DEEPSEEK_API_KEY",
+        "OPENAI_API_KEY",
+        "GEMINI_API_KEY",
+    }
+    sensitive_suffixes = ("_API_KEY", "_TOKEN", "_SECRET", "_PASSWORD")
 
-    for key in sensitive_keys:
-        if key in obfuscated:
-            obfuscated[key] = obfuscate_sensitive_value(obfuscated[key])
+    for key, value in obfuscated.items():
+        key_upper = str(key).upper()
+        if key_upper in exact_sensitive_keys or key_upper.endswith(sensitive_suffixes):
+            obfuscated[key] = obfuscate_sensitive_value(value)
 
     return obfuscated
 
@@ -73,6 +78,31 @@ def _save_zotero_db_path_to_config(config_path: Path, db_path: str) -> None:
 
     except Exception as e:
         print(f"Warning: Could not save db_path to config: {e}")
+
+
+def _add_scan_limit_arg(cmd_parser: argparse.ArgumentParser, default: int) -> None:
+    """Add a standardized scan-limit argument to a command parser."""
+    cmd_parser.add_argument(
+        "--scan-limit",
+        type=int,
+        default=default,
+        help=f"Number of items to fetch per batch from API (default: {default})",
+    )
+
+
+def _add_treated_limit_arg(
+    cmd_parser: argparse.ArgumentParser,
+    default: int | None = None,
+    help_text: str | None = None,
+) -> None:
+    """Add a standardized treated-limit argument to a command parser."""
+    kwargs: dict[str, object] = {
+        "type": int,
+        "help": help_text or "Maximum total number of items to process",
+    }
+    if default is not None:
+        kwargs["default"] = default
+    cmd_parser.add_argument("--treated-limit", **kwargs)
 
 
 def main():
@@ -123,17 +153,11 @@ def main():
     update_db_parser.add_argument(
         "--force-rebuild", action="store_true", help="Force complete rebuild"
     )
-    update_db_parser.add_argument(
-        "--scan-limit",
-        type=int,
-        default=500,
-        help="Number of items to fetch per batch from API (default: 500)",
-    )
-    update_db_parser.add_argument(
-        "--treated-limit",
-        type=int,
+    _add_scan_limit_arg(update_db_parser, default=500)
+    _add_treated_limit_arg(
+        update_db_parser,
         default=100,
-        help="Maximum total number of items to process (default: 100)",
+        help_text="Maximum total number of items to process (default: 100)",
     )
     update_db_parser.add_argument(
         "--no-fulltext",
@@ -212,17 +236,11 @@ Examples:
     zotero-mcp scan --llm openai --multimodal --treated-limit 5
         """,
     )
-    scan_parser.add_argument(
-        "--scan-limit",
-        type=int,
-        default=100,
-        help="Number of items to fetch per batch from API (default: 100)",
-    )
-    scan_parser.add_argument(
-        "--treated-limit",
-        type=int,
+    _add_scan_limit_arg(scan_parser, default=100)
+    _add_treated_limit_arg(
+        scan_parser,
         default=20,
-        help="Maximum total items to process (default: 20)",
+        help_text="Maximum total items to process (default: 20)",
     )
     scan_parser.add_argument(
         "--target-collection",
@@ -245,14 +263,12 @@ Examples:
     )
     scan_parser.add_argument(
         "--multimodal",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
         default=True,
-        help="Enable multi-modal analysis (images and tables) (default: enabled)",
-    )
-    scan_parser.add_argument(
-        "--no-multimodal",
-        action="store_true",
-        help="Disable multi-modal analysis (text only)",
+        help=(
+            "Enable/disable multi-modal analysis "
+            "(images and tables) (default: enabled)"
+        ),
     )
 
     # Update metadata command
@@ -263,17 +279,8 @@ Examples:
         "--collection",
         help="Limit to specific collection (by key)",
     )
-    update_metadata_parser.add_argument(
-        "--scan-limit",
-        type=int,
-        default=500,
-        help="Number of items to fetch per batch from API (default: 500)",
-    )
-    update_metadata_parser.add_argument(
-        "--treated-limit",
-        type=int,
-        help="Maximum total number of items to process",
-    )
+    _add_scan_limit_arg(update_metadata_parser, default=500)
+    _add_treated_limit_arg(update_metadata_parser)
     update_metadata_parser.add_argument(
         "--item-key",
         help="Update a specific item by key",
@@ -292,17 +299,11 @@ Examples:
         "--collection",
         help="Limit to specific collection (by key)",
     )
-    dedup_parser.add_argument(
-        "--scan-limit",
-        type=int,
-        default=500,
-        help="Number of items to fetch per batch from API (default: 500)",
-    )
-    dedup_parser.add_argument(
-        "--treated-limit",
-        type=int,
+    _add_scan_limit_arg(dedup_parser, default=500)
+    _add_treated_limit_arg(
+        dedup_parser,
         default=100,
-        help="Maximum total number of items to scan (default: 100)",
+        help_text="Maximum total number of items to scan (default: 100)",
     )
     dedup_parser.add_argument(
         "--dry-run",
@@ -318,17 +319,11 @@ Examples:
         "--collection",
         help="Limit to specific collection (by name)",
     )
-    clean_empty_parser.add_argument(
-        "--scan-limit",
-        type=int,
-        default=500,
-        help="Number of items to fetch per batch from API (default: 500)",
-    )
-    clean_empty_parser.add_argument(
-        "--treated-limit",
-        type=int,
+    _add_scan_limit_arg(clean_empty_parser, default=500)
+    _add_treated_limit_arg(
+        clean_empty_parser,
         default=100,
-        help="Maximum total number of items to delete (default: 100)",
+        help_text="Maximum total number of items to delete (default: 100)",
     )
     clean_empty_parser.add_argument(
         "--dry-run",
@@ -419,7 +414,8 @@ Examples:
             print()
             print("🧠 Semantic Search:")
             print(
-                f"  Status: {'Initialized' if status.get('exists') else 'Not Initialized'}"
+                "  Status: "
+                f"{'Initialized' if status.get('exists') else 'Not Initialized'}"
             )
             print(f"  Items: {status.get('item_count')}")
             print(f"  Model: {status.get('embedding_model')}")
@@ -544,9 +540,6 @@ Examples:
 
         scanner = GlobalScanner()
         try:
-            # Handle multimodal flag
-            multimodal = args.multimodal and not args.no_multimodal
-
             result = asyncio.run(
                 scanner.scan_and_process(
                     scan_limit=args.scan_limit,
@@ -555,7 +548,7 @@ Examples:
                     dry_run=args.dry_run,
                     llm_provider=args.llm_provider,
                     source_collection=args.source_collection,
-                    include_multimodal=multimodal,
+                    include_multimodal=args.multimodal,
                 )
             )
 
@@ -623,7 +616,8 @@ Examples:
                     print(f"  Skipped: {result['skipped']}")
                     if "ai_metadata_tagged" in result:
                         print(
-                            f"  AI元数据-tagged (skipped): {result['ai_metadata_tagged']}"
+                            "  AI元数据-tagged (skipped): "
+                            f"{result['ai_metadata_tagged']}"
                         )
                     print(f"  Failed: {result['failed']}")
                     if args.dry_run:
@@ -887,7 +881,8 @@ Examples:
                         offset += batch_size
                 except Exception as e:
                     print(
-                        f"  Warning: Error processing collection '{col_name}' ({col_key}): {e}"
+                        "  Warning: Error processing collection "
+                        f"'{col_name}' ({col_key}): {e}"
                     )
                     continue
 

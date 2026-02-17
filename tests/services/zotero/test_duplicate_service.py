@@ -54,3 +54,15 @@ async def test_find_duplicate_groups_excludes_child_items():
     group = result["groups"][0]
     assert group.primary_key in {"A1", "A2"}
     assert set(group.duplicate_keys) == ({"A1", "A2"} - {group.primary_key})
+
+
+@pytest.mark.asyncio
+async def test_find_and_remove_duplicates_rejects_invalid_limits():
+    service = DuplicateDetectionService(item_service=AsyncMock())
+
+    result = await service.find_and_remove_duplicates(scan_limit=0, treated_limit=10)
+
+    assert result["error"] == "invalid dedup parameters"
+    assert result["operation"] == "deduplicate"
+    assert result["status"] == "validation_error"
+    assert result["success"] is False

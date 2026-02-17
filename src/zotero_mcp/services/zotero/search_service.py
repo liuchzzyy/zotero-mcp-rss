@@ -10,10 +10,12 @@ from typing import Literal
 from zotero_mcp.clients.zotero import (
     LocalDatabaseClient,
     ZoteroAPIClient,
-    ZoteroItem,
 )
 from zotero_mcp.models.common import SearchResultItem
-from zotero_mcp.utils.formatting.helpers import format_creators
+from zotero_mcp.services.zotero.result_mapper import (
+    api_item_to_search_result,
+    zotero_item_to_search_result,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +68,7 @@ class SearchService:
                 if offset >= len(items):
                     return []
                 return [
-                    self._zotero_item_to_result(item)
+                    zotero_item_to_search_result(item)
                     for item in items[offset : offset + limit]
                 ]
             except Exception as e:
@@ -82,7 +84,7 @@ class SearchService:
         if isinstance(items, int):
             logger.warning(f"Search API returned HTTP status {items}")
             return []
-        return [self._api_item_to_result(item) for item in items]
+        return [api_item_to_search_result(item) for item in items]
 
     async def get_recent_items(
         self,
@@ -103,7 +105,7 @@ class SearchService:
         if isinstance(items, int):
             logger.warning(f"Recent items API returned HTTP status {items}")
             return []
-        return [self._api_item_to_result(item) for item in items]
+        return [api_item_to_search_result(item) for item in items]
 
     async def search_by_tag(
         self,
@@ -158,35 +160,4 @@ class SearchService:
                     }
                 ]
 
-        return [self._api_item_to_result(item) for item in items[:limit]]
-
-    # -------------------- Helper Methods --------------------
-
-    def _api_item_to_result(self, item: dict) -> SearchResultItem:
-        """Convert API item to SearchResultItem."""
-        data = item.get("data", {})
-        tags = [t.get("tag", "") for t in data.get("tags", []) if t.get("tag")]
-
-        return SearchResultItem(
-            key=data.get("key", item.get("key", "")),
-            title=data.get("title", "Untitled"),
-            authors=format_creators(data.get("creators", [])),
-            date=data.get("date"),
-            item_type=data.get("itemType", "unknown"),
-            abstract=data.get("abstractNote"),
-            doi=data.get("DOI"),
-            tags=tags or [],
-        )
-
-    def _zotero_item_to_result(self, item: ZoteroItem) -> SearchResultItem:
-        """Convert ZoteroItem to SearchResultItem."""
-        return SearchResultItem(
-            key=item.key,
-            title=item.title or "Untitled",
-            authors=item.creators or "",
-            date=item.date_added,
-            item_type=item.item_type or "unknown",
-            abstract=item.abstract,
-            doi=item.doi,
-            tags=item.tags or [],
-        )
+        return [api_item_to_search_result(item) for item in items[:limit]]

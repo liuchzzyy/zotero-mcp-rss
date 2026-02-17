@@ -10,6 +10,14 @@ import logging
 import re
 from typing import Any
 
+from pydantic import ValidationError
+
+from zotero_mcp.models.operations import MetadataUpdateBatchParams
+from zotero_mcp.services.common.operation_result import (
+    operation_error,
+    operation_success,
+)
+from zotero_mcp.services.common.pagination import iter_offset_batches
 from zotero_mcp.services.common.retry import async_retry_with_backoff
 from zotero_mcp.services.zotero.item_service import ItemService
 from zotero_mcp.services.zotero.metadata_service import MetadataService
@@ -302,11 +310,36 @@ class MetadataUpdateService:
             - processed_candidates: candidate parent items actually processed
             - updated/skipped/failed/ai_metadata_tagged
         """
+        try:
+            params = MetadataUpdateBatchParams(
+                collection_key=collection_key,
+                scan_limit=scan_limit,
+                treated_limit=treated_limit,
+                dry_run=dry_run,
+            )
+        except ValidationError as e:
+            logger.error(f"Invalid metadata update parameters: {e}")
+            return operation_error(
+                "metadata_update",
+                "invalid metadata update parameters",
+                status="validation_error",
+                details=e.errors(),
+                extra={
+                    "items": 0,
+                    "total": 0,
+                    "processed_candidates": 0,
+                    "updated": 0,
+                    "skipped": 0,
+                    "failed": 0,
+                    "ai_metadata_tagged": 0,
+                },
+            )
+
         logger.info(
             f"Starting metadata update "
-            f"(batch: {scan_limit}, max: {treated_limit or 'all'})"
+            f"(batch: {params.scan_limit}, max: {params.treated_limit or 'all'})"
         )
-        if dry_run:
+        if params.dry_run:
             logger.info("DRY RUN MODE: No changes will be applied")
 
         updated = 0
@@ -316,24 +349,26 @@ class MetadataUpdateService:
         total_processed = 0
         total_scanned = 0
 
-        if collection_key:
-            collection_keys = [collection_key]
+        if params.collection_key:
+            collection_keys = [params.collection_key]
         else:
             logger.info("Scanning all collections in name order...")
             collections = await self.item_service.get_sorted_collections()
             collection_keys = [coll["key"] for coll in collections]
 
         for coll_key in collection_keys:
-            if treated_limit and total_processed >= treated_limit:
-                logger.info(f"Reached treated_limit ({treated_limit}), stopping scan")
+            if params.treated_limit and total_processed >= params.treated_limit:
+                logger.info(
+                    f"Reached treated_limit ({params.treated_limit}), stopping scan"
+                )
                 break
 
             scanned, proc, upd, skip, fail, ai_tagged = await self._process_collection(
                 coll_key=coll_key,
-                scan_limit=scan_limit,
-                treated_limit=treated_limit,
+                scan_limit=params.scan_limit,
+                treated_limit=params.treated_limit,
                 total_processed=total_processed,
-                dry_run=dry_run,
+                dry_run=params.dry_run,
             )
             total_scanned += scanned
             total_processed += proc
@@ -355,15 +390,33 @@ class MetadataUpdateService:
             f"(items scanned: {total_scanned})"
         )
 
-        return {
-            "items": total_scanned,
-            "total": total_scanned,
-            "processed_candidates": total_processed,
+        metrics = {
+            "scanned": total_scanned,
+            "candidates": total_processed,
+            "processed": total_processed,
             "updated": updated,
             "skipped": skipped,
             "failed": failed,
-            "ai_metadata_tagged": ai_metadata_tagged,
+            "removed": 0,
         }
+        return operation_success(
+            "metadata_update",
+            metrics,
+            message=(
+                f"Updated {updated}, skipped {skipped}, "
+                f"failed {failed}, tagged {ai_metadata_tagged}"
+            ),
+            dry_run=params.dry_run,
+            extra={
+                "items": total_scanned,
+                "total": total_scanned,
+                "processed_candidates": total_processed,
+                "updated": updated,
+                "skipped": skipped,
+                "failed": failed,
+                "ai_metadata_tagged": ai_metadata_tagged,
+            },
+        )
 
     async def _process_collection(
         self,
@@ -392,19 +445,12 @@ class MetadataUpdateService:
         skipped = 0
         failed = 0
         ai_metadata_tagged = 0
-        offset = 0
 
-        while True:
+        async for _offset, items in iter_offset_batches(
+            self._make_collection_batch_fetcher(coll_key),
+            batch_size=scan_limit,
+        ):
             if treated_limit and total_processed + processed >= treated_limit:
-                break
-
-            items = await async_retry_with_backoff(
-                lambda c=coll_key, limit=scan_limit, start=offset: self.item_service.get_collection_items(
-                    c, limit=limit, start=start
-                ),
-                description=f"Scan collection {coll_key} (offset {offset})",
-            )
-            if not items:
                 break
 
             parent_items = [
@@ -434,11 +480,6 @@ class MetadataUpdateService:
                 else:
                     failed += 1
 
-            if len(items) < scan_limit:
-                break
-
-            offset += scan_limit
-
         return (
             scanned,
             processed,
@@ -447,6 +488,28 @@ class MetadataUpdateService:
             failed,
             ai_metadata_tagged,
         )
+
+    def _make_collection_batch_fetcher(
+        self, coll_key: str
+    ):
+        """Build a paged fetch function with retry for a given collection."""
+
+        async def _fetch_page(offset: int, limit: int):
+            def _fetch_items(
+                collection_key: str = coll_key,
+                page_limit: int = limit,
+                page_offset: int = offset,
+            ):
+                return self.item_service.get_collection_items(
+                    collection_key, limit=page_limit, start=page_offset
+                )
+
+            return await async_retry_with_backoff(
+                _fetch_items,
+                description=f"Scan collection {coll_key} (offset {offset})",
+            )
+
+        return _fetch_page
 
     async def _fetch_enhanced_metadata(
         self, doi: str, title: str, url: str
@@ -465,7 +528,10 @@ class MetadataUpdateService:
             # Clean HTML tags and entities from title before searching
             clean_title = _clean_html_title(title)
             if clean_title != title:
-                logger.info(f"  Cleaned HTML from title: '{title[:40]}...' -> '{clean_title[:40]}...'")
+                logger.info(
+                    "  Cleaned HTML from title: "
+                    f"'{title[:40]}...' -> '{clean_title[:40]}...'"
+                )
             logger.debug(f"  Looking up by title: {clean_title[:50]}")
             metadata = await self.metadata_service.lookup_metadata(title=clean_title)
             if metadata:
@@ -531,7 +597,10 @@ class MetadataUpdateService:
         if current_title and "<" in current_title:
             clean_title = _clean_html_title(current_title)
             if clean_title != current_title:
-                logger.info(f"  Cleaning HTML from title: '{current_title[:40]}...' -> '{clean_title[:40]}...'")
+                logger.info(
+                    "  Cleaning HTML from title: "
+                    f"'{current_title[:40]}...' -> '{clean_title[:40]}...'"
+                )
                 updated["title"] = clean_title
 
         # Apply simple field mappings according to source strategy.
@@ -564,7 +633,9 @@ class MetadataUpdateService:
             current_creators = updated.get("creators", [])
             should_apply_authors = overwrite_mode or not _has_value(current_creators)
             if should_apply_authors:
-                updated["creators"] = self._convert_authors(enhanced_metadata["authors"])
+                updated["creators"] = self._convert_authors(
+                    enhanced_metadata["authors"]
+                )
                 applied_meta_keys.add("authors")
 
         # Date/Year: crossref overwrites; openalex supplements when missing.

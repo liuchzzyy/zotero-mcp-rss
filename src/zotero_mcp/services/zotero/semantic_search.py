@@ -116,6 +116,18 @@ class ZoteroSemanticSearch:
         except Exception as e:
             logger.error(f"Error saving update config: {e}")
 
+    def _parse_last_update(self) -> datetime | None:
+        """Parse `last_update` from config, returning None when invalid/missing."""
+        raw_last_update = self.update_config.get("last_update")
+        if not raw_last_update:
+            return None
+
+        try:
+            return datetime.fromisoformat(str(raw_last_update))
+        except (TypeError, ValueError):
+            logger.warning(f"Invalid last_update timestamp: {raw_last_update!r}")
+            return None
+
     def should_update_database(self) -> bool:
         """Check if the database should be updated based on configuration."""
         if not self.update_config.get("auto_update", False):
@@ -128,20 +140,22 @@ class ZoteroSemanticSearch:
         elif frequency == "startup":
             return True
         elif frequency == "daily":
-            last_update = self.update_config.get("last_update")
-            if not last_update:
+            last_update_date = self._parse_last_update()
+            if last_update_date is None:
                 return True
 
-            last_update_date = datetime.fromisoformat(last_update)
             return datetime.now() - last_update_date >= timedelta(days=1)
         elif frequency.startswith("every_"):
             try:
                 days = int(frequency.split("_")[1])
-                last_update = self.update_config.get("last_update")
-                if not last_update:
+                if days <= 0:
+                    logger.warning(f"Invalid update frequency days: {days}")
+                    return False
+
+                last_update_date = self._parse_last_update()
+                if last_update_date is None:
                     return True
 
-                last_update_date = datetime.fromisoformat(last_update)
                 return datetime.now() - last_update_date >= timedelta(days=days)
             except (ValueError, IndexError):
                 return False
@@ -260,7 +274,10 @@ class ZoteroSemanticSearch:
                             if extracted % 25 == 0 and total_to_extract:
                                 try:
                                     sys.stderr.write(
-                                        f"Extracted content for {extracted}/{total_to_extract} items (skipped {skipped_existing} existing, updating {updated_existing})...\n"
+                                        "Extracted content for "
+                                        f"{extracted}/{total_to_extract} items "
+                                        f"(skipped {skipped_existing} existing, "
+                                        f"updating {updated_existing})...\n"
                                     )
                                 except Exception:
                                     pass
@@ -305,16 +322,20 @@ class ZoteroSemanticSearch:
                 return api_items
 
         except Exception as e:
-            logger.error(f"Error reading from local database: {e}")
+            logger.exception(f"Error reading from local database: {e}")
             logger.info("Falling back to API...")
-            return self._get_items_from_api(scan_limit)
+            return self._get_items_from_api(
+                scan_limit=scan_limit,
+                treated_limit=treated_limit,
+            )
 
     def _get_items_from_api(
         self, scan_limit: int = 100, treated_limit: int | None = None
     ) -> list[dict[str, Any]]:
         """Get items from Zotero API with batch scanning."""
         logger.info(
-            f"Fetching items from Zotero API (batch: {scan_limit}, max: {treated_limit or 'all'})..."
+            "Fetching items from Zotero API "
+            f"(batch: {scan_limit}, max: {treated_limit or 'all'})..."
         )
 
         batch_size = scan_limit
@@ -330,7 +351,7 @@ class ZoteroSemanticSearch:
                 items = self.zotero_client.items(**batch_params)
             except Exception as e:
                 if "Connection refused" in str(e):
-                    raise Exception(
+                    raise RuntimeError(
                         "Cannot connect to Zotero local API. Ensure Zotero is running."
                     ) from e
                 raise
@@ -354,8 +375,6 @@ class ZoteroSemanticSearch:
             all_items = all_items[:treated_limit]
 
         logger.info(f"Retrieved {len(all_items)} items from API")
-        return all_items
-
         return all_items
 
     def update_database(
@@ -423,7 +442,7 @@ class ZoteroSemanticSearch:
             return stats
 
         except Exception as e:
-            logger.error(f"Error updating database: {e}")
+            logger.exception(f"Error updating database: {e}")
             stats["error"] = str(e)
             return stats
 
@@ -469,10 +488,17 @@ class ZoteroSemanticSearch:
                 self.chroma_client.upsert_documents(documents, metadatas, ids)
                 stats["added"] += len(documents)
             except Exception as e:
-                logger.error(f"Error adding documents to ChromaDB: {e}")
+                logger.exception(f"Error adding documents to ChromaDB: {e}")
                 stats["errors"] += len(documents)
 
         return stats
+
+    @staticmethod
+    def _first_nested_list(values: Any) -> list[Any]:
+        """Safely unwrap Chroma nested-list fields."""
+        if isinstance(values, list) and values and isinstance(values[0], list):
+            return values[0]
+        return []
 
     def search(
         self,
@@ -481,6 +507,15 @@ class ZoteroSemanticSearch:
         filters: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Perform semantic search."""
+        if limit <= 0:
+            return {
+                "query": query,
+                "limit": limit,
+                "filters": filters,
+                "results": [],
+                "total_found": 0,
+            }
+
         try:
             results = self.chroma_client.search(
                 query_texts=[query],
@@ -499,7 +534,7 @@ class ZoteroSemanticSearch:
             }
 
         except Exception as e:
-            logger.error(f"Error performing semantic search: {e}")
+            logger.exception(f"Error performing semantic search: {e}")
             return {
                 "query": query,
                 "results": [],
@@ -512,13 +547,13 @@ class ZoteroSemanticSearch:
         """Enrich ChromaDB results with full Zotero item data."""
         enriched = []
 
-        if not chroma_results.get("ids") or not chroma_results["ids"][0]:
+        ids = self._first_nested_list(chroma_results.get("ids"))
+        if not ids:
             return enriched
 
-        ids = chroma_results["ids"][0]
-        distances = chroma_results.get("distances", [[]])[0]
-        documents = chroma_results.get("documents", [[]])[0]
-        metadatas = chroma_results.get("metadatas", [[]])[0]
+        distances = self._first_nested_list(chroma_results.get("distances"))
+        documents = self._first_nested_list(chroma_results.get("documents"))
+        metadatas = self._first_nested_list(chroma_results.get("metadatas"))
 
         for i, item_key in enumerate(ids):
             try:

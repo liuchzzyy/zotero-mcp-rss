@@ -75,7 +75,11 @@ def sample_bundle_with_multimodal():
                     "index": 0,
                     "page": 1,
                     "bbox": [100, 200, 300, 400],
-                    "base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",  # 1x1 pixel PNG
+                    # 1x1 pixel PNG
+                    "base64": (
+                        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+"
+                        "M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+                    ),
                     "format": "png",
                 }
             ],
@@ -284,7 +288,7 @@ async def test_prepare_analysis_excludes_multimodal(
     }
     mock_batch_loader.fetch_many_bundles = AsyncMock(return_value=[bundle])
 
-    # Call with include_multimodal=False - should still fetch but not include in response
+    # Should still fetch source bundles but omit multi-modal fields in response.
     response = await workflow_service.prepare_analysis(
         source="collection",
         collection_key="COLL1",
@@ -377,7 +381,7 @@ async def test_batch_analyze_auto_selects_multimodal_llm(
 
     with patch(
         "zotero_mcp.services.workflow.get_llm_client", return_value=mock_llm_client
-    ):
+    ) as mock_get_llm_client:
         response = await workflow_service.batch_analyze(
             source="collection",
             collection_key="COLL1",
@@ -390,8 +394,9 @@ async def test_batch_analyze_auto_selects_multimodal_llm(
     assert response.processed == 1
     assert len(response.results) == 1
     assert response.results[0].success is True
+    mock_get_llm_client.assert_called_once_with(provider="claude-cli", model=None)
     workflow_service.data_service.add_tags_to_item.assert_awaited_once_with(
-        "ITEM1", ["AI分析"]
+        "ITEM1", ["AI分析", "Claude"]
     )
 
 
@@ -467,7 +472,7 @@ async def test_batch_analyze_auto_selects_text_llm(workflow_service, mock_batch_
 
     with patch(
         "zotero_mcp.services.workflow.get_llm_client", return_value=mock_llm_client
-    ):
+    ) as mock_get_llm_client:
         response = await workflow_service.batch_analyze(
             source="collection",
             collection_key="COLL1",
@@ -478,8 +483,9 @@ async def test_batch_analyze_auto_selects_text_llm(workflow_service, mock_batch_
     # Should have processed successfully
     assert response.total_items == 1
     assert response.processed == 1
+    mock_get_llm_client.assert_called_once_with(provider="deepseek", model=None)
     workflow_service.data_service.add_tags_to_item.assert_awaited_once_with(
-        "ITEM1", ["AI分析"]
+        "ITEM1", ["AI分析", "DeepSeek"]
     )
 
 
@@ -604,3 +610,27 @@ async def test_structured_quality_recovers_within_retry_limit(workflow_service):
 
     assert result is not None
     assert workflow_service._call_llm_analysis.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_move_to_collection_accepts_top_level_key(workflow_service):
+    item = MagicMock()
+    item.key = "ITEM1"
+
+    workflow_service.data_service.find_collection_by_name = AsyncMock(
+        return_value=[{"key": "TARGET1", "data": {"name": "Done"}}]
+    )
+    workflow_service.data_service.add_item_to_collection = AsyncMock()
+    workflow_service.data_service.get_item = AsyncMock(
+        return_value={"data": {"collections": ["SRC1", "TARGET1"]}}
+    )
+    workflow_service.data_service.remove_item_from_collection = AsyncMock()
+
+    await workflow_service._move_to_collection(item, "Done")
+
+    workflow_service.data_service.add_item_to_collection.assert_awaited_once_with(
+        "TARGET1", "ITEM1"
+    )
+    workflow_service.data_service.remove_item_from_collection.assert_awaited_once_with(
+        "SRC1", "ITEM1"
+    )

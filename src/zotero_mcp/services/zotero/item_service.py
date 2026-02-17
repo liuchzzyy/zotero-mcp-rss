@@ -11,10 +11,14 @@ import re
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
-from zotero_mcp.clients.zotero import LocalDatabaseClient, ZoteroAPIClient, ZoteroItem
+from zotero_mcp.clients.zotero import LocalDatabaseClient, ZoteroAPIClient
 from zotero_mcp.models.common import SearchResultItem
+from zotero_mcp.services.zotero.result_mapper import (
+    api_item_to_search_result,
+    zotero_item_to_search_result,
+)
 from zotero_mcp.utils.async_helpers.cache import ResponseCache
-from zotero_mcp.utils.formatting.helpers import clean_title, format_creators
+from zotero_mcp.utils.formatting.helpers import clean_title
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +38,19 @@ def _normalize_url(raw_url: str | None) -> str:
     if not raw_url:
         return ""
     url = raw_url.strip()
+    if not url:
+        return ""
+    if url.startswith("//"):
+        url = f"https:{url}"
+    elif "://" not in url:
+        url = f"https://{url}"
     try:
         parts = urlsplit(url)
     except Exception:
+        return url.rstrip("/").lower()
+
+    if not parts.netloc:
+        # Keep fallback predictable for malformed values (e.g. local file-ish strings).
         return url.rstrip("/").lower()
 
     scheme = (parts.scheme or "https").lower()
@@ -110,12 +124,12 @@ class ItemService:
             if start:
                 local_items = local_items[start:]
             local_items = local_items[:limit]
-            return [self._zotero_item_to_result(item) for item in local_items]
+            return [zotero_item_to_search_result(item) for item in local_items]
 
         api_items = await self.api_client.get_all_items(
             limit=limit, start=start, item_type=item_type
         )
-        return [self._api_item_to_result(item) for item in api_items]
+        return [api_item_to_search_result(item) for item in api_items]
 
     async def get_item_children(
         self, item_key: str, item_type: str | None = None
@@ -210,7 +224,7 @@ class ItemService:
     ) -> list[SearchResultItem]:
         """Get items in a collection."""
         items = await self.api_client.get_collection_items(collection_key, limit, start)
-        return [self._api_item_to_result(item) for item in items]
+        return [api_item_to_search_result(item) for item in items]
 
     async def find_collection_by_name(
         self, name: str, exact_match: bool = False
@@ -391,6 +405,7 @@ class ItemService:
         seen_doi: set[str] = set()
         seen_url: set[str] = set()
         seen_title_year: set[tuple[str, str]] = set()
+        search_cache: dict[tuple[str, str, int], list[dict[str, Any]]] = {}
 
         for item in items:
             data = item.get("data", item) if isinstance(item, dict) else {}
@@ -412,7 +427,9 @@ class ItemService:
                 continue
 
             # Library-level duplicate check.
-            if await self._exists_duplicate_in_library(doi, url, title, year):
+            if await self._exists_duplicate_in_library(
+                doi, url, title, year, search_cache
+            ):
                 skipped_count += 1
                 continue
 
@@ -432,37 +449,72 @@ class ItemService:
         url: str,
         title: str,
         year: str,
+        search_cache: dict[tuple[str, str, int], list[dict[str, Any]]],
     ) -> bool:
         """Check if a likely duplicate already exists in the library."""
         if doi:
-            found = await self.api_client.search_items(doi, qmode="everything", limit=25)
+            found = await self._search_items_cached(
+                query=doi,
+                qmode="everything",
+                limit=25,
+                search_cache=search_cache,
+            )
             for entry in found:
                 entry_data = entry.get("data", {})
                 if _normalize_doi(entry_data.get("DOI")) == doi:
                     return True
 
         if url:
-            found = await self.api_client.search_items(url, qmode="everything", limit=25)
+            found = await self._search_items_cached(
+                query=url,
+                qmode="everything",
+                limit=25,
+                search_cache=search_cache,
+            )
             for entry in found:
                 entry_data = entry.get("data", {})
                 if _normalize_url(entry_data.get("url")) == url:
                     return True
 
         if title:
-            found = await self.api_client.search_items(
-                title, qmode="titleCreatorYear", limit=25
+            found = await self._search_items_cached(
+                query=title,
+                qmode="titleCreatorYear",
+                limit=25,
+                search_cache=search_cache,
             )
             for entry in found:
                 entry_data = entry.get("data", {})
                 if _normalize_title(entry_data.get("title")) != title:
                     continue
                 existing_year = _extract_year(entry_data.get("date"))
-                # If both sides have year, require year equality to reduce false positives.
+                # If both sides have year, require equality to reduce false positives.
                 if year and existing_year and year != existing_year:
                     continue
                 return True
 
         return False
+
+    async def _search_items_cached(
+        self,
+        query: str,
+        qmode: str,
+        limit: int,
+        search_cache: dict[tuple[str, str, int], list[dict[str, Any]]],
+    ) -> list[dict[str, Any]]:
+        """Search items with a per-batch cache to avoid duplicate API calls."""
+        cache_key = (query, qmode, limit)
+        cached = search_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        result = await self.api_client.search_items(query, qmode=qmode, limit=limit)
+        if isinstance(result, list):
+            search_cache[cache_key] = result
+            return result
+
+        search_cache[cache_key] = []
+        return []
 
     async def get_item_bundle(
         self,
@@ -522,33 +574,3 @@ class ItemService:
 
         return bundle
 
-    # -------------------- Helpers --------------------
-
-    def _api_item_to_result(self, item: dict[str, Any]) -> SearchResultItem:
-        """Convert API item to SearchResultItem."""
-        data = item.get("data", {})
-        tags = [t.get("tag", "") for t in data.get("tags", []) if t.get("tag")]
-
-        return SearchResultItem(
-            key=data.get("key", item.get("key", "")),
-            title=data.get("title", "Untitled"),
-            authors=format_creators(data.get("creators", [])),
-            date=data.get("date"),
-            item_type=data.get("itemType", "unknown"),
-            abstract=data.get("abstractNote"),
-            doi=data.get("DOI"),
-            tags=tags or [],
-        )
-
-    def _zotero_item_to_result(self, item: ZoteroItem) -> SearchResultItem:
-        """Convert ZoteroItem to SearchResultItem."""
-        return SearchResultItem(
-            key=item.key,
-            title=item.title or "Untitled",
-            authors=item.creators or "",
-            date=item.date_added,
-            item_type=item.item_type or "unknown",
-            abstract=item.abstract,
-            doi=item.doi,
-            tags=item.tags or [],
-        )

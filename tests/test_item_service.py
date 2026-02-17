@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from zotero_mcp.clients.zotero import ZoteroAPIClient
-from zotero_mcp.services.zotero.item_service import ItemService
+from zotero_mcp.services.zotero.item_service import ItemService, _normalize_url
 
 
 @pytest.fixture
@@ -84,12 +84,19 @@ async def test_create_items_skips_library_duplicate_by_doi(
 @pytest.mark.asyncio
 async def test_create_items_skips_intra_batch_duplicates(item_service, mock_api_client):
     mock_api_client.search_items.return_value = []
-    mock_api_client.create_items.return_value = {"successful": {"0": "AAA"}, "failed": {}}
+    mock_api_client.create_items.return_value = {
+        "successful": {"0": "AAA"},
+        "failed": {},
+    }
 
     result = await item_service.create_items(
         [
             {"itemType": "journalArticle", "title": "Paper A", "DOI": "10.1000/abc"},
-            {"itemType": "journalArticle", "title": "Paper A Copy", "DOI": "10.1000/abc"},
+            {
+                "itemType": "journalArticle",
+                "title": "Paper A Copy",
+                "DOI": "10.1000/abc",
+            },
         ]
     )
 
@@ -115,3 +122,37 @@ async def test_create_item_uses_precreate_dedup(item_service, mock_api_client):
     assert result["failed_count"] == 0
     assert result["skipped_duplicates"] == 1
     mock_api_client.create_items.assert_not_called()
+
+
+def test_normalize_url_handles_scheme_less_urls():
+    assert _normalize_url("example.com/path?a=1#frag") == "https://example.com/path"
+    assert _normalize_url("HTTP://Example.com/path/") == "http://example.com/path"
+
+
+@pytest.mark.asyncio
+async def test_create_items_reuses_library_search_cache_for_title(
+    item_service, mock_api_client
+):
+    mock_api_client.search_items.return_value = [
+        {"data": {"title": "Same Title", "date": "2025"}}
+    ]
+    mock_api_client.create_items.return_value = {
+        "successful": {"0": "A", "1": "B"},
+        "failed": {},
+    }
+
+    result = await item_service.create_items(
+        [
+            {"itemType": "journalArticle", "title": "Same Title", "date": "2023"},
+            {"itemType": "journalArticle", "title": "Same Title", "date": "2024"},
+        ]
+    )
+
+    assert result["created"] == 2
+    assert result["failed_count"] == 0
+    assert result["skipped_duplicates"] == 0
+    mock_api_client.search_items.assert_awaited_once_with(
+        "same title",
+        qmode="titleCreatorYear",
+        limit=25,
+    )
