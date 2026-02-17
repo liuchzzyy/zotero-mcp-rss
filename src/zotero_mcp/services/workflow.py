@@ -87,8 +87,7 @@ class WorkflowService:
         # Optimization: Fetch bundles in batches
         chunk_size = self.BATCH_CHUNK_SIZE
 
-        # We need to map keys to Item objects for metadata not in bundle (like item.title vs bundle.title)
-        # Actually bundle['metadata'] has everything.
+        # Keep a key->item map for progress reporting and fallback metadata access.
 
         for i in range(0, len(items), chunk_size):
             chunk_items = items[i : i + chunk_size]
@@ -311,18 +310,16 @@ class WorkflowService:
                         include_annotations=False,
                         include_multimodal=True,
                     )
-                    has_images = False
-                    for bundle in sample_bundles:
-                        sample_multimodal = bundle.get("multimodal", {})
-                        if sample_multimodal.get("images"):
-                            has_images = True
-                            break
-                        # Auto-select: prefer multi-modal if images available
-                        llm_provider = "claude-cli" if has_images else "deepseek"
-                        logger.info(
-                            f"Auto-selected LLM provider: {llm_provider} "
-                            f"(has_images={has_images})"
-                        )
+                    has_images = any(
+                        bool(bundle.get("multimodal", {}).get("images"))
+                        for bundle in sample_bundles
+                    )
+                    # Auto-select: prefer multi-modal if images available.
+                    llm_provider = "claude-cli" if has_images else "deepseek"
+                    logger.info(
+                        f"Auto-selected LLM provider: {llm_provider} "
+                        f"(has_images={has_images})"
+                    )
                 except Exception as e:
                     logger.warning(
                         f"Failed to check for images during auto-select: {e}"
@@ -718,7 +715,8 @@ class WorkflowService:
         current_blocks = block_count
         for retry_idx in range(1, self.MAX_STRUCTURED_RETRIES + 1):
             logger.warning(
-                f"Structured output too sparse for {item.key}: {current_blocks} blocks; "
+                "Structured output too sparse for "
+                f"{item.key}: {current_blocks} blocks; "
                 f"retry {retry_idx}/{self.MAX_STRUCTURED_RETRIES}"
             )
             retry_template = (
@@ -749,7 +747,8 @@ class WorkflowService:
 
             if current_blocks >= self.MIN_STRUCTURED_BLOCKS:
                 logger.info(
-                    f"Structured output recovered for {item.key}: {current_blocks} blocks"
+                    "Structured output recovered for "
+                    f"{item.key}: {current_blocks} blocks"
                 )
                 return current_content
 
@@ -863,8 +862,15 @@ class WorkflowService:
                 )
                 return
 
-            target_key = matches[0].get("data", {}).get("key")
+            first_match = matches[0]
+            target_key = first_match.get("key") or first_match.get("data", {}).get(
+                "key"
+            )
             if not target_key:
+                logger.warning(
+                    f"Target collection '{target_collection_name}' missing key, "
+                    f"skipping move for {item.key}"
+                )
                 return
 
             # Add to target collection

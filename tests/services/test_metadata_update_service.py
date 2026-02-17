@@ -57,7 +57,11 @@ async def test_update_all_items_skips_unsupported_item_types_before_processing()
         return_value={"success": True, "updated": False}
     )
 
-    result = await service.update_all_items(scan_limit=10, treated_limit=10, dry_run=True)
+    result = await service.update_all_items(
+        scan_limit=10,
+        treated_limit=10,
+        dry_run=True,
+    )
 
     assert result["processed_candidates"] == 1
     assert result["skipped"] == 1
@@ -75,8 +79,20 @@ async def test_update_all_items_counts_ai_metadata_tagged_items():
     item_service.get_sorted_collections.return_value = [{"key": "COLL1"}]
     item_service.get_collection_items.side_effect = [
         [
-            type("Item", (), {"key": "T1", "item_type": "journalArticle", "tags": [AI_METADATA_TAG]})(),
-            type("Item", (), {"key": "A1", "item_type": "journalArticle", "tags": []})(),
+            type(
+                "Item",
+                (),
+                {
+                    "key": "T1",
+                    "item_type": "journalArticle",
+                    "tags": [AI_METADATA_TAG],
+                },
+            )(),
+            type(
+                "Item",
+                (),
+                {"key": "A1", "item_type": "journalArticle", "tags": []},
+            )(),
         ],
         [],
     ]
@@ -84,12 +100,34 @@ async def test_update_all_items_counts_ai_metadata_tagged_items():
         return_value={"success": True, "updated": False}
     )
 
-    result = await service.update_all_items(scan_limit=10, treated_limit=10, dry_run=True)
+    result = await service.update_all_items(
+        scan_limit=10,
+        treated_limit=10,
+        dry_run=True,
+    )
 
     assert result["processed_candidates"] == 1
     assert result["ai_metadata_tagged"] == 1
     assert result["skipped"] == 2
     service.update_item_metadata.assert_awaited_once_with("A1", dry_run=True)
+
+
+@pytest.mark.asyncio
+async def test_update_all_items_rejects_invalid_limits():
+    item_service = AsyncMock()
+    metadata_service = AsyncMock()
+    service = MetadataUpdateService(item_service, metadata_service)
+
+    result = await service.update_all_items(
+        scan_limit=0,
+        treated_limit=10,
+        dry_run=True,
+    )
+
+    assert result["error"] == "invalid metadata update parameters"
+    assert result["operation"] == "metadata_update"
+    assert result["status"] == "validation_error"
+    assert result["success"] is False
 
 
 @pytest.mark.asyncio

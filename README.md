@@ -41,156 +41,177 @@
 ## 核心服务
 
 ### 1. Scanner Service (`scanner.py`)
-
-**业务逻辑**: 扫描库中需要 AI 分析的条目
-
-**实现**:
-- `GlobalScanner.scan_and_process()` - 多阶段扫描策略
-  1. 优先扫描 `source_collection` (默认: `00_INBOXS`)
-  2. 如需更多条目，扫描整个库
-  3. 累积候选项直到达到 `treated_limit`
-  4. 过滤有 PDF 但缺少"AI分析"标签的条目
-  5. 处理最多 `treated_limit` 个条目
-
-**参数** (默认值):
-| 参数 | 默认值 | 说明 |
-|------|---------|------|
-| `scan_limit` | 100 | 每批从 API 获取的条目数 |
-| `treated_limit` | 20 | 最多处理的条目总数 |
-| `source_collection` | `"00_INBOXS"` | 优先扫描的集合 |
-| `target_collection` | `"01_SHORTTERMS"` | 分析后移动到的集合 |
-| `dry_run` | `False` | 预览模式，不执行更改 |
-| `llm_provider` | `"auto"` | LLM 提供商 |
-| `include_multimodal` | `True` | 启用多模态分析 |
-
-**跳过条件**: 条目有"AI分析"标签 或无 PDF 附件
+- 入口: `GlobalScanner.scan_and_process()`
+- 目标: 扫描需要 AI 分析的条目并触发分析
+- 逻辑阶段:
+1. 扫描 `source_collection`（默认 `00_INBOXS`）
+2. 候选不足时按集合顺序继续扫描
+3. 过滤规则: 必须有 PDF 且未带 `AI分析` 标签
+4. 执行分析并可移动到 `target_collection`
 
 ### 2. Metadata Update Service (`metadata_update_service.py`)
-
-**业务逻辑**: 通过 Crossref/OpenAlex API 增强 Zotero 条目元数据
-
-**实现**:
-- `_clean_html_title()` - 清理 HTML 标签和实体
-- `_fetch_enhanced_metadata()` - 从 API 获取增强元数据
-  - 先通过 DOI 查询
-  - DOI 不存在时通过标题查询 Crossref
-  - 通过 DOI 查询 OpenAlex 获取额外字段
-- `_build_updated_item_data()` - 构建更新的条目数据
-
-**参数** (默认值):
-| 参数 | 默认值 | 说明 |
-|------|---------|------|
-| `scan_limit` | 500 | 每批获取的条目数 |
-| `treated_limit` | 100 | 最多更新的条目数 |
-| `dry_run` | `False` | 预览模式 |
-| `skip_tag` | `"AI元数据"` | 跳过已有此标签的条目 |
-
-**字段映射**:
-```python
-_METADATA_FIELD_MAP = {
-    "doi": "DOI",
-    "journal": "publicationTitle",
-    "publisher": "publisher",
-    "volume": "volume",
-    "issue": "issue",
-    "pages": "pages",
-    "abstract": "abstractNote",
-}
-```
+- 入口: `MetadataUpdateService.update_all_items()`
+- 目标: 使用 Crossref/OpenAlex 增强条目元数据
+- 逻辑要点:
+1. 先按 DOI 查，DOI 路径不再降级 title/url
+2. 清洗 HTML 标题后再做 title 查询
+3. 将扩展信息安全写入 `extra`
 
 ### 3. Duplicate Detection Service (`duplicate_service.py`)
-
-**业务逻辑**: 检测并删除重复的 Zotero 条目
-
-**实现**:
-- `find_and_remove_duplicates()` - 扫描并分组重复项
-  - 按优先级分组: DOI > 标题 > URL
-  - 保留最完整的条目（有附件/笔记）
-  - 将重复项移动到回收站集合
-
-**参数** (默认值):
-| 参数 | 默认值 | 说明 |
-|------|---------|------|
-| `collection_key` | `None` | 限制扫描的集合 |
-| `scan_limit` | 500 | 每批获取的条目数 |
-| `treated_limit` | 1000 | 最多找到的重复项数 |
-| `dry_run` | `False` | 预览模式 |
-| `trash_collection` | `"06_TRASHES"` | 移动重复项到的集合 |
+- 入口: `DuplicateDetectionService.find_and_remove_duplicates()`
+- 目标: 检测并删除重复条目（永久删除，不移动回收站）
+- 分组优先级: `DOI > title > URL`
+- 保留策略: 按完整度评分保留主条目
 
 ### 4. Workflow Service (`workflow.py`)
-
-**业务逻辑**: 带检查点/恢复的批量分析
-
-**实现**:
-- `analyze_items()` - 批量分析 PDF
-  - 检查跳过条件（已有标签、无 PDF）
-  - 提取 PDF 内容和图片
-  - 调用 LLM 分析
-  - 生成结构化笔记
-  - 保存笔记并添加标签
-- `CheckpointService` - 保存/恢复分析状态
-
-**参数** (默认值):
-| 参数 | 默认值 | 说明 |
-|------|---------|------|
-| `llm_provider` | `"auto"` | LLM 提供商 |
-| `multimodal` | `True` | 启用多模态分析 |
-| `target_collection` | `"01_SHORTTERMS"` | 分析后移动到的集合 |
-| `note_format` | `"html"` | 笔记格式 |
-
-**检查点文件**: `~/.config/zotero-mcp/checkpoints/{workflow_id}.json`
+- 入口: `WorkflowService.prepare_analysis()` / `WorkflowService.batch_analyze()`
+- 目标: 批量 PDF 分析、生成结构化笔记、支持检查点恢复
 
 ### 5. Semantic Search (`semantic_search.py`)
+- 入口: `ZoteroSemanticSearch.search()` / `update_database()`
+- 目标: ChromaDB 向量检索与索引更新
+- 当前行为:
+1. `limit <= 0` 直接返回空结果
+2. 兼容空嵌套列表结果结构
+3. 连接拒绝抛出 `RuntimeError`
 
-**业务逻辑**: ChromaDB 向量相似度搜索
+## 统一参数与返回约定
 
-**实现**:
-- `SemanticSearch.search()` - 向量搜索
-  - 查询文本嵌入
-  - ChromaDB 相似度搜索
-  - 返回带分数的结果
+### 参数模型
+跨服务的批处理入口统一由显式参数模型约束:
+- `src/zotero_mcp/models/operations.py`
+  - `ScannerRunParams`
+  - `MetadataUpdateBatchParams`
+  - `DuplicateScanParams`
 
-**参数** (默认值):
-| 参数 | 默认值 | 说明 |
-|------|---------|------|
-| `limit` | 10 | 返回结果数 |
-| `min_score` | 0.0 | 最低相似度分数 |
+这三个模型统一了:
+- 默认值
+- 数值边界（如 `scan_limit >= 1`）
+- 禁止隐式额外字段（`extra="forbid"`）
 
-**嵌入模型**:
-- `default`: 免费模型 (chromadb-default)
-- `openai`: `text-embedding-3-small`
-- `gemini`: `models/text-embedding-004`
+### 运行结果结构
+批处理服务统一返回 envelope（并保留兼容字段）:
+- `src/zotero_mcp/services/common/operation_result.py`
+  - `operation_success(...)`
+  - `operation_error(...)`
+
+统一字段:
+- `success`
+- `operation`
+- `status`
+- `metrics`
+- `message` / `error` / `details`
+
+### 分页扫描 helper
+重复的 `offset + limit` 循环已统一:
+- `src/zotero_mcp/services/common/pagination.py`
+  - `iter_offset_batches(...)`
+
+已接入:
+- `scanner.py`
+- `metadata_update_service.py`
+- `duplicate_service.py`
 
 ## CLI 命令
 
-### 扫描和分析
-```bash
-zotero-mcp scan                    # 扫描未处理论文
-zotero-mcp scan --treated-limit 10  # 最多处理 10 条
-zotero-mcp scan --source-collection "00_INBOXS"
-```
+### 命令总览
+| 命令 | 说明 |
+|------|------|
+| `serve` | 启动 MCP stdio 服务 |
+| `setup` | 配置 zotero-mcp |
+| `semantic-db-update` | 更新语义搜索数据库 |
+| `semantic-db-status` | 查看语义数据库状态 |
+| `semantic-db-inspect` | 检查已索引文档 |
+| `update` | 更新 zotero-mcp 程序 |
+| `scan` | 扫描并分析条目 |
+| `update-metadata` | 批量更新元数据 |
+| `deduplicate` | 检测并删除重复条目 |
+| `clean-empty` | 清理空条目 |
+| `clean-tags` | 清理标签（保留指定前缀） |
+| `version` | 输出版本号 |
+| `setup-info` | 输出安装与配置信息 |
 
-### 元数据更新
-```bash
-zotero-mcp update-metadata                      # 更新元数据
-zotero-mcp update-metadata --treated-limit 50   # 最多更新 50 条
-zotero-mcp update-metadata --dry-run          # 预览模式
-```
+### `scan`
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `--scan-limit` | `100` | 每批抓取条目数 |
+| `--treated-limit` | `20` | 最多处理条目数 |
+| `--target-collection` | 必填 | 分析后移动目标集合 |
+| `--dry-run` | `False` | 预览模式 |
+| `--llm-provider` | `auto` | `auto/claude-cli/deepseek/openai/gemini` |
+| `--source-collection` | `00_INBOXS` | 优先扫描集合 |
+| `--multimodal` / `--no-multimodal` | `True` | 是否启用多模态 |
 
-### 去重
-```bash
-zotero-mcp deduplicate                    # 查找并删除重复项
-zotero-mcp deduplicate --dry-run          # 预览重复项
-zotero-mcp deduplicate --trash-collection "My Trash"
-```
+### `update-metadata`
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `--collection` | `None` | 限制集合（key） |
+| `--scan-limit` | `500` | 每批抓取条目数 |
+| `--treated-limit` | `None` | 最大处理条目数 |
+| `--item-key` | `None` | 仅更新指定条目 |
+| `--dry-run` | `False` | 预览模式 |
 
-### 语义搜索
-```bash
-zotero-mcp update-db                    # 更新数据库（元数据）
-zotero-mcp update-db --fulltext          # 包含全文
-zotero-mcp update-db --force-rebuild      # 强制重建
-zotero-mcp db-status                      # 检查状态
-```
+### `deduplicate`
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `--collection` | `None` | 限制集合（key） |
+| `--scan-limit` | `500` | 每批抓取条目数 |
+| `--treated-limit` | `100` | 最大扫描条目数 |
+| `--dry-run` | `False` | 预览模式 |
+
+### `semantic-db-update`
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `--force-rebuild` | `False` | 强制重建向量库 |
+| `--scan-limit` | `500` | 每批抓取条目数 |
+| `--treated-limit` | `100` | 最大处理条目数 |
+| `--no-fulltext` | `False` | 禁用全文提取 |
+| `--config-path` | `None` | 指定语义配置路径 |
+| `--db-path` | `None` | 指定 Zotero DB 路径 |
+
+### `semantic-db-inspect`
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `--limit` | `20` | 输出记录数 |
+| `--filter` | `None` | 按标题/作者过滤 |
+| `--filter-field` | `title` | `doi/title/author` |
+| `--show-documents` | `False` | 显示文档片段 |
+| `--stats` | `False` | 仅输出统计 |
+| `--config-path` | `None` | 指定语义配置路径 |
+
+### `clean-empty`
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `--collection` | `None` | 限制集合（name） |
+| `--scan-limit` | `500` | 每批抓取条目数 |
+| `--treated-limit` | `100` | 最大删除条目数 |
+| `--dry-run` | `False` | 预览模式 |
+
+### `clean-tags`
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `--collection` | `None` | 限制集合（name） |
+| `--batch-size` | `50` | 每批处理条目数 |
+| `--limit` | `None` | 最大处理条目总数 |
+| `--keep-prefix` | `AI` | 保留此前缀标签 |
+| `--dry-run` | `False` | 预览模式 |
+
+### `update`
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `--check-only` | `False` | 仅检查更新 |
+| `--force` | `False` | 强制更新 |
+| `--method` | `None` | `pip/uv/conda/pipx` |
+
+### `setup`
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `--no-local` | `True` | 配置为 Web API 模式 |
+| `--zotero-api-key` | 环境变量 | Zotero API key |
+| `--library-id` | `None` | Zotero library ID |
+| `--library-type` | `user` | `user/group` |
+| `--skip-semantic-search` | `False` | 跳过语义搜索配置 |
+| `--semantic-config-only` | `True` | 仅配置语义搜索 |
 
 ## 环境变量
 

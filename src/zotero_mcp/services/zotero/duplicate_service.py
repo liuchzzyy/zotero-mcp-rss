@@ -12,7 +12,15 @@ from dataclasses import dataclass, field
 import logging
 from typing import Any
 
+from pydantic import ValidationError
+
 from zotero_mcp.models.common import SearchResultItem
+from zotero_mcp.models.operations import DuplicateScanParams
+from zotero_mcp.services.common.operation_result import (
+    operation_error,
+    operation_success,
+)
+from zotero_mcp.services.common.pagination import iter_offset_batches
 from zotero_mcp.services.common.retry import async_retry_with_backoff
 from zotero_mcp.services.zotero.item_service import ItemService
 from zotero_mcp.utils.formatting.helpers import clean_title
@@ -87,6 +95,30 @@ class DuplicateDetectionService:
         Returns:
             Dict with scan statistics and duplicate groups
         """
+        try:
+            params = DuplicateScanParams(
+                collection_key=collection_key,
+                scan_limit=scan_limit,
+                treated_limit=treated_limit,
+                dry_run=dry_run,
+            )
+        except ValidationError as e:
+            logger.error(f"Invalid dedup parameters: {e}")
+            return operation_error(
+                "deduplicate",
+                "invalid dedup parameters",
+                status="validation_error",
+                details=e.errors(),
+                extra={
+                    "total_scanned": 0,
+                    "duplicates_found": 0,
+                    "duplicates_removed": 0,
+                    "cross_folder_copies": 0,
+                    "groups": [],
+                    "dry_run": False,
+                },
+            )
+
         logger.info("🔍 Starting duplicate detection...")
 
         duplicate_groups: list[DuplicateGroup] = []
@@ -94,8 +126,8 @@ class DuplicateDetectionService:
         total_duplicates_found = 0
         cross_folder_copies = 0
 
-        if collection_key:
-            collection_keys = [collection_key]
+        if params.collection_key:
+            collection_keys = [params.collection_key]
         else:
             logger.info("📚 Scanning all collections in name order...")
             collections = await self.item_service.get_sorted_collections()
@@ -103,16 +135,17 @@ class DuplicateDetectionService:
 
         # Scan collections sequentially
         for coll_key in collection_keys:
-            if total_duplicates_found >= treated_limit:
+            if total_duplicates_found >= params.treated_limit:
                 logger.info(
-                    f"⛔ Reached limit ({treated_limit} duplicates), stopping scan"
+                    f"⛔ Reached limit ({params.treated_limit} duplicates), "
+                    "stopping scan"
                 )
                 break
 
             scanned, dups_found, cf_copies = await self._scan_collection_for_duplicates(
                 coll_key=coll_key,
-                scan_limit=scan_limit,
-                treated_limit=treated_limit,
+                scan_limit=params.scan_limit,
+                treated_limit=params.treated_limit,
                 total_duplicates_found=total_duplicates_found,
                 duplicate_groups=duplicate_groups,
             )
@@ -126,35 +159,64 @@ class DuplicateDetectionService:
             f"{len(duplicate_groups)} groups"
         )
 
-        if dry_run:
+        if params.dry_run:
             logger.info("🔍 DRY RUN: No items will be deleted")
             for group in duplicate_groups:
                 logger.info(
                     f"  → Would delete {len(group.duplicate_keys)} items "
                     f"({group.match_reason}: {group.match_value[:50]})"
                 )
-            return {
-                "total_scanned": total_scanned,
-                "duplicates_found": total_duplicates_found,
-                "duplicates_removed": 0,
-                "cross_folder_copies": cross_folder_copies,
-                "groups": duplicate_groups,
-                "dry_run": True,
+            metrics = {
+                "scanned": total_scanned,
+                "candidates": total_duplicates_found,
+                "processed": 0,
+                "updated": 0,
+                "skipped": cross_folder_copies,
+                "failed": 0,
+                "removed": 0,
             }
+            return operation_success(
+                "deduplicate",
+                metrics,
+                message="Dry run completed",
+                dry_run=True,
+                extra={
+                    "total_scanned": total_scanned,
+                    "duplicates_found": total_duplicates_found,
+                    "duplicates_removed": 0,
+                    "cross_folder_copies": cross_folder_copies,
+                    "groups": duplicate_groups,
+                    "dry_run": True,
+                },
+            )
 
         # Remove duplicates (permanently delete)
         duplicates_removed = await self._remove_duplicates(duplicate_groups)
 
         logger.info(f"✅ Removed {duplicates_removed} duplicate ITEM(s)")
 
-        return {
-            "total_scanned": total_scanned,
-            "duplicates_found": total_duplicates_found,
-            "duplicates_removed": duplicates_removed,
-            "cross_folder_copies": cross_folder_copies,
-            "groups": duplicate_groups,
-            "dry_run": False,
+        metrics = {
+            "scanned": total_scanned,
+            "candidates": total_duplicates_found,
+            "processed": total_duplicates_found,
+            "updated": 0,
+            "skipped": cross_folder_copies,
+            "failed": 0,
+            "removed": duplicates_removed,
         }
+        return operation_success(
+            "deduplicate",
+            metrics,
+            message=f"Removed {duplicates_removed} duplicate items",
+            extra={
+                "total_scanned": total_scanned,
+                "duplicates_found": total_duplicates_found,
+                "duplicates_removed": duplicates_removed,
+                "cross_folder_copies": cross_folder_copies,
+                "groups": duplicate_groups,
+                "dry_run": False,
+            },
+        )
 
     async def _scan_collection_for_duplicates(
         self,
@@ -175,17 +237,12 @@ class DuplicateDetectionService:
         scanned = 0
         dups_found = 0
         cf_copies = 0
-        offset = 0
 
-        while total_duplicates_found + dups_found < treated_limit:
-            # Capture current offset in lambda default parameter
-            items = await async_retry_with_backoff(
-                lambda o=offset: self.item_service.get_collection_items(
-                    coll_key, limit=scan_limit, start=o
-                ),
-                description=f"Scan collection {coll_key} (offset {offset})",
-            )
-            if not items:
+        async for _, items in iter_offset_batches(
+            self._make_collection_batch_fetcher(coll_key),
+            batch_size=scan_limit,
+        ):
+            if total_duplicates_found + dups_found >= treated_limit:
                 break
 
             scanned += len(items)
@@ -207,12 +264,27 @@ class DuplicateDetectionService:
                 f"{total_duplicates_found + dups_found} total duplicates found"
             )
 
-            if len(items) < scan_limit:
-                break
-
-            offset += scan_limit
-
         return scanned, dups_found, cf_copies
+
+    def _make_collection_batch_fetcher(self, coll_key: str):
+        """Build a paged fetch function with retry for duplicate scans."""
+
+        async def _fetch_page(offset: int, limit: int):
+            def _fetch_items(
+                collection_key: str = coll_key,
+                page_limit: int = limit,
+                page_offset: int = offset,
+            ):
+                return self.item_service.get_collection_items(
+                    collection_key, limit=page_limit, start=page_offset
+                )
+
+            return await async_retry_with_backoff(
+                _fetch_items,
+                description=f"Scan collection {coll_key} (offset {offset})",
+            )
+
+        return _fetch_page
 
     async def _find_duplicate_groups(
         self,

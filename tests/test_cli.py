@@ -3,6 +3,8 @@
 import subprocess
 import sys
 
+from zotero_mcp.cli import obfuscate_config_for_display
+
 
 def test_scan_help_shows_multimodal_flags():
     """Test that scan command help shows multi-modal flags."""
@@ -97,3 +99,22 @@ def test_dry_run_flag():
 
     assert "--dry-run" in result.stdout
     assert "Preview without processing" in result.stdout
+
+
+def test_obfuscate_config_masks_api_keys_and_tokens():
+    config = {
+        "DEEPSEEK_API_KEY": "sk-1234567890",
+        "OPENAI_API_KEY": "sk-openai-123456",
+        "CUSTOM_TOKEN": "token-abcdef",
+        "NORMAL_VALUE": "visible",
+    }
+
+    obfuscated = obfuscate_config_for_display(config)
+
+    assert obfuscated["DEEPSEEK_API_KEY"].startswith("sk-1")
+    assert "*" in obfuscated["DEEPSEEK_API_KEY"]
+    assert obfuscated["OPENAI_API_KEY"].startswith("sk-o")
+    assert "*" in obfuscated["OPENAI_API_KEY"]
+    assert obfuscated["CUSTOM_TOKEN"].startswith("toke")
+    assert "*" in obfuscated["CUSTOM_TOKEN"]
+    assert obfuscated["NORMAL_VALUE"] == "visible"

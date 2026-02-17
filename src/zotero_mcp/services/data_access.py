@@ -21,6 +21,10 @@ from zotero_mcp.clients.zotero import (
 from zotero_mcp.models.common import SearchResultItem
 from zotero_mcp.services.zotero.item_service import ItemService
 from zotero_mcp.services.zotero.metadata_service import MetadataService
+from zotero_mcp.services.zotero.result_mapper import (
+    api_item_to_search_result,
+    zotero_item_to_search_result,
+)
 from zotero_mcp.services.zotero.search_service import SearchService
 from zotero_mcp.utils.formatting.helpers import is_local_mode
 
@@ -37,7 +41,7 @@ class DataAccessService:
 
     Automatically selects the best available backend for each operation:
     - Local Database: Used for fast reads and search when available.
-    - Zotero API: Used for write operations and fallback when local access is unavailable.
+    - Zotero API: Used for writes and fallback when local access is unavailable.
     """
 
     def __init__(
@@ -331,17 +335,11 @@ class DataAccessService:
 
     def _api_item_to_result(self, item: dict[str, Any]) -> SearchResultItem:
         """Convert API item to SearchResultItem."""
-        # Delegate to search service or item service (both have this helper)
-        # We can expose it in ItemService public API if needed, or duplicate strictly for legacy
-        # For now, it's safer to keep the private method here if it's used internally?
-        # Actually, it's used by SearchService now.
-        # But this class no longer implements logic, so we might not need it unless subclasses use it.
-        # Let's keep a implementation that delegates to ItemService implementation
-        return self.item_service._api_item_to_result(item)
+        return api_item_to_search_result(item)
 
     def _zotero_item_to_result(self, item: ZoteroItem) -> SearchResultItem:
         """Convert ZoteroItem to SearchResultItem."""
-        return self.item_service._zotero_item_to_result(item)
+        return zotero_item_to_search_result(item)
 
 
 @lru_cache(maxsize=1)
