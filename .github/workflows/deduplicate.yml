@@ -27,11 +27,6 @@ on:
         description: "Limit to collection key (optional)"
         required: false
         type: string
-      trash_collection:
-        description: "Trash collection name"
-        required: false
-        default: "06_TRASHES"
-        type: string
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -45,7 +40,7 @@ env:
 
 jobs:
   deduplicate:
-    name: Move Duplicate Items to Trash
+    name: Delete Duplicate Items
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -60,14 +55,12 @@ jobs:
         env:
           INPUT_SCAN_LIMIT: ${{ github.event.inputs.scan_limit || '200' }}
           INPUT_TREATED_LIMIT: ${{ github.event.inputs.treated_limit || '100' }}
-          INPUT_TRASH_COLLECTION: ${{ github.event.inputs.trash_collection || '06_TRASHES' }}
           INPUT_COLLECTION: ${{ github.event.inputs.collection }}
           INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
         run: |
           ARGS=(
             --scan-limit "$INPUT_SCAN_LIMIT"
             --treated-limit "$INPUT_TREATED_LIMIT"
-            --trash-collection "$INPUT_TRASH_COLLECTION"
           )
 
           if [ -n "$INPUT_COLLECTION" ]; then
@@ -102,9 +95,9 @@ jobs:
           if [ -f dedup.log ]; then
             SCANNED=$(grep -oE '(Total scanned|Scanned): [0-9]+' dedup.log | tail -1 | grep -oE '[0-9]+' || echo "0")
             DUPLICATES=$(grep -oE 'Duplicates found: [0-9]+' dedup.log | tail -1 | grep -oE '[0-9]+' || echo "0")
-            MOVED=$(grep -oE '(Duplicates moved to [^:]+|Moved): [0-9]+' dedup.log | tail -1 | awk -F': ' '{print $NF}' || echo "0")
+            DELETED=$(grep -oE '(Duplicates deleted|Deleted): [0-9]+' dedup.log | tail -1 | awk -F': ' '{print $NF}' || echo "0")
             CROSS_FOLDER=$(grep -oE 'Cross-folder copies \(skipped\): [0-9]+' dedup.log | tail -1 | grep -oE '[0-9]+' || echo "0")
-            echo "json={\"Scanned\":\"${SCANNED}\",\"Duplicates found\":\"${DUPLICATES}\",\"Moved to trash\":\"${MOVED}\",\"Cross-folder copies (skipped)\":\"${CROSS_FOLDER}\"}" >> $GITHUB_OUTPUT
+            echo "json={\"Scanned\":\"${SCANNED}\",\"Duplicates found\":\"${DUPLICATES}\",\"Deleted\":\"${DELETED}\",\"Cross-folder copies (skipped)\":\"${CROSS_FOLDER}\"}" >> $GITHUB_OUTPUT
           else
             echo "json={}" >> $GITHUB_OUTPUT
           fi
@@ -122,7 +115,6 @@ jobs:
             | Scan limit | ${{ github.event.inputs.scan_limit || '200' }} |
             | Treated limit | ${{ github.event.inputs.treated_limit || '100' }} |
             | Collection | ${{ github.event.inputs.collection || 'All' }} |
-            | Trash collection | ${{ github.event.inputs.trash_collection || '06_TRASHES' }} |
             | Dry Run | ${{ github.event.inputs.dry_run || 'false' }} |
           metrics: ${{ steps.metrics.outputs.json }}
 
