@@ -20,4 +20,4 @@ runs:
 
     - name: Verify installation
       shell: bash
-      run: uv run zotero-mcp version
+      run: uv run zotero-mcp system version
