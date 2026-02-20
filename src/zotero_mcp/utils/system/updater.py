@@ -8,6 +8,7 @@ method and preserves all user configurations.
 import logging
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -20,6 +21,49 @@ except ImportError:
     requests = None  # type: ignore[assignment]
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_version(version: str) -> str:
+    """Normalize version strings for comparison."""
+    return version.strip().lstrip("v")
+
+
+def _compare_versions(current_version: str, latest_version: str) -> int:
+    """
+    Compare versions.
+
+    Returns:
+        -1 if current < latest
+         0 if current == latest
+         1 if current > latest
+    """
+    current = _normalize_version(current_version)
+    latest = _normalize_version(latest_version)
+
+    try:
+        from packaging.version import Version
+
+        current_parsed = Version(current)
+        latest_parsed = Version(latest)
+        if current_parsed < latest_parsed:
+            return -1
+        if current_parsed > latest_parsed:
+            return 1
+        return 0
+    except Exception:
+        current_parts = tuple(int(part) for part in re.findall(r"\d+", current))
+        latest_parts = tuple(int(part) for part in re.findall(r"\d+", latest))
+        if current_parts and latest_parts:
+            if current_parts < latest_parts:
+                return -1
+            if current_parts > latest_parts:
+                return 1
+            return 0
+        if current < latest:
+            return -1
+        if current > latest:
+            return 1
+        return 0
 
 
 def detect_installation_method() -> str:
@@ -344,18 +388,31 @@ def update_zotero_mcp(
         return result
 
     # Check if update is needed
-    needs_update = current_version != latest_version or force
+    version_cmp = _compare_versions(current_version, latest_version)
+    has_new_release = version_cmp < 0
+    needs_update = has_new_release or force
     result["needs_update"] = needs_update
 
     if not needs_update and not force:
         result["success"] = True
-        result["message"] = f"Already up to date (version {current_version})"
+        if version_cmp > 0:
+            result["message"] = (
+                "Current version "
+                f"({current_version}) is newer than latest release ({latest_version})"
+            )
+        else:
+            result["message"] = f"Already up to date (version {current_version})"
         return result
 
     if check_only:
-        if needs_update:
+        if has_new_release:
             result["message"] = (
                 f"Update available: {current_version} → {latest_version}"
+            )
+        elif version_cmp > 0:
+            result["message"] = (
+                "Current version "
+                f"({current_version}) is newer than latest release ({latest_version})"
             )
         else:
             result["message"] = f"Already up to date (version {current_version})"
