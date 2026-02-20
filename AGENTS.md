@@ -3,6 +3,7 @@
 ## Project Structure & Module Organization
 - Main code lives in `src/zotero_mcp/`.
 - Core layers:
+  - `cli_app/` for CLI command tree (`command -> subcommand` dispatch).
   - `services/` for business workflows (`scanner.py`, `workflow.py`, `services/zotero/*`).
   - `clients/` for external systems (Zotero API/local DB, LLM, metadata, vector DB).
   - `handlers/` for MCP tool/prompt dispatch.
@@ -12,8 +13,12 @@
 - Utility scripts are in `scripts/`; design and planning notes are in `docs/plans/`.
 
 ## Build, Test, and Development Commands
-- `uv run zotero-mcp serve`  
+- `uv run zotero-mcp system serve`  
   Run the MCP server locally over stdio.
+- `uv run zotero-mcp workflow scan --help`  
+  Show workflow scan CLI usage (new command tree style).
+- `uv run zotero-mcp semantic db-status --output json`  
+  Check semantic DB status in machine-readable form.
 - `uv run pytest -q`  
   Run full test suite.
 - `uv run pytest tests/services/test_workflow.py -q`  
@@ -42,9 +47,9 @@
 
 ## Commit & Pull Request Guidelines
 - Use Conventional Commit style seen in history, e.g.:
-  - `feat(cli): add clean-tags command`
+  - `feat(cli): refactor command tree`
   - `fix(llm): remove fulltext limit`
-  - `ci(note-update): align defaults`
+  - `ci(note-update): migrate workflow command path`
 - PRs should include:
   - concise problem/solution summary
   - impacted paths (for example `services/zotero/metadata_update_service.py`)
