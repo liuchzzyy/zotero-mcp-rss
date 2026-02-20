@@ -19,6 +19,7 @@ def test_top_level_help_shows_command_groups():
         "system",
         "workflow",
         "semantic",
+        "tags",
         "items",
         "notes",
         "annotations",
@@ -61,6 +62,23 @@ def test_items_subcommands_are_exposed():
         "add-tags",
         "add-to-collection",
         "remove-from-collection",
+    ]:
+        assert subcommand in result.stdout
+
+
+def test_tags_subcommands_are_exposed():
+    result = subprocess.run(
+        [sys.executable, "-m", "zotero_mcp", "tags", "--help"],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    for subcommand in [
+        "list",
+        "add",
+        "search",
+        "delete",
     ]:
         assert subcommand in result.stdout
 

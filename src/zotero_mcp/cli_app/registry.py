@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from collections.abc import Callable
 
-from zotero_mcp.cli_app.commands import resources, semantic, system, workflow
+from zotero_mcp.cli_app.commands import resources, semantic, system, tags, workflow
 
 
 CommandRunner = Callable[[argparse.Namespace], int]
@@ -19,6 +19,7 @@ def build_parser() -> argparse.ArgumentParser:
         system.register,
         workflow.register,
         semantic.register,
+        tags.register,
         resources.register_items,
         resources.register_notes,
         resources.register_annotations,
@@ -36,6 +37,7 @@ def dispatch(args: argparse.Namespace) -> int:
         "system": system.run,
         "workflow": workflow.run,
         "semantic": semantic.run,
+        "tags": tags.run,
         "items": resources.run_items,
         "notes": resources.run_notes,
         "annotations": resources.run_annotations,
