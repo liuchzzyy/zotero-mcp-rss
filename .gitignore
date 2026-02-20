@@ -15,7 +15,6 @@ build/
 
 # Virtual environments
 venv/
-.env/
 .venv/
 
 # Testing
@@ -36,7 +35,8 @@ Thumbs.db
 
 # Environment variables
 .env
-.env.local
+.env.*
+!.env.example
 
 # Development artifacts
 .ruff_cache/
@@ -51,9 +51,6 @@ tests/fixtures/
 
 # Git worktrees (isolated workspaces)
 worktrees/
-
-# Lock files
-*.lock
 
 # Claude Desktop
 .claude/
