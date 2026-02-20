@@ -4,11 +4,16 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from collections.abc import Awaitable, Callable
 import json
 from pathlib import Path
-from typing import Any, Awaitable, Callable
+from typing import Any
 
-from zotero_mcp.cli_app.common import add_output_arg
+from zotero_mcp.cli_app.common import (
+    add_output_arg,
+    add_scan_limit_arg,
+    add_treated_limit_arg,
+)
 from zotero_mcp.cli_app.output import emit
 from zotero_mcp.utils.config import load_config
 from zotero_mcp.utils.formatting.helpers import normalize_item_key
@@ -104,12 +109,34 @@ def register_items(subparsers: argparse._SubParsersAction) -> None:
     remove_col.add_argument("--collection-key", required=True)
     add_output_arg(remove_col)
 
+    delete_empty = items_sub.add_parser(
+        "delete-empty", help="Find and delete empty items (no title, no attachments)"
+    )
+    delete_empty.add_argument(
+        "--collection", help="Limit to specific collection (by name)"
+    )
+    add_scan_limit_arg(delete_empty, default=500)
+    add_treated_limit_arg(
+        delete_empty,
+        default=100,
+        help_text="Maximum total number of items to delete (default: 100)",
+    )
+    delete_empty.add_argument(
+        "--dry-run",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Preview empty items without deleting (default: disabled)",
+    )
+    add_output_arg(delete_empty)
+
 
 def run_items(args: argparse.Namespace) -> int:
     load_config()
     from zotero_mcp.services.resource_service import ResourceService
+    from zotero_mcp.services.zotero.maintenance_service import LibraryMaintenanceService
 
     service = ResourceService()
+    maintenance_service = LibraryMaintenanceService()
 
     def _load_json(path: str) -> Any:
         with open(path, encoding="utf-8") as file:
@@ -150,6 +177,12 @@ def run_items(args: argparse.Namespace) -> int:
             collection_key=args.collection_key,
             item_key=normalize_item_key(args.item_key),
         ),
+        "delete-empty": lambda: maintenance_service.clean_empty_items(
+            collection_name=args.collection,
+            scan_limit=args.scan_limit,
+            treated_limit=args.treated_limit,
+            dry_run=args.dry_run,
+        ),
     }
 
     handler = handlers.get(args.subcommand)
@@ -179,6 +212,10 @@ def register_notes(subparsers: argparse._SubParsersAction) -> None:
     search.add_argument("--query", required=True)
     _add_paging(search)
     add_output_arg(search)
+
+    delete = notes_sub.add_parser("delete", help="Delete note by key")
+    delete.add_argument("--note-key", required=True)
+    add_output_arg(delete)
 
 
 def run_notes(args: argparse.Namespace) -> int:
@@ -211,6 +248,7 @@ def run_notes(args: argparse.Namespace) -> int:
             limit=args.limit,
             offset=args.offset,
         ),
+        "delete": lambda: service.delete_note(normalize_item_key(args.note_key)),
     }
 
     handler = handlers.get(args.subcommand)
@@ -230,32 +268,95 @@ def register_annotations(subparsers: argparse._SubParsersAction) -> None:
     _add_paging(list_cmd)
     add_output_arg(list_cmd)
 
+    add_cmd = ann_sub.add_parser("add", help="Add annotation to item")
+    add_cmd.add_argument("--item-key", required=True)
+    add_cmd.add_argument(
+        "--annotation-type",
+        default="highlight",
+        choices=["highlight", "note", "underline", "image"],
+    )
+    add_cmd.add_argument("--text", required=True)
+    add_cmd.add_argument("--comment")
+    add_cmd.add_argument("--page-label")
+    add_cmd.add_argument("--color")
+    add_output_arg(add_cmd)
+
+    search_cmd = ann_sub.add_parser("search", help="Search annotations")
+    search_cmd.add_argument("--query", required=True)
+    search_cmd.add_argument(
+        "--annotation-type",
+        default="all",
+        choices=["all", "highlight", "note", "underline", "image"],
+    )
+    _add_paging(search_cmd)
+    add_output_arg(search_cmd)
+
+    delete_cmd = ann_sub.add_parser("delete", help="Delete annotation by key")
+    delete_cmd.add_argument("--annotation-key", required=True)
+    add_output_arg(delete_cmd)
+
 
 def run_annotations(args: argparse.Namespace) -> int:
     load_config()
     from zotero_mcp.services.resource_service import ResourceService
 
     service = ResourceService()
-    result = asyncio.run(
-        service.list_annotations(
+    handlers: dict[str, Callable[[], Awaitable[Any]]] = {
+        "list": lambda: service.list_annotations(
             item_key=normalize_item_key(args.item_key),
             annotation_type=args.annotation_type,
             limit=args.limit,
             offset=args.offset,
-        )
-    )
-    return _emit_result(args, result)
+        ),
+        "add": lambda: service.create_annotation(
+            item_key=normalize_item_key(args.item_key),
+            annotation_type=args.annotation_type,
+            text=args.text,
+            comment=args.comment,
+            page_label=args.page_label,
+            color=args.color,
+        ),
+        "search": lambda: service.search_annotations(
+            query=args.query,
+            limit=args.limit,
+            offset=args.offset,
+            annotation_type=args.annotation_type,
+        ),
+        "delete": lambda: service.delete_annotation(
+            normalize_item_key(args.annotation_key)
+        ),
+    }
+
+    handler = handlers.get(args.subcommand)
+    if handler is None:
+        raise ValueError(f"Unknown annotations subcommand: {args.subcommand}")
+
+    return _emit_result(args, asyncio.run(handler()))
 
 
 def register_pdfs(subparsers: argparse._SubParsersAction) -> None:
     pdfs = subparsers.add_parser("pdfs", help="PDF attachment operations")
     pdf_sub = pdfs.add_subparsers(dest="subcommand", required=True)
 
-    upload = pdf_sub.add_parser("upload", help="Upload PDF attachment")
-    upload.add_argument("--item-key", required=True)
-    upload.add_argument("--file", required=True, help="Local file path")
-    upload.add_argument("--title")
-    add_output_arg(upload)
+    list_cmd = pdf_sub.add_parser("list", help="List PDFs under an item")
+    list_cmd.add_argument("--item-key", required=True)
+    _add_paging(list_cmd)
+    add_output_arg(list_cmd)
+
+    add_cmd = pdf_sub.add_parser("add", help="Add PDF attachment")
+    add_cmd.add_argument("--item-key", required=True)
+    add_cmd.add_argument("--file", required=True, help="Local file path")
+    add_cmd.add_argument("--title")
+    add_output_arg(add_cmd)
+
+    delete_cmd = pdf_sub.add_parser("delete", help="Delete PDF attachment by key")
+    delete_cmd.add_argument("--item-key", required=True)
+    add_output_arg(delete_cmd)
+
+    search_cmd = pdf_sub.add_parser("search", help="Search PDFs")
+    search_cmd.add_argument("--query", required=True)
+    _add_paging(search_cmd)
+    add_output_arg(search_cmd)
 
 
 def run_pdfs(args: argparse.Namespace) -> int:
@@ -263,14 +364,30 @@ def run_pdfs(args: argparse.Namespace) -> int:
     from zotero_mcp.services.resource_service import ResourceService
 
     service = ResourceService()
-    result = asyncio.run(
-        service.upload_attachment(
+    handlers: dict[str, Callable[[], Awaitable[Any]]] = {
+        "list": lambda: service.list_pdfs(
+            item_key=normalize_item_key(args.item_key),
+            limit=args.limit,
+            offset=args.offset,
+        ),
+        "add": lambda: service.upload_attachment(
             item_key=normalize_item_key(args.item_key),
             file_path=args.file,
             title=args.title,
-        )
-    )
-    return _emit_result(args, result)
+        ),
+        "delete": lambda: service.delete_pdf(normalize_item_key(args.item_key)),
+        "search": lambda: service.search_pdfs(
+            query=args.query,
+            limit=args.limit,
+            offset=args.offset,
+        ),
+    }
+
+    handler = handlers.get(args.subcommand)
+    if handler is None:
+        raise ValueError(f"Unknown pdfs subcommand: {args.subcommand}")
+
+    return _emit_result(args, asyncio.run(handler()))
 
 
 def register_collections(subparsers: argparse._SubParsersAction) -> None:
@@ -304,6 +421,23 @@ def register_collections(subparsers: argparse._SubParsersAction) -> None:
     delete.add_argument("--collection-key", required=True)
     add_output_arg(delete)
 
+    delete_empty = col_sub.add_parser(
+        "delete-empty", help="Delete empty collections (no items)"
+    )
+    delete_empty.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        help="Maximum number of empty collections to process",
+    )
+    delete_empty.add_argument(
+        "--dry-run",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Preview without deleting (default: disabled)",
+    )
+    add_output_arg(delete_empty)
+
     items = col_sub.add_parser("items", help="List items in collection")
     items.add_argument("--collection-key", required=True)
     _add_paging(items)
@@ -330,6 +464,10 @@ def run_collections(args: argparse.Namespace) -> int:
             parent_key=args.parent_key,
         ),
         "delete": lambda: service.delete_collection(args.collection_key),
+        "delete-empty": lambda: service.delete_empty_collections(
+            dry_run=args.dry_run,
+            limit=args.limit,
+        ),
         "items": lambda: service.list_collection_items(
             collection_key=args.collection_key,
             limit=args.limit,

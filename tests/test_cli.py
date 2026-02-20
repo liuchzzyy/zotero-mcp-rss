@@ -5,6 +5,7 @@ import subprocess
 import sys
 
 from zotero_mcp.cli_app.commands.system import obfuscate_config_for_display
+from zotero_mcp.cli_app.registry import build_parser
 
 
 def test_top_level_help_shows_command_groups():
@@ -42,6 +43,24 @@ def test_workflow_scan_help_shows_multimodal_flag():
     assert "--target-collection" in result.stdout
 
 
+def test_workflow_subcommands_follow_new_framework():
+    result = subprocess.run(
+        [sys.executable, "-m", "zotero_mcp", "workflow", "--help"],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    for subcommand in [
+        "scan",
+        "metadata-update",
+        "deduplicate",
+    ]:
+        assert subcommand in result.stdout
+    assert "clean-tags" not in result.stdout
+    assert "clean-empty" not in result.stdout
+
+
 def test_items_subcommands_are_exposed():
     result = subprocess.run(
         [sys.executable, "-m", "zotero_mcp", "items", "--help"],
@@ -62,6 +81,7 @@ def test_items_subcommands_are_exposed():
         "add-tags",
         "add-to-collection",
         "remove-from-collection",
+        "delete-empty",
     ]:
         assert subcommand in result.stdout
 
@@ -79,8 +99,98 @@ def test_tags_subcommands_are_exposed():
         "add",
         "search",
         "delete",
+        "rename",
     ]:
         assert subcommand in result.stdout
+
+
+def test_notes_subcommands_are_exposed():
+    result = subprocess.run(
+        [sys.executable, "-m", "zotero_mcp", "notes", "--help"],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    for subcommand in [
+        "list",
+        "create",
+        "search",
+        "delete",
+    ]:
+        assert subcommand in result.stdout
+
+
+def test_annotations_subcommands_are_exposed():
+    result = subprocess.run(
+        [sys.executable, "-m", "zotero_mcp", "annotations", "--help"],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    for subcommand in [
+        "list",
+        "add",
+        "search",
+        "delete",
+    ]:
+        assert subcommand in result.stdout
+
+
+def test_pdfs_subcommands_are_exposed():
+    result = subprocess.run(
+        [sys.executable, "-m", "zotero_mcp", "pdfs", "--help"],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    for subcommand in [
+        "list",
+        "add",
+        "search",
+        "delete",
+    ]:
+        assert subcommand in result.stdout
+
+
+def test_collections_subcommands_are_exposed():
+    result = subprocess.run(
+        [sys.executable, "-m", "zotero_mcp", "collections", "--help"],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    for subcommand in [
+        "list",
+        "find",
+        "create",
+        "rename",
+        "move",
+        "delete",
+        "delete-empty",
+        "items",
+    ]:
+        assert subcommand in result.stdout
+
+
+def test_dry_run_defaults_are_disabled():
+    parser = build_parser()
+    scenarios = [
+        ["workflow", "scan", "--target-collection", "01_SHORTTERMS"],
+        ["workflow", "metadata-update"],
+        ["workflow", "deduplicate"],
+        ["items", "delete-empty"],
+        ["tags", "delete"],
+        ["tags", "rename", "--old-name", "old", "--new-name", "new"],
+        ["collections", "delete-empty"],
+    ]
+
+    for argv in scenarios:
+        args = parser.parse_args(argv)
+        assert args.dry_run is False, f"Expected dry_run=False for: {' '.join(argv)}"
 
 
 def test_semantic_status_supports_json_output():
