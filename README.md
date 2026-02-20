@@ -141,11 +141,11 @@ zotero-mcp <command> <subcommand> [parameters]
 - `zotero-mcp system update [--check-only --force --method pip|uv|conda|pipx]`
 
 ### `workflow` 子命令
-- `zotero-mcp workflow scan`
+- `zotero-mcp workflow item-analysis`
 - `zotero-mcp workflow metadata-update`
 - `zotero-mcp workflow deduplicate`
 
-#### `workflow scan` 常用参数
+#### `workflow item-analysis` 常用参数
 | 参数 | 默认值 | 说明 |
 |------|--------|------|
 | `--scan-limit` | `100` | 每批抓取条目数 |
@@ -188,7 +188,7 @@ zotero-mcp <command> <subcommand> [parameters]
 
 ```bash
 # 扫描并分析
-zotero-mcp workflow scan --target-collection 01_SHORTTERMS --output json
+zotero-mcp workflow item-analysis --target-collection 01_SHORTTERMS --output json
 
 # 更新元数据
 zotero-mcp workflow metadata-update --scan-limit 200 --treated-limit 100

@@ -29,11 +29,9 @@
 - 实现文件：`src/zotero_mcp/cli_app/commands/system.py`
 
 #### `workflow`
-- `scan` -> `GlobalScanner.scan_and_process`
+- `item-analysis` -> `GlobalScanner.scan_and_process`
 - `metadata-update` -> `MetadataUpdateService.update_item_metadata / update_all_items`
 - `deduplicate` -> `DuplicateDetectionService.find_and_remove_duplicates`
-- `clean-empty` -> 基于 `DataAccessService` 扫描并删除空父条目
-- `clean-tags` -> 扫描并按前缀保留 tags
 - 实现文件：`src/zotero_mcp/cli_app/commands/workflow.py`
 
 #### `semantic`
@@ -87,8 +85,8 @@
 ## Build, Test, and Development Commands
 - `uv run zotero-mcp system serve`  
   Run the MCP server locally over stdio.
-- `uv run zotero-mcp workflow scan --help`  
-  Show workflow scan CLI usage.
+- `uv run zotero-mcp workflow item-analysis --help`  
+  Show workflow item-analysis CLI usage.
 - `uv run zotero-mcp semantic db-status --output json`  
   Check semantic DB status.
 - `uv run pytest -q`  

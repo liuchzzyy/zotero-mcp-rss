@@ -1,4 +1,4 @@
-name: Note Update
+name: Item Analysis
 
 on:
   schedule:
@@ -29,7 +29,7 @@ on:
         default: "01_SHORTTERMS"
         type: string
       llm_provider:
-        description: "LLM provider for scan command"
+        description: "LLM provider for item-analysis command"
         required: false
         default: "deepseek"
         type: choice
@@ -59,8 +59,8 @@ env:
   ENV_MODE: production
 
 jobs:
-  global-analysis:
-    name: Update Analysis Notes
+  item-analysis:
+    name: Run Item Analysis
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -70,8 +70,8 @@ jobs:
       - name: Setup Zotero MCP
         uses: ./.github/actions/setup-zotero-mcp
 
-      - name: Run global scan
-        id: run-scan
+      - name: Run item analysis
+        id: run-item-analysis
         env:
           INPUT_SCAN_LIMIT: ${{ github.event.inputs.scan_limit || '50' }}
           INPUT_TREATED_LIMIT: ${{ github.event.inputs.treated_limit || '20' }}
@@ -99,9 +99,9 @@ jobs:
           fi
           ARGS+=(--output json)
 
-          echo "Command: zotero-mcp workflow scan ${ARGS[*]}"
+          echo "Command: zotero-mcp workflow item-analysis ${ARGS[*]}"
           START_TIME=$(date +%s)
-          uv run zotero-mcp workflow scan "${ARGS[@]}" 2>&1 | tee scan-output.log
+          uv run zotero-mcp workflow item-analysis "${ARGS[@]}" 2>&1 | tee item-analysis.log
           EXIT_CODE=${PIPESTATUS[0]}
           END_TIME=$(date +%s)
           echo "duration=$((END_TIME - START_TIME))" >> $GITHUB_OUTPUT
@@ -112,8 +112,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: global-analysis-logs-${{ github.run_number }}
-          path: scan-output.log
+          name: item-analysis-logs-${{ github.run_number }}
+          path: item-analysis.log
           retention-days: 7
           if-no-files-found: warn
 
@@ -121,13 +121,13 @@ jobs:
         if: always()
         id: metrics
         run: |
-          if [ -f scan-output.log ]; then
+          if [ -f item-analysis.log ]; then
           uv run python - <<'PY'
           import json
           import os
           from pathlib import Path
 
-          text = Path("scan-output.log").read_text(encoding="utf-8", errors="ignore")
+          text = Path("item-analysis.log").read_text(encoding="utf-8", errors="ignore")
           lines = text.splitlines()
           start = -1
           for i, line in enumerate(lines):
@@ -142,12 +142,16 @@ jobs:
                   payload = {}
 
           metrics = payload.get("metrics", {}) if isinstance(payload, dict) else {}
+          skipped_no_fulltext = payload.get(
+              "skipped_no_fulltext",
+              metrics.get("skipped_no_fulltext", metrics.get("skipped", 0)),
+          )
           out = {
               "Total scanned": str(payload.get("total_scanned", 0)),
               "Candidates": str(payload.get("candidates", 0)),
               "Processed": str(payload.get("processed", 0)),
               "Failed": str(payload.get("failed", 0)),
-              "Skipped(no fulltext)": str(metrics.get("skipped_no_fulltext", 0)),
+              "Skipped(no fulltext)": str(skipped_no_fulltext),
           }
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
               f.write("json=" + json.dumps(out, ensure_ascii=False) + "\\n")
@@ -160,10 +164,10 @@ jobs:
         if: always()
         uses: ./.github/actions/generate-summary
         with:
-          title: "Note Update Summary"
-          exit_code: ${{ steps.run-scan.outputs.exit_code }}
-          duration: ${{ steps.run-scan.outputs.duration }}
-          log_file: scan-output.log
+          title: "Item Analysis Summary"
+          exit_code: ${{ steps.run-item-analysis.outputs.exit_code }}
+          duration: ${{ steps.run-item-analysis.outputs.duration }}
+          log_file: item-analysis.log
           config_table: |
             | Run | #${{ github.run_number }} |
             | Source | ${{ github.event.inputs.source_collection || '00_INBOXS' }} |
@@ -176,4 +180,4 @@ jobs:
       - name: Notify on failure
         if: failure() && github.event_name == 'schedule'
         run: |
-          echo "::warning::Note Update workflow failed. Check the logs for details."
+          echo "::warning::Item Analysis workflow failed. Check the logs for details."

@@ -30,9 +30,9 @@ def test_top_level_help_shows_command_groups():
         assert group in result.stdout
 
 
-def test_workflow_scan_help_shows_multimodal_flag():
+def test_workflow_item_analysis_help_shows_multimodal_flag():
     result = subprocess.run(
-        [sys.executable, "-m", "zotero_mcp", "workflow", "scan", "--help"],
+        [sys.executable, "-m", "zotero_mcp", "workflow", "item-analysis", "--help"],
         capture_output=True,
         text=True,
     )
@@ -52,7 +52,7 @@ def test_workflow_subcommands_follow_new_framework():
 
     assert result.returncode == 0
     for subcommand in [
-        "scan",
+        "item-analysis",
         "metadata-update",
         "deduplicate",
     ]:
@@ -179,7 +179,7 @@ def test_collections_subcommands_are_exposed():
 def test_dry_run_defaults_are_disabled():
     parser = build_parser()
     scenarios = [
-        ["workflow", "scan", "--target-collection", "01_SHORTTERMS"],
+        ["workflow", "item-analysis", "--target-collection", "01_SHORTTERMS"],
         ["workflow", "metadata-update"],
         ["workflow", "deduplicate"],
         ["items", "delete-empty"],

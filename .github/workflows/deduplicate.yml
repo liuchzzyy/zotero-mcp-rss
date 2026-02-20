@@ -7,13 +7,13 @@ on:
   workflow_dispatch:
     inputs:
       scan_limit:
-        description: "Items per batch from API"
+        description: "Items per API batch (max effective: 100)"
         required: false
-        default: "200"
+        default: "100"
         type: choice
-        options: ["10", "100", "200", "500"]
+        options: ["10", "50", "100"]
       treated_limit:
-        description: "Maximum duplicate items to find"
+        description: "Maximum duplicate parent items to delete"
         required: false
         default: "100"
         type: choice
@@ -40,7 +40,7 @@ env:
 
 jobs:
   deduplicate:
-    name: Delete Duplicate Items
+    name: Delete Duplicate Parent Items
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -53,7 +53,7 @@ jobs:
       - name: Run deduplication
         id: run-dedup
         env:
-          INPUT_SCAN_LIMIT: ${{ github.event.inputs.scan_limit || '200' }}
+          INPUT_SCAN_LIMIT: ${{ github.event.inputs.scan_limit || '100' }}
           INPUT_TREATED_LIMIT: ${{ github.event.inputs.treated_limit || '100' }}
           INPUT_COLLECTION: ${{ github.event.inputs.collection }}
           INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
@@ -136,7 +136,7 @@ jobs:
           log_file: dedup.log
           config_table: |
             | Run | #${{ github.run_number }} |
-            | Scan limit | ${{ github.event.inputs.scan_limit || '200' }} |
+            | Scan limit | ${{ github.event.inputs.scan_limit || '100' }} |
             | Treated limit | ${{ github.event.inputs.treated_limit || '100' }} |
             | Collection | ${{ github.event.inputs.collection || 'All' }} |
             | Dry Run | ${{ github.event.inputs.dry_run || 'false' }} |

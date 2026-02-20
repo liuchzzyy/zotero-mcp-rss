@@ -20,42 +20,44 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     workflow = subparsers.add_parser("workflow", help="Batch workflow commands")
     workflow_sub = workflow.add_subparsers(dest="subcommand", required=True)
 
-    scan = workflow_sub.add_parser(
-        "scan", help="Scan library and analyze items without AI notes"
+    item_analysis = workflow_sub.add_parser(
+        "item-analysis", help="Scan library and analyze items without AI notes"
     )
-    add_scan_limit_arg(scan, default=100)
+    add_scan_limit_arg(item_analysis, default=100)
     add_treated_limit_arg(
-        scan, default=20, help_text="Maximum total items to process (default: 20)"
+        item_analysis,
+        default=20,
+        help_text="Maximum total items to process (default: 20)",
     )
-    scan.add_argument(
+    item_analysis.add_argument(
         "--target-collection",
         required=True,
         help="Move items to this collection after analysis (required)",
     )
-    scan.add_argument(
+    item_analysis.add_argument(
         "--dry-run",
         action=argparse.BooleanOptionalAction,
         default=False,
         help="Preview without processing (default: disabled)",
     )
-    scan.add_argument(
+    item_analysis.add_argument(
         "--llm-provider",
         choices=["auto", "claude-cli", "deepseek", "openai", "gemini"],
         default="auto",
         help="LLM provider for analysis (default: auto)",
     )
-    scan.add_argument(
+    item_analysis.add_argument(
         "--source-collection",
         default="00_INBOXS",
         help="Collection to scan first (default: 00_INBOXS)",
     )
-    scan.add_argument(
+    item_analysis.add_argument(
         "--multimodal",
         action=argparse.BooleanOptionalAction,
         default=True,
         help="Enable/disable multi-modal analysis (default: enabled)",
     )
-    add_output_arg(scan)
+    add_output_arg(item_analysis)
 
     metadata = workflow_sub.add_parser(
         "metadata-update", help="Update item metadata from external APIs"
@@ -90,7 +92,7 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     )
     add_output_arg(dedup)
 
-async def _run_scan(args: argparse.Namespace) -> dict[str, Any]:
+async def _run_item_analysis(args: argparse.Namespace) -> dict[str, Any]:
     from zotero_mcp.services.scanner import GlobalScanner
 
     scanner = GlobalScanner()
@@ -154,7 +156,7 @@ def run(args: argparse.Namespace) -> int:
     load_config()
 
     handlers = {
-        "scan": _run_scan,
+        "item-analysis": _run_item_analysis,
         "metadata-update": _run_metadata_update,
         "deduplicate": _run_deduplicate,
     }

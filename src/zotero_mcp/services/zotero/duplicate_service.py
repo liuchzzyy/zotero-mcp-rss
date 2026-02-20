@@ -14,7 +14,6 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from zotero_mcp.models.common import SearchResultItem
 from zotero_mcp.models.operations import DuplicateScanParams
 from zotero_mcp.services.common.operation_result import (
     operation_error,
@@ -27,6 +26,8 @@ from zotero_mcp.utils.formatting.helpers import clean_title
 
 logger = logging.getLogger(__name__)
 
+_ZOTERO_API_MAX_PAGE_SIZE = 100
+
 
 @dataclass
 class DuplicateGroup:
@@ -38,23 +39,34 @@ class DuplicateGroup:
     match_value: str = ""  # The DOI/title/URL that matched
 
 
-def _item_to_dict(item: SearchResultItem) -> dict[str, Any]:
-    """Convert a SearchResultItem to a dict format for duplicate checking."""
+def _item_to_dict(item: dict[str, Any]) -> dict[str, Any]:
+    """Normalize raw Zotero API item payload for duplicate checking."""
+    data = item.get("data", {})
     return {
-        "key": item.key,
+        "key": data.get("key", item.get("key", "")),
         "data": {
-            "itemType": item.item_type,
-            "DOI": item.doi,
-            "title": item.title,
-            "url": getattr(item, "url", None),
-            "creators": [],
-            "abstractNote": item.abstract,
-            "publicationTitle": None,
-            "date": item.date,
-            "volume": None,
-            "issue": None,
-            "pages": None,
-            "tags": [{"tag": tag} for tag in (item.tags or [])],
+            "itemType": data.get("itemType"),
+            "parentItem": data.get("parentItem"),
+            "DOI": data.get("DOI"),
+            "title": data.get("title"),
+            "url": data.get("url"),
+            "creators": data.get("creators", []),
+            "abstractNote": data.get("abstractNote"),
+            "publicationTitle": data.get("publicationTitle"),
+            "publisher": data.get("publisher"),
+            "date": data.get("date"),
+            "volume": data.get("volume"),
+            "issue": data.get("issue"),
+            "pages": data.get("pages"),
+            "tags": data.get("tags", []),
+            "journalAbbreviation": data.get("journalAbbreviation"),
+            "language": data.get("language"),
+            "rights": data.get("rights"),
+            "series": data.get("series"),
+            "edition": data.get("edition"),
+            "place": data.get("place"),
+            "extra": data.get("extra"),
+            "ISSN": data.get("ISSN"),
         },
         "children": [],
     }
@@ -65,7 +77,7 @@ class DuplicateDetectionService:
     Service for detecting and removing duplicate Zotero items.
 
     Features:
-    - Scans all items in library or collection
+    - Scans full library or a specific collection
     - Groups duplicates by DOI > title > URL priority
     - Keeps most complete item (with attachments, notes)
     - Removes duplicates safely
@@ -121,37 +133,31 @@ class DuplicateDetectionService:
 
         logger.info("🔍 Starting duplicate detection...")
 
-        duplicate_groups: list[DuplicateGroup] = []
-        total_scanned = 0
-        total_duplicates_found = 0
-        cross_folder_copies = 0
-
         if params.collection_key:
-            collection_keys = [params.collection_key]
-        else:
-            logger.info("📚 Scanning all collections in name order...")
-            collections = await self.item_service.get_sorted_collections()
-            collection_keys = [coll["key"] for coll in collections]
-
-        # Scan collections sequentially
-        for coll_key in collection_keys:
-            if total_duplicates_found >= params.treated_limit:
-                logger.info(
-                    f"⛔ Reached limit ({params.treated_limit} duplicates), "
-                    "stopping scan"
-                )
-                break
-
-            scanned, dups_found, cf_copies = await self._scan_collection_for_duplicates(
-                coll_key=coll_key,
+            logger.info(f"📚 Scanning collection: {params.collection_key}")
+            all_items, total_scanned = await self._collect_collection_items(
+                coll_key=params.collection_key,
                 scan_limit=params.scan_limit,
-                treated_limit=params.treated_limit,
-                total_duplicates_found=total_duplicates_found,
-                duplicate_groups=duplicate_groups,
             )
-            total_scanned += scanned
-            total_duplicates_found += dups_found
-            cross_folder_copies += cf_copies
+        else:
+            logger.info("📚 Scanning full library...")
+            all_items, total_scanned = await self._collect_library_items(
+                scan_limit=params.scan_limit
+            )
+
+        group_result = await self._find_duplicate_groups(all_items)
+        duplicate_groups = group_result["groups"]
+        cross_folder_copies = group_result["cross_folder_copies"]
+        total_duplicates_found = sum(len(g.duplicate_keys) for g in duplicate_groups)
+
+        if total_duplicates_found > params.treated_limit:
+            logger.info(
+                f"⛔ Reached limit ({params.treated_limit} duplicates), trimming results"
+            )
+            duplicate_groups = self._limit_duplicate_groups(
+                duplicate_groups, params.treated_limit
+            )
+            total_duplicates_found = sum(len(g.duplicate_keys) for g in duplicate_groups)
 
         logger.info(
             f"📊 Scan complete: {total_scanned} items scanned, "
@@ -218,53 +224,52 @@ class DuplicateDetectionService:
             },
         )
 
-    async def _scan_collection_for_duplicates(
+    async def _collect_collection_items(
         self,
         coll_key: str,
         scan_limit: int,
-        treated_limit: int,
-        total_duplicates_found: int,
-        duplicate_groups: list[DuplicateGroup],
-    ) -> tuple[int, int, int]:
-        """
-        Scan a single collection for duplicates in batches.
-
-        Mutates duplicate_groups in place by appending new groups.
-
-        Returns:
-            Tuple of (items_scanned, new_duplicates_found, cross_folder_copies)
-        """
+    ) -> tuple[list[dict[str, Any]], int]:
+        """Collect all items from a collection across paginated batches."""
         scanned = 0
-        dups_found = 0
-        cf_copies = 0
+        collected: list[dict[str, Any]] = []
+        batch_size = self._effective_batch_size(scan_limit)
 
-        async for _, items in iter_offset_batches(
+        async for offset, items in iter_offset_batches(
             self._make_collection_batch_fetcher(coll_key),
-            batch_size=scan_limit,
+            batch_size=batch_size,
         ):
-            if total_duplicates_found + dups_found >= treated_limit:
-                break
-
             scanned += len(items)
             batch_items = [_item_to_dict(item) for item in items]
-
-            new_groups = await self._find_duplicate_groups(
-                batch_items, existing_groups=duplicate_groups
-            )
-
-            duplicate_groups.extend(new_groups["groups"])
-            cf_copies += new_groups["cross_folder_copies"]
-
-            new_duplicates = sum(len(g.duplicate_keys) for g in new_groups["groups"])
-            dups_found += new_duplicates
-
+            collected.extend(batch_items)
             logger.info(
-                f"  Batch: {len(batch_items)} items, {new_duplicates} new duplicates, "
-                f"{new_groups['cross_folder_copies']} cross-folder copies skipped, "
-                f"{total_duplicates_found + dups_found} total duplicates found"
+                f"  Batch: {len(batch_items)} items fetched from collection "
+                f"(offset: {offset}, total: {scanned})"
             )
 
-        return scanned, dups_found, cf_copies
+        return collected, scanned
+
+    async def _collect_library_items(
+        self,
+        scan_limit: int,
+    ) -> tuple[list[dict[str, Any]], int]:
+        """Collect all items from the entire library across paginated batches."""
+        scanned = 0
+        collected: list[dict[str, Any]] = []
+        batch_size = self._effective_batch_size(scan_limit)
+
+        async for offset, items in iter_offset_batches(
+            self._make_library_batch_fetcher(),
+            batch_size=batch_size,
+        ):
+            scanned += len(items)
+            batch_items = [_item_to_dict(item) for item in items]
+            collected.extend(batch_items)
+            logger.info(
+                f"  Batch: {len(batch_items)} items fetched from library "
+                f"(offset: {offset}, total: {scanned})"
+            )
+
+        return collected, scanned
 
     def _make_collection_batch_fetcher(self, coll_key: str):
         """Build a paged fetch function with retry for duplicate scans."""
@@ -275,7 +280,7 @@ class DuplicateDetectionService:
                 page_limit: int = limit,
                 page_offset: int = offset,
             ):
-                return self.item_service.get_collection_items(
+                return self.item_service.api_client.get_collection_items(
                     collection_key, limit=page_limit, start=page_offset
                 )
 
@@ -285,6 +290,78 @@ class DuplicateDetectionService:
             )
 
         return _fetch_page
+
+    def _make_library_batch_fetcher(self):
+        """Build a paged fetch function with retry for whole-library scans."""
+
+        async def _fetch_page(offset: int, limit: int):
+            def _fetch_items(
+                page_limit: int = limit,
+                page_offset: int = offset,
+            ):
+                return self.item_service.api_client.get_all_items(
+                    limit=page_limit,
+                    start=page_offset,
+                )
+
+            return await async_retry_with_backoff(
+                _fetch_items,
+                description=f"Scan library (offset {offset})",
+            )
+
+        return _fetch_page
+
+    def _limit_duplicate_groups(
+        self,
+        groups: list[DuplicateGroup],
+        max_duplicates: int,
+    ) -> list[DuplicateGroup]:
+        """Limit duplicate groups by the total number of duplicate keys."""
+        if max_duplicates <= 0:
+            return []
+
+        limited: list[DuplicateGroup] = []
+        used = 0
+
+        for group in groups:
+            if used >= max_duplicates:
+                break
+
+            remaining = max_duplicates - used
+            dup_count = len(group.duplicate_keys)
+            if dup_count <= remaining:
+                limited.append(group)
+                used += dup_count
+                continue
+
+            limited.append(
+                DuplicateGroup(
+                    primary_key=group.primary_key,
+                    duplicate_keys=group.duplicate_keys[:remaining],
+                    match_reason=group.match_reason,
+                    match_value=group.match_value,
+                )
+            )
+            break
+
+        return limited
+
+    def _effective_batch_size(self, scan_limit: int) -> int:
+        """
+        Clamp scan batch size to Zotero API max page size.
+
+        Some Zotero endpoints cap `limit` to 100 items. If batch_size is larger,
+        iterators that stop on `len(page) < batch_size` can terminate early.
+        """
+        if scan_limit > _ZOTERO_API_MAX_PAGE_SIZE:
+            logger.info(
+                "Requested scan-limit %s exceeds API page max %s; "
+                "using %s for pagination",
+                scan_limit,
+                _ZOTERO_API_MAX_PAGE_SIZE,
+                _ZOTERO_API_MAX_PAGE_SIZE,
+            )
+        return max(1, min(scan_limit, _ZOTERO_API_MAX_PAGE_SIZE))
 
     async def _find_duplicate_groups(
         self,
@@ -379,8 +456,10 @@ class DuplicateDetectionService:
 
     def _is_parent_item(self, item: dict[str, Any]) -> bool:
         """Only include top-level bibliographic items in deduplication."""
-        item_type = (item.get("data", {}).get("itemType") or "").strip().lower()
-        return item_type not in self._excluded_item_types
+        item_data = item.get("data", {})
+        item_type = (item_data.get("itemType") or "").strip().lower()
+        parent_item = (item_data.get("parentItem") or "").strip()
+        return item_type not in self._excluded_item_types and not parent_item
 
     def _create_duplicate_group(
         self, items: list[dict[str, Any]], match_reason: str, match_value: str
