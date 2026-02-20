@@ -33,7 +33,10 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         help="Move items to this collection after analysis (required)",
     )
     scan.add_argument(
-        "--dry-run", action="store_true", help="Preview without processing"
+        "--dry-run",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Preview without processing (default: disabled)",
     )
     scan.add_argument(
         "--llm-provider",
@@ -63,8 +66,9 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     metadata.add_argument("--item-key", help="Update a specific item by key")
     metadata.add_argument(
         "--dry-run",
-        action="store_true",
-        help="Preview metadata updates without applying changes",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Preview metadata updates without applying changes (default: disabled)",
     )
     add_output_arg(metadata)
 
@@ -79,55 +83,12 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         help_text="Maximum total number of items to scan (default: 100)",
     )
     dedup.add_argument(
-        "--dry-run", action="store_true", help="Preview duplicates without deleting"
+        "--dry-run",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Preview duplicates without deleting (default: disabled)",
     )
     add_output_arg(dedup)
-
-    clean_empty = workflow_sub.add_parser(
-        "clean-empty", help="Find and delete empty items (no title, no attachments)"
-    )
-    clean_empty.add_argument(
-        "--collection", help="Limit to specific collection (by name)"
-    )
-    add_scan_limit_arg(clean_empty, default=500)
-    add_treated_limit_arg(
-        clean_empty,
-        default=100,
-        help_text="Maximum total number of items to delete (default: 100)",
-    )
-    clean_empty.add_argument(
-        "--dry-run", action="store_true", help="Preview empty items without deleting"
-    )
-    add_output_arg(clean_empty)
-
-    clean_tags = workflow_sub.add_parser(
-        "clean-tags", help="Remove all tags except those starting with a prefix"
-    )
-    clean_tags.add_argument(
-        "--collection", help="Limit to specific collection (by name)"
-    )
-    clean_tags.add_argument(
-        "--batch-size",
-        type=int,
-        default=50,
-        help="Number of items to process per batch (default: 50)",
-    )
-    clean_tags.add_argument(
-        "--limit",
-        type=int,
-        default=None,
-        help="Maximum total number of items to process",
-    )
-    clean_tags.add_argument(
-        "--keep-prefix",
-        default="AI",
-        help="Keep tags starting with this prefix (default: 'AI')",
-    )
-    clean_tags.add_argument(
-        "--dry-run", action="store_true", help="Preview changes without updating"
-    )
-    add_output_arg(clean_tags)
-
 
 async def _run_scan(args: argparse.Namespace) -> dict[str, Any]:
     from zotero_mcp.services.scanner import GlobalScanner
@@ -180,31 +141,6 @@ async def _run_deduplicate(args: argparse.Namespace) -> dict[str, Any]:
     )
 
 
-async def _run_clean_empty(args: argparse.Namespace) -> dict[str, Any]:
-    from zotero_mcp.services.zotero.maintenance_service import LibraryMaintenanceService
-
-    service = LibraryMaintenanceService()
-    return await service.clean_empty_items(
-        collection_name=args.collection,
-        scan_limit=args.scan_limit,
-        treated_limit=args.treated_limit,
-        dry_run=args.dry_run,
-    )
-
-
-async def _run_clean_tags(args: argparse.Namespace) -> dict[str, Any]:
-    from zotero_mcp.services.zotero.maintenance_service import LibraryMaintenanceService
-
-    service = LibraryMaintenanceService()
-    return await service.clean_tags(
-        collection_name=args.collection,
-        batch_size=args.batch_size,
-        limit=args.limit,
-        keep_prefix=args.keep_prefix,
-        dry_run=args.dry_run,
-    )
-
-
 def _exit_code(result: dict[str, Any]) -> int:
     if result.get("error"):
         return 1
@@ -221,8 +157,6 @@ def run(args: argparse.Namespace) -> int:
         "scan": _run_scan,
         "metadata-update": _run_metadata_update,
         "deduplicate": _run_deduplicate,
-        "clean-empty": _run_clean_empty,
-        "clean-tags": _run_clean_tags,
     }
 
     handler = handlers.get(args.subcommand)

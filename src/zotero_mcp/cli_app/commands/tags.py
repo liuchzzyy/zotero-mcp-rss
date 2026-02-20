@@ -54,9 +54,29 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         help="Keep tags starting with this prefix (default: 'AI')",
     )
     delete.add_argument(
-        "--dry-run", action="store_true", help="Preview changes without updating"
+        "--dry-run",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Preview changes without updating (default: disabled)",
     )
     add_output_arg(delete)
+
+    rename = tags_sub.add_parser("rename", help="Rename a tag across matched items")
+    rename.add_argument("--old-name", required=True, help="Current tag name")
+    rename.add_argument("--new-name", required=True, help="New tag name")
+    rename.add_argument(
+        "--limit",
+        type=int,
+        default=100,
+        help="Maximum number of matched items to process (default: 100)",
+    )
+    rename.add_argument(
+        "--dry-run",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Preview changes without updating (default: disabled)",
+    )
+    add_output_arg(rename)
 
 
 def _exit_code(payload: Any) -> int:
@@ -113,11 +133,90 @@ def run(args: argparse.Namespace) -> int:
             dry_run=args.dry_run,
         )
 
+    async def _rename_tags() -> dict[str, Any]:
+        if args.old_name == args.new_name:
+            return {
+                "old_name": args.old_name,
+                "new_name": args.new_name,
+                "matched_items": 0,
+                "renamed_items": 0,
+                "failed": 0,
+                "details": [],
+                "dry_run": args.dry_run,
+                "message": "old-name and new-name are identical; nothing changed",
+            }
+
+        results = await data_service.search_by_tag(
+            tags=[args.old_name],
+            limit=args.limit,
+        )
+        details: list[dict[str, Any]] = []
+        renamed_items = 0
+        failed = 0
+
+        for item in results:
+            try:
+                full_item = await data_service.get_item(item.key)
+                item_data = full_item.get("data", {})
+                raw_tags = item_data.get("tags", [])
+                normalized_tags: list[dict[str, str]] = []
+                seen: set[str] = set()
+                changed = False
+
+                for raw_tag in raw_tags:
+                    if isinstance(raw_tag, dict):
+                        tag_name = str(raw_tag.get("tag", ""))
+                    else:
+                        tag_name = str(raw_tag)
+
+                    if tag_name == args.old_name:
+                        tag_name = args.new_name
+                        changed = True
+
+                    if not tag_name or tag_name in seen:
+                        continue
+                    seen.add(tag_name)
+                    normalized_tags.append({"tag": tag_name})
+
+                if changed:
+                    details.append(
+                        {
+                            "item_key": item.key,
+                            "title": item.title,
+                            "from": args.old_name,
+                            "to": args.new_name,
+                        }
+                    )
+                    if not args.dry_run:
+                        full_item["data"]["tags"] = normalized_tags
+                        await data_service.update_item(full_item)
+                    renamed_items += 1
+            except Exception as exc:
+                failed += 1
+                details.append(
+                    {
+                        "item_key": item.key,
+                        "title": item.title,
+                        "error": str(exc),
+                    }
+                )
+
+        return {
+            "old_name": args.old_name,
+            "new_name": args.new_name,
+            "matched_items": len(results),
+            "renamed_items": renamed_items,
+            "failed": failed,
+            "details": details,
+            "dry_run": args.dry_run,
+        }
+
     handlers: dict[str, Callable[[], Awaitable[dict[str, Any]]]] = {
         "list": _list_tags,
         "add": _add_tags,
         "search": _search_tags,
         "delete": _delete_tags,
+        "rename": _rename_tags,
     }
 
     handler = handlers.get(args.subcommand)

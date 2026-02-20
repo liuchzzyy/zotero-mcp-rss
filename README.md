@@ -144,8 +144,6 @@ zotero-mcp <command> <subcommand> [parameters]
 - `zotero-mcp workflow scan`
 - `zotero-mcp workflow metadata-update`
 - `zotero-mcp workflow deduplicate`
-- `zotero-mcp workflow clean-empty`
-- `zotero-mcp workflow clean-tags`
 
 #### `workflow scan` 常用参数
 | 参数 | 默认值 | 说明 |
@@ -179,11 +177,12 @@ zotero-mcp <command> <subcommand> [parameters]
 
 | command | subcommand |
 |------|------|
-| `items` | `get/list/children/fulltext/bundle/delete/update/create/add-tags/add-to-collection/remove-from-collection` |
-| `notes` | `list/create/search` |
-| `annotations` | `list` |
-| `pdfs` | `upload` |
-| `collections` | `list/find/create/rename/move/delete/items` |
+| `items` | `get/list/children/fulltext/bundle/delete/update/create/add-tags/add-to-collection/remove-from-collection/delete-empty` |
+| `notes` | `list/create/search/delete` |
+| `annotations` | `list/add/search/delete` |
+| `pdfs` | `list/add/search/delete` |
+| `collections` | `list/find/create/rename/move/delete/delete-empty/items` |
+| `tags` | `list/add/search/delete/rename` |
 
 ### 示例
 
@@ -204,7 +203,7 @@ zotero-mcp items get --item-key ABCD1234 --output json
 zotero-mcp notes create --item-key ABCD1234 --content "My note"
 
 # 上传 PDF 附件
-zotero-mcp pdfs upload --item-key ABCD1234 --file ./paper.pdf
+zotero-mcp pdfs add --item-key ABCD1234 --file ./paper.pdf
 ```
 
 ## 环境变量
