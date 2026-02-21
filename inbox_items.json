@@ -1,0 +1,806 @@
+[
+  {
+    "key": "IE4G4UVV",
+    "title": "A membrane-free redox flow battery with two immiscible redox electrolytes",
+    "doi": "10.1002/anie.201704318",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "77IXL8DV",
+    "title": "Gold nanofilms at liquid–liquid interfaces: an emerging platform for redox electrocatalysis, nanoplasmonic sensors, and electrovariable optics",
+    "doi": "10.1021/acs.chemrev.7b00595",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "2CJV6N3V",
+    "title": "Active materials for aqueous zinc ion batteries: synthesis, crystal structure, morphology, and electrochemistry",
+    "doi": "10.1021/acs.chemrev.9b00628",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "ATKDI67F",
+    "title": "Boosting the energy density of Li||CF <i><sub>x</sub> </i> primary batteries using a 1,3-dimethyl-2-imidazolidinone-based electrolyte",
+    "doi": "10.1021/acsami.1c19016",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "GKXSNMQ4",
+    "title": "A self-healing anode for Li-ion batteries by rational interface modification of room-temperature liquid metal",
+    "doi": "10.1021/acsaem.1c01951",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "HPJHM256",
+    "title": "<i>In Situ</i> / <i>Operando</i> electrocatalyst characterization by X-ray absorption spectroscopy",
+    "doi": "10.1021/acs.chemrev.0c00396",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "Q7LVSEHZ",
+    "title": "A high-performance room-temperature Li||Ga–Sn liquid metal battery for grid energy storage",
+    "doi": "10.1002/ente.202170091",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "7MC64HWT",
+    "title": "Rational design of ZnMn2O4 nanoparticles on carbon nanotubes for high-rate and durable aqueous zinc-ion batteries",
+    "doi": "10.1016/j.cej.2022.137742",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "IPDHVXL3",
+    "title": "Dynamically responsive and ionic conductive gel coatings to realize the stable circulation of zinc metal anodes for zinc-ion batteries",
+    "doi": "10.1021/acssuschemeng.2c04733",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "RD4SIUNB",
+    "title": "Review of room-temperature liquid metals for advanced metal anodes in rechargeable batteries",
+    "doi": "10.1016/j.ensm.2022.05.024",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "MGB4539F",
+    "title": "An easy large-scale preparation of γ-MnOOH 1D nanorods for advanced LIBs application",
+    "doi": "10.1016/j.matchemphys.2023.127699",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "FXQYT4R3",
+    "title": "In situ transmission electron microscopy for sodium-ion batteries",
+    "doi": "10.1002/adma.202300359",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "GZECEJRQ",
+    "title": "MnO2/Mn2+ chemistry: charging protocol and electrolyte regulation",
+    "doi": "10.1016/j.ensm.2023.103008",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "BMPHZZJ9",
+    "title": "Progress and perspectives of liquid metal batteries",
+    "doi": "10.1016/j.ensm.2023.02.021",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "RPBWGV7B",
+    "title": "Microscopic scaling relation of Ti-based catalysts in de/hydrogenation reactions of Mg/MgH<sub>2</sub>",
+    "doi": "10.1021/acscatal.4c06122",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "YDS487M7",
+    "title": "Research trends and future perspectives on Zn-ion batteries using Ga-based liquid metal coatings on Zn anodes",
+    "doi": "10.1021/acsenergylett.4c02191",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "Z9USA3HZ",
+    "title": "Binder-free barium-implanted MnO2 nanosheets on carbon cloth for flexible zinc-ion batteries",
+    "doi": "10.1063/5.0184529",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "7B8RH6UX",
+    "title": "Progress and prospects of zinc-sulfur batteries",
+    "doi": "10.1016/j.ensm.2023.103130",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "2AYHFG7N",
+    "title": "Zn-based batteries for sustainable energy storage: strategies and mechanisms",
+    "doi": "10.1039/D3CS00295K",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "7RIAV42Z",
+    "title": "A pyrazine-pyridinamine covalent organic framework as a low potential anode for highly durable aqueous calcium-ion batteries",
+    "doi": "10.1002/aenm.202302495",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "NQ54SBUH",
+    "title": "A critical review of facets and defects in different MnO2 crystalline phases and controlled synthesis – its properties and applications in the energy field",
+    "doi": "10.1016/j.ccr.2023.215537",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "L2H7NY46",
+    "title": "Magnetically induced convection enhances water electrolysis in microgravity",
+    "doi": "10.1038/s41557-025-01890-0",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "UCC8KXFB",
+    "title": "A room temperature rechargeable all-solid-state hydride ion battery",
+    "doi": "10.1038/s41586-025-09561-3",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "5356GSC8",
+    "title": "Enhanced performance of 1D ZnMn2O4 nanofibers for symmetric supercapacitor device",
+    "doi": "10.1016/j.inoche.2025.114057",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "AQS4ER4V",
+    "title": "<i>Fastosh</i> : a software for the treatment of XAFS datasets of environmental relevance or acquired in <i>operando</i> conditions",
+    "doi": "10.1107/S1600577525003923",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "TH6HDMMB",
+    "title": "Na-K interlayer driven Na-NASICON solid-state batteries",
+    "doi": "10.1002/adfm.202425995",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "M95DNK2F",
+    "title": "Ion-exchange induced Ni doping of α-MnO2 cathode with structural modification for aqueous zinc ion batteries",
+    "doi": "10.1016/j.jpowsour.2025.236518",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "RMDRCTFB",
+    "title": "Liquid metal nanocapsulation to mitigate anode embrittlement for highly stable zinc-ion batteries",
+    "doi": "10.31635/ccschem.025.202505593",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "JACQ3DZC",
+    "title": "Jahn-teller effect: impact of distortion on oxygen electrocatalysis",
+    "doi": "10.1002/adfm.202516674",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "2FFNPPW7",
+    "title": "ChemInform abstract: structure of Na3.12Fe2.44(P2O7)2",
+    "doi": "10.1002/chin.199542005",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "ICCZH4HH",
+    "title": "Synthesis and crystal structure of new phosphate NaFe 4 2+ Fe 3 3+ [PO4]6",
+    "doi": "10.1134/1.1541742",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "NXLP5CWV",
+    "title": "Facile controlled synthesis of MnO<sub>2</sub> nanostructures of novel shapes and their application in batteries",
+    "doi": "10.1021/ic051715b",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "8JEVV5QE",
+    "title": "A multifunctional 3.5 V iron-based phosphate cathode for rechargeable batteries",
+    "doi": "10.1038/nmat2007",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "DZ67JLHP",
+    "title": "Na<sub>4</sub> Fe<sup>2+</sup> Fe<sup>3+</sup> (PO<sub>4</sub> )<sub>3</sub> , a new synthetic NASICON-type phosphate",
+    "doi": "10.1107/S1600536809009210",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "MVMHCDLB",
+    "title": "Na<sub>2</sub> FeP<sub>2</sub> O<sub>7</sub> : a safe cathode for rechargeable sodium-ion batteries",
+    "doi": "10.1021/cm401657c",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "U7NRS6VL",
+    "title": "Electronic transport properties of liquid Na1-xKx alloys",
+    "doi": "10.1016/j.molliq.2013.05.005",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "CFPIB2CW",
+    "title": "Magnetic structure and properties of the rechargeable battery insertion compound Na<sub>2</sub> FePO<sub>4</sub> F",
+    "doi": "10.1021/ic402513d",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "HSYBD6FW",
+    "title": "Na–vacancy and charge ordering in na<sub>≈2/3</sub> FePO<sub>4</sub>",
+    "doi": "10.1021/cm501110v",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "SC7I2JGD",
+    "title": "Abnormal operando structural behavior of sodium battery material: influence of dynamic on phase diagram of NaxFePO4",
+    "doi": "10.1016/j.elecom.2013.11.017",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "CN4GACUZ",
+    "title": "Structure and electrochemistry of NaFePO4 and Na2FePO4F cathode materials prepared via mechanochemical route",
+    "doi": "10.1016/j.materresbull.2014.09.081",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "E6R2B2LB",
+    "title": "Liquid metal electrodes for energy storage batteries",
+    "doi": "10.1002/aenm.201600483",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "WVU4G8KF",
+    "title": "A review of cluster analysis techniques and their uses in library and information science research: <i>k-means</i> and <i>k-medoids</i> clustering",
+    "doi": "10.1108/PMM-05-2021-0026",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "7SBPM2IW",
+    "title": "Colourful liquid metals",
+    "doi": "10.1038/s41578-022-00512-2",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "URNEJ94P",
+    "title": "Stress-release functional liquid metal-MXene layers toward dendrite-free zinc metal anodes",
+    "doi": "10.1002/aenm.202200115",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "8D7EU6MA",
+    "title": "The influence of electrolyte concentration and solvent on operational voltage of Li/CF primary batteries elucidated by nernst equation",
+    "doi": "10.1016/j.jpowsour.2022.231193",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "VR8QICIE",
+    "title": "Transferring liquid metal to form a hybrid solid electrolyte via a wettability-tuning technology for lithium-metal anodes",
+    "doi": "10.1002/adma.202200181",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "MI2HHAL4",
+    "title": "Concentrated electrolyte for high-performance Ca-ion battery based on organic anode and graphite cathode",
+    "doi": "10.1002/anie.202116668",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "Z5X66DXV",
+    "title": "Toward the high-performance lithium primary batteries by chemically modified fluorinate carbon with δ-MnO<sub>2</sub>",
+    "doi": "10.1002/smll.202300762",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "B9KWWKEF",
+    "title": "Aprotic sulfur–metal batteries: lithium and beyond",
+    "doi": "10.1021/acsenergylett.2c02493",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "32NDTT2Z",
+    "title": "Semi-solid Na-K alloy anode with enhanced stabilities for advanced sodium-ion batteries",
+    "doi": "10.1002/adfm.202502682",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "86VFIVFT",
+    "title": "Three-in-one: integrating polymer dots and δ-MnO<sub>2</sub> for powerful Zn-Mn batteries",
+    "doi": "10.1002/adfm.202526256",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "HKUPJNKH",
+    "title": "LiF pre-nucleation strategy for mitigating heat generation at the kinetic bottleneck in Li/CF<sub>x</sub> batteries",
+    "doi": "10.1002/smll.202502941",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "GXHV8FAS",
+    "title": "A tiron redox mediator enabling dominant two-electron transfer energy storage in MnO<sub>2</sub> cathode materials for aqueous Zn batteries",
+    "doi": "10.1002/adfm.202519798",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "UXCJ8R9R",
+    "title": "Synchrotron radiation investigation of reaction mechanism of manganese prussian blue analogue in aqueous Zn–Mn electrolyte",
+    "doi": "10.1088/2515-7655/ae09fc",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "9PCXZ9IM",
+    "title": "Dual anions doping enhanced conductivity and stability of layered <i>δ</i> -MnO<sub>2</sub> cathode for aqueous zinc-ion battery",
+    "doi": "10.1002/adfm.202501135",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "RDTDMSTW",
+    "title": "Aqueous zinc-sulfur batteries: from challenges to strategies",
+    "doi": "10.1002/adma.202505203",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "2RV8EJLU",
+    "title": "BL16 NOTOS, an X-ray absorption and diffraction beamline for operando battery studies at ALBA",
+    "doi": "10.1140/epjp/s13360-025-07170-7",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "PRHTBZZF",
+    "title": "Limited selectivity cathode additive for high-capacity and long-life aqueous Zn-MnO2 batteries",
+    "doi": "10.1016/j.cej.2026.173494",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "SMQA63F5",
+    "title": "DNA-assisted synthesis of defect-rich MnO<sub>2</sub> cathodes for high-rate and long-life aqueous zinc-ion batteries",
+    "doi": "10.1002/smll.202514959",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "I6KZWHVQ",
+    "title": "Probing the local atomic structure and magnetism in iron and manganese co-doped indium oxide nanocubes using XAS and DFT",
+    "doi": "10.1016/j.jmmm.2026.173814",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "DIEFBSUH",
+    "title": "Redox mediators for aqueous electrolytic zinc-manganese batteries: fundamentals and design criteria",
+    "doi": "10.1002/aenm.202504251",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "D7EDLR8K",
+    "title": "NH4+ intercalated δ-MnO2 cathode material for efficient zinc ions storage",
+    "doi": "10.1016/j.jelechem.2025.119755",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "VTFSG44W",
+    "title": "“Armored hollow spheres”: In situ polypyrrole encapsulation enables robust Mn₂O₃ cathodes for high-performance aqueous zinc-ion batteries",
+    "doi": "10.1016/j.jelechem.2026.119909",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "MFWKEQRZ",
+    "title": "Hierarchically structured artificial SEI with interlayer electronic coupling for high-performance aqueous zinc batteries",
+    "doi": "10.1002/smll.202514566",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "WJ5C9GBP",
+    "title": "Synergistic ternary heterostructures cathode with “electron-complementation” bridging interfaces enable high-performance zinc-ion batteries",
+    "doi": "10.1002/adma.202522996",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "A4MT27WW",
+    "title": "Unveiling the energy storage mechanism of MnO<sub>2</sub> polymorphs for zinc-manganese dioxide batteries",
+    "doi": "10.1002/adfm.202306652",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "ITPKW9NZ",
+    "title": "A polydopamine coating enabling the stable cycling of MnO<sub>2</sub> cathode materials in aqueous zinc batteries",
+    "doi": "10.1039/D3SC06096A",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "7NBCB27F",
+    "title": "Optimized Ga-based nanocomposite for superior Li-ion battery anodes",
+    "doi": "10.1016/j.mtener.2023.101327",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "M6CM9FMZ",
+    "title": "Hierarchical Fluorinated Polymer Separator Design Mitigating Bilateral Ionic Crosstalk in Aqueous Batteries",
+    "doi": "10.1002/aenm.202505800",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "FGABGEMR",
+    "title": "Nanodiamond‐Directed Oriented Growth of MnO\n                    <sub>2</sub>\n                    Cathodes for Ultrastable Aqueous Zinc‐Ion Batteries",
+    "doi": "10.1002/adfm.74499",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "J78MDECE",
+    "title": "Uniform SEI design via Solvent Competitions for Stable Anode‐Free Zinc Batteries",
+    "doi": "10.1002/adfm.202513242",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "8FBU8GDK",
+    "title": "High Hydrophobic Layer with Nanoscaled Cationic Confinement Enables Stable Zinc Anodes",
+    "doi": "10.1002/adfm.202518756",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "FKK282RT",
+    "title": "Adhesive Tape‐Inspired Polymer Coatings Enable Record‐Stable Zinc Anodes for High‐Rate Aqueous Batteries",
+    "doi": "10.1002/advs.202520648",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "BGI8GD5H",
+    "title": "A Dual Soft‐Gel Phase Platform for Future Stable Aqueous Batteries",
+    "doi": "10.1002/smll.202510410",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "UE7WF37B",
+    "title": "Promoting Non‐Water‐Induced Zn\n                    <sup>2+</sup>\n                    Conduction During Reversible Zn\n                    <sup>2+</sup>\n                    Solvation Processes Toward Sustainable Aqueous Zn Metal Batteries",
+    "doi": "10.1002/smll.202513131",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "USJRCDSH",
+    "title": "Versatile Organic Materials Advancing Non‐Metal Ion Storage in Zinc Batteries",
+    "doi": "10.1002/smll.202511967",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "Q6PNMFJF",
+    "title": "Geometric Matching Effect of Tetrahedral Cation Adsorption Enables Reliable Interfacial Engineering toward Stable Aqueous Zinc-Ion Batteries",
+    "doi": "10.1021/acsnano.5c20170",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "B5Z8EPDB",
+    "title": "Hygroscopic V‐MOF Layer Enabling Stable Zn‐Ion Batteries Under Fast and Deep Charging/Discharging",
+    "doi": "10.1002/aenm.202505767",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "AWGXIHP6",
+    "title": "Dynamic Interhalogen Coupling Engineered by Multifunctional Ionic Liquid for High‐Energy Aqueous Zn‐I\n                    <sub>2</sub>\n                    Batteries",
+    "doi": "10.1002/adfm.202519437",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "4HZJ2ASS",
+    "title": "Kinesin‐Mimetic Ion Director Enables Highly Oriented Zn Deposition in Aqueous Batteries",
+    "doi": "10.1002/adfm.202518964",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "XT5SNDZA",
+    "title": "A Hydrophilic Sulfonated Polyethersulfone Separator Enables Highly Reversible Zn Anode in Aqueous Zinc‐Ion Batteries",
+    "doi": "10.1002/smll.202511240",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "CJW58KHB",
+    "title": "A Quantitative Water‐Speciation Identification Strategy Enables Efficient Four‐Electron Conversion in Aqueous Zn‐I\n                    <sub>2</sub>\n                    Batteries",
+    "doi": "10.1002/aenm.202505649",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "P5S4ZTGZ",
+    "title": "An aqueous battery using an electrolyte with a pH of 7 and suitable for direct environmental discard",
+    "doi": "10.1038/s41467-026-69384-2",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "3TCQCBJP",
+    "title": "Multi‐Site Co‐Doped Hierarchical Porous Carbon for Efficient Iodine Conversion and Uniform Zinc Deposition in Zinc–Iodine Batteries",
+    "doi": "10.1002/smtd.202502240",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "XD8KSZXH",
+    "title": "A zincophilic and negatively-charged self-reconstructed stratified interface for regulating Zn<sup>2+</sup> conduction and nucleation toward conformal dendrite-free deposition",
+    "doi": "10.1002/anie.202523653",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "9HQF7DQZ",
+    "title": "Acidic hydrogel enables full-period Mn<sup>2+</sup> /MnO<sub>2</sub> conversion in high-energy quasi-solid-state Zn-MnO<sub>2</sub> batteries",
+    "doi": "10.1002/adma.202522827",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "6HDCKSB5",
+    "title": "Interfacial charge orchestration for durable aqueous Zn batteries",
+    "doi": "10.1002/anie.202523672",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "VRIIXC5M",
+    "title": "Biomass-derived ion-selective binder modulates Zn<sup>2+</sup> solvation enabling high-capacity cathodes in aqueous zinc batteries",
+    "doi": "10.1002/anie.202525803",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "R727GKF7",
+    "title": "Lattice engineering in MnO<sub>2</sub> <i>via</i> V<sup>5+</sup> doping for high-performance aqueous Te–MnO<sub>2</sub> batteries",
+    "doi": "10.1039/D5TA07866K",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "924HNWT8",
+    "title": "Review on cathode stabilization by electrolyte engineering in aqueous batteries",
+    "doi": "10.1007/s40820-025-02048-w",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "75A6QU9C",
+    "title": "Micro-terraced surface induced directional two-dimensional diffusion enables dendrite-free zinc anodes",
+    "doi": "10.1002/adma.72560",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "5H7ZV6AP",
+    "title": "High-entropy polymeric electrolytes facilitating ion conduction and interfacial desolvation in low-temperature zinc batteries",
+    "doi": "10.1021/jacs.5c21446",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "6G7NV9SE",
+    "title": "Regulating ion migration and deposition through a cellulose hydrogel electrolyte enabled by anion-reinforced effect for zinc-ion batteries",
+    "doi": "10.1002/adfm.202507159",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "HBDEB75V",
+    "title": "Nano-scale flexible carbon nanotube framework for enhanced reversibility in cathode-free aqueous manganese-based batteries",
+    "doi": "10.1016/j.jpowsour.2026.239361",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "UU6ADP8I",
+    "title": "β-MnOOH converted δ-MnO<sub>2</sub> with new layer-to-layer charge storage as cathode for zinc-ion batteries",
+    "doi": "10.1002/smtd.202500552",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "5C2CQJM6",
+    "title": "From “lab prototype” to “practical device”: cycling stability challenges of MnO<sub>2</sub> -based cathodes for zinc-ion batteries",
+    "doi": "10.1002/batt.202500820",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "IJETGPEF",
+    "title": "Heterostructure engineering of MnO@C nanocomposite for high-performance aqueous zinc-ion batteries",
+    "doi": "10.1021/acsanm.5c05055",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "5SPE35EK",
+    "title": "A functionality-graded cathode electrolyte interphase enables ultra-long cycling stability in aqueous Zn–Mn batteries",
+    "doi": "10.1002/advs.202522338",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "M9FWSMPW",
+    "title": "Customized vertical Zn deposition and regulated interfacial kinetics via anti-inflammatory biomolecules for ultra-stable Zn metal batteries",
+    "doi": "10.1002/adma.202521699",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "RNDSTMWZ",
+    "title": "Tailoring zinc-ion deep eutectic electrolytes through dual regulation of solvation shell volume and solvent polarity",
+    "doi": "10.1039/D6EE00073H",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "PVU5ZYSM",
+    "title": "High-energy aqueous sulfur battery chemistry",
+    "doi": "10.1002/adma.202507561",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "RAFPSU4R",
+    "title": "Identifying a multifunctional Fe-N-C suspended mediator with cascade regulatory ability for enhanced aqueous Zn-MnO<sub>2</sub> batteries",
+    "doi": "10.1002/adfm.202515070",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "4IDWTHWM",
+    "title": "Unlocking high-rate sodium storage in NaFePO<sub>4</sub> via graphene-driven cross-scale structural regulation",
+    "doi": "10.1002/smll.202509063",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "WHDFQTUS",
+    "title": "Exploring the determination of the standard rate constant in electrochemical metal deposition: theory and experiment",
+    "doi": "10.1039/D5SC05636E",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "86S8QKGH",
+    "title": "Design and performance of the BYD LFP/graphite 4680 cylindrical cell",
+    "doi": "10.1149/1945-7111/ae1e33",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "MTP5PV4D",
+    "title": "Cation-disordered rocksalt cathode for anode-free zinc-ion batteries",
+    "doi": "10.1039/D5EE02643A",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "MNIN54CM",
+    "title": "Stable zinc deposition enabled by descriptor-guided screening of organic electrolyte additives based on molecular polarizability and surface energy",
+    "doi": "10.1002/adfm.202518076",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "ZWVQWB9U",
+    "title": "π-hole driven defluorination for fast kinetics of Li/CF<sub> <i>x</i> </sub> batteries",
+    "doi": "10.1039/D5EE05221A",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "JSAAK4HA",
+    "title": "Dynamic heterostructure design of MnO<sub>2</sub> for high-performance aqueous zinc-ion batteries",
+    "doi": "10.1039/D4EE00341A",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "HKHTMQ9V",
+    "title": "Enthalpy-driven room-temperature superwetting of liquid Na–K alloy as flexible and dendrite-free anodes",
+    "doi": "10.1002/adfm.202302026",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "U68ZNPFW",
+    "title": "Transition-metal ions intercalation chemistry enabled the manganese oxides-based cathode with enhanced capacity and cycle life for high-performance aqueous zinc-ion batteries",
+    "doi": "10.1039/D4RA01815J",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "2EQUTPHZ",
+    "title": "Highly stable manganese oxide cathode material enabled by grotthuss topochemistry for aqueous zinc ion batteries",
+    "doi": "10.1039/D3EE04161A",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "6TBIXTXT",
+    "title": "Electrodeposited ε-MnO2 on carbon fibers as an ideal cathode material for aqueous zinc-ion batteries",
+    "doi": "10.1016/j.matlet.2024.135993",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "K7WGSHI5",
+    "title": "High-performance triphylite-NaFePO4 synthesized by solvothermal sodium insertion process for sodium-ion batteries",
+    "doi": "10.1016/j.cplett.2023.140983",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "AEZA9K2J",
+    "title": "Revealing the structural roots of electrochemical differences in FePO4 under different physical states",
+    "doi": "10.1016/j.jnoncrysol.2024.122983",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "WQE2SEYL",
+    "title": "Recent progress in advanced organosulfur cathode materials for rechargeable lithium batteries",
+    "doi": "10.1016/j.mattod.2023.02.027",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "5P8U7IJK",
+    "title": "Self-healing liquid metal layer as high-capacity and long cycle life anode for Al-ion batteries",
+    "doi": "10.1016/j.ensm.2023.103057",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "HQLWS8RF",
+    "title": "A liquid metal microdroplets initialized hemicellulose composite for 3D printing anode host in Zn-ion battery",
+    "doi": "10.1002/adma.202300109",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "H5RS49KI",
+    "title": "Amorphous hollow carbon film as a flexible host for liquid Na-K alloy anode",
+    "doi": "10.1016/j.cclet.2022.107767",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "WL4YQ8GB",
+    "title": "Carbon encapsulated maricite NaFePO4 nanoparticles as cathode material for sodium-ion batteries",
+    "doi": "10.1016/j.colsurfa.2019.123957",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "EG3GIQWL",
+    "title": "Distinct nanoscale interphases and morphology of lithium metal electrodes operating at low temperatures",
+    "doi": "10.1021/acs.nanolett.9b03330",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "HGTFCXI7",
+    "title": "Electrochemical performances of maricite NaFePO4/C as cathode material for sodium-ion and lithium-ion batteries",
+    "doi": "10.20964/2017.04.35",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "ZG82L59L",
+    "title": "Synthesis, characterization, and electrochemical studies of chemically synthesized NaFePO4",
+    "doi": "10.1016/j.mseb.2012.08.004",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "INQ46QLX",
+    "title": "Reversible NaFePO4 electrode for sodium secondary batteries",
+    "doi": "10.1016/j.elecom.2012.06.014",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "PMF8HXFL",
+    "title": "Single-component surface in binary self-assembled NaK nanoalloy clusters",
+    "doi": "10.1103/PhysRevB.80.033405",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "TNFADDE8",
+    "title": "Molecular dynamics study of the static structure of liquid Na–K alloys",
+    "doi": "10.1016/j.physb.2008.09.014",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "8MYRY7XV",
+    "title": "Molecular dynamics simulation study of the interdiffusion properties of liquid Na-K alloys",
+    "doi": "10.1088/1742-6596/98/4/042001",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "RMA7ZPTA",
+    "title": "GaInSn usage in the research laboratory",
+    "doi": "10.1063/1.2930813",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "DHTWRG4K",
+    "title": "Electrical resistivity of Na–K binary liquid alloy using ab-initio pseudopotentials",
+    "doi": "10.1088/0256-307X/22/10/043",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "YVZRKEZZ",
+    "title": "Thermodynamic study of Ga-Sn and Ga-Zn systems using quantitative differential thermal analysis",
+    "doi": "10.1023/A:1026373602352",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "KJ3I2TE3",
+    "title": "The glaserite-like structure of double sodium and iron phosphate Na3Fe(PO4)2",
+    "doi": "10.1006/jssc.2001.9250",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "YZJBJ24Y",
+    "title": "Evolving factor analysis in gas chromatography/mass spectrometry—a feasibility study",
+    "doi": "10.1002/oms.1210271017",
+    "itemType": "journalArticle"
+  },
+  {
+    "key": "H8GQZCMX",
+    "title": "SpectroChemPy, a framework for processing, analyzing and modeling spectroscopic data for chemistry with python",
+    "doi": "10.5281/zenodo.15069454",
+    "itemType": "computerProgram"
+  },
+  {
+    "key": "XEC8VF2F",
+    "title": "K-Sn (potassium-tin)",
+    "doi": "10.1007/10506626_1848",
+    "itemType": "bookSection"
+  }
+]

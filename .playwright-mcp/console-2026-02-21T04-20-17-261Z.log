@@ -1,0 +1,3 @@
+[   20765ms] [ERROR] Attestation check for Shared Storage on https://www.googleadservices.com failed. @ https://www.googleadservices.com/pagead/managed/js/activeview/current/reach_worklet.html:0
+[   21030ms] [ERROR] Failed to load resource: net::ERR_CERT_COMMON_NAME_INVALID @ https://www.google.com/ads/measurement/l?ebcid=ALh7CaTnFkbCecnU3Yn3wUZ-cGaBU7PbMdVTYRoyKYQhQHlE-LAwkwK3YoxzyAYQr5abcOU4IAaVtv0NY54hkvaxxprA62DBNw:0
+[   21700ms] [ERROR] Failed to load resource: net::ERR_CERT_COMMON_NAME_INVALID @ https://www.google.com/ads/measurement/l?ebcid=ALh7CaQQVTG8Jqkr4xOEl5ll8fhLt6EAFgTW2Ms31CFoT93TW2xSA1xpHCSGpW4wQYT3_fReDcX65THgaoXY95aJAmWSleramA:0
