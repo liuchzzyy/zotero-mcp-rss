@@ -57,3 +57,9 @@ worktrees/
 
 # Session logs
 *.session.txt
+
+# SI download artifacts
+.crossref-cache/
+.si-downloads/
+.firecrawl/
+.playwright-mcp/
