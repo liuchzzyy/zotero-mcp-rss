@@ -156,6 +156,17 @@ class ItemService:
 
         return None
 
+    async def download_attachment(self, item_key: str) -> bytes | None:
+        """Download attachment file bytes via Zotero Web API.
+
+        Args:
+            item_key: Attachment item key
+
+        Returns:
+            Raw file bytes, or None on error
+        """
+        return await self.api_client.download_attachment(item_key)
+
     # -------------------- Collection Operations --------------------
 
     async def get_collections(self) -> list[dict[str, Any]]:

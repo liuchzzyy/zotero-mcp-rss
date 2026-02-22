@@ -480,6 +480,34 @@ class ZoteroAPIClient:
 
         return await loop.run_in_executor(None, _upload)
 
+    # -------------------- Download Methods --------------------
+
+    async def download_attachment(self, item_key: str) -> bytes | None:
+        """Download attachment file bytes via Zotero Web API.
+
+        Args:
+            item_key: Attachment item key
+
+        Returns:
+            Raw file bytes, or None on error (404, timeout, etc.)
+        """
+        loop = asyncio.get_event_loop()
+        try:
+            result = await loop.run_in_executor(
+                None,
+                lambda: self.client.file(item_key),
+            )
+            if isinstance(result, bytes) and len(result) > 0:
+                logger.info(
+                    f"Downloaded attachment {item_key}: {len(result)} bytes"
+                )
+                return result
+            logger.warning(f"Empty or non-bytes result for attachment {item_key}")
+            return None
+        except Exception as e:
+            logger.warning(f"Failed to download attachment {item_key}: {e}")
+            return None
+
     # -------------------- Write Methods --------------------
 
     async def create_items(self, items: list[dict[str, Any]]) -> dict[str, Any]:

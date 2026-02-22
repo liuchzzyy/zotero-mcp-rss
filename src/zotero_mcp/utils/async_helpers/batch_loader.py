@@ -4,6 +4,7 @@ Batch Loader utility for parallel Zotero API calls.
 
 import asyncio
 import logging
+import tempfile
 from pathlib import Path
 from typing import Any, cast
 
@@ -205,8 +206,45 @@ class BatchLoader:
                         pdf_path = candidate
                         break
 
+            # Strategy 4: Download PDF via Zotero Web API (cloud fallback)
             if pdf_path is None or not pdf_path.exists():
-                logger.debug(f"No local PDF found for {item_key}")
+                for pdf_att in pdf_attachments:
+                    attachment_key = pdf_att.get("key") or pdf_att.get(
+                        "data", {}
+                    ).get("key")
+                    if not attachment_key:
+                        continue
+
+                    # Check temp cache first
+                    cache_dir = Path(tempfile.gettempdir()) / "zotero-mcp-downloads"
+                    cached_pdf = cache_dir / f"{attachment_key}.pdf"
+                    if cached_pdf.exists() and cached_pdf.stat().st_size > 0:
+                        logger.info(
+                            f"Using cached downloaded PDF for {attachment_key}"
+                        )
+                        pdf_path = cached_pdf
+                        break
+
+                    # Download via API
+                    logger.info(
+                        f"Downloading PDF for {item_key} "
+                        f"(attachment {attachment_key}) via Web API..."
+                    )
+                    pdf_bytes = await self.item_service.download_attachment(
+                        attachment_key
+                    )
+                    if pdf_bytes and len(pdf_bytes) > 100:
+                        cache_dir.mkdir(parents=True, exist_ok=True)
+                        cached_pdf.write_bytes(pdf_bytes)
+                        logger.info(
+                            f"Downloaded and cached PDF: {len(pdf_bytes)} bytes "
+                            f"-> {cached_pdf}"
+                        )
+                        pdf_path = cached_pdf
+                        break
+
+            if pdf_path is None or not pdf_path.exists():
+                logger.debug(f"No PDF found for {item_key} (all strategies exhausted)")
                 return {}
 
             # Extract multi-modal content
