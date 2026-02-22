@@ -340,7 +340,11 @@ class GlobalScanner:
                     failed_count += 1
                     logger.warning(f"  ✗ Failed to fetch bundle for {item.key}")
                     continue
-                if not bundle.get("fulltext"):
+                has_fulltext = bool(bundle.get("fulltext"))
+                has_multimodal_text = bool(
+                    bundle.get("multimodal", {}).get("text_blocks")
+                )
+                if not has_fulltext and not has_multimodal_text:
                     skipped_no_fulltext += 1
                     logger.info(
                         f"  ⊘ Skipped {item.key}: no fulltext available for analysis"

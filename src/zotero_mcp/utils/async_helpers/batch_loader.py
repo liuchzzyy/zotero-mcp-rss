@@ -111,6 +111,37 @@ class BatchLoader:
 
         return bundle
 
+    @staticmethod
+    def _get_zotero_storage_dir() -> Path | None:
+        """Get Zotero storage directory by auto-detecting data directory."""
+        import platform as _platform
+
+        system = _platform.system()
+        candidates: list[Path] = []
+        if system in ("Darwin", "Windows"):
+            candidates.append(Path.home() / "Zotero" / "storage")
+        else:
+            candidates.append(Path.home() / "Zotero" / "storage")
+
+        for path in candidates:
+            if path.is_dir():
+                return path
+        return None
+
+    def _find_pdf_in_storage(self, attachment_key: str) -> Path | None:
+        """Find a PDF file in Zotero storage by attachment key.
+
+        Searches <storage_dir>/<attachment_key>/*.pdf for the first PDF file.
+        """
+        storage_dir = self._get_zotero_storage_dir()
+        if not storage_dir:
+            return None
+        att_dir = storage_dir / attachment_key
+        if not att_dir.is_dir():
+            return None
+        pdfs = list(att_dir.glob("*.pdf"))
+        return pdfs[0] if pdfs else None
+
     async def _extract_multimodal_content(
         self, item_key: str, attachments: list[dict[str, Any]] | None = None
     ) -> dict[str, Any]:
@@ -139,42 +170,43 @@ class BatchLoader:
                 logger.debug(f"No PDF attachments found for {item_key}")
                 return {}
 
-            # Get local path from first PDF attachment
-            first_pdf = pdf_attachments[0]
-            pdf_path_info = first_pdf.get("data", {}).get("path")
-            if not pdf_path_info:
-                logger.debug(f"No path info for PDF attachment in {item_key}")
-                return {}
+            # Try each PDF attachment until we find one that exists locally
+            pdf_path: Path | None = None
+            for pdf_att in pdf_attachments:
+                pdf_path_info = pdf_att.get("data", {}).get("path")
+                attachment_key = pdf_att.get("key") or pdf_att.get(
+                    "data", {}
+                ).get("key")
 
-            # Resolve Zotero storage path to filesystem path
-            # Format: "storage:filename.pdf" -> <storage_dir>/<attachment_key>/filename.pdf
-            if pdf_path_info.startswith("storage:"):
-                local_client = self.item_service.local_client
-                attachment_key = first_pdf.get("key") or first_pdf.get("data", {}).get(
-                    "key"
-                )
-                if local_client and attachment_key:
-                    resolved = local_client._resolve_path(
-                        attachment_key, pdf_path_info
-                    )
-                    if resolved and resolved.exists():
-                        pdf_path = resolved
-                    else:
-                        logger.debug(
-                            f"Local PDF path resolution failed for {item_key}"
+                # Strategy 1: Resolve "storage:filename.pdf" via local_client
+                if pdf_path_info and pdf_path_info.startswith("storage:"):
+                    local_client = self.item_service.local_client
+                    if local_client and attachment_key:
+                        resolved = local_client._resolve_path(
+                            attachment_key, pdf_path_info
                         )
-                        return {}
-                else:
-                    logger.debug(
-                        f"Local PDF path resolution requires LocalDatabaseClient for {item_key}"
-                    )
-                    return {}
+                        if resolved and resolved.exists():
+                            pdf_path = resolved
+                            break
 
-            # If we have a direct path, try extraction
-            if not pdf_path_info.startswith("storage:"):
-                pdf_path = Path(pdf_path_info)
-            if not pdf_path.exists():
-                logger.debug(f"PDF file does not exist: {pdf_path}")
+                # Strategy 2: Direct filesystem lookup by attachment key
+                # Works even without local_client or when path is None
+                # (e.g. items fetched via Web API)
+                if attachment_key:
+                    found = self._find_pdf_in_storage(attachment_key)
+                    if found:
+                        pdf_path = found
+                        break
+
+                # Strategy 3: Direct path (non-storage)
+                if pdf_path_info and not pdf_path_info.startswith("storage:"):
+                    candidate = Path(pdf_path_info)
+                    if candidate.exists():
+                        pdf_path = candidate
+                        break
+
+            if pdf_path is None or not pdf_path.exists():
+                logger.debug(f"No local PDF found for {item_key}")
                 return {}
 
             # Extract multi-modal content

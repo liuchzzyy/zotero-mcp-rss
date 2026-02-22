@@ -646,6 +646,19 @@ class WorkflowService:
             multimodal = bundle.get("multimodal", {})
             context["images"] = multimodal.get("images", [])
             context["tables"] = multimodal.get("tables", [])
+
+            # Fallback: use multimodal text_blocks as fulltext when Zotero
+            # fulltext index is unavailable (e.g. items not yet synced/indexed)
+            if not context["fulltext"]:
+                text_blocks = multimodal.get("text_blocks", [])
+                if text_blocks:
+                    context["fulltext"] = "\n\n".join(
+                        block.get("content", "") for block in text_blocks
+                    )
+                    logger.info(
+                        "Using multimodal text_blocks as fulltext fallback "
+                        f"({len(text_blocks)} blocks)"
+                    )
         else:
             context["images"] = []
             context["tables"] = []
