@@ -30,7 +30,7 @@ def test_top_level_help_shows_command_groups():
         assert group in result.stdout
 
 
-def test_workflow_item_analysis_help_shows_multimodal_flag():
+def test_workflow_item_analysis_help_hides_multimodal_flag():
     result = subprocess.run(
         [sys.executable, "-m", "zotero_mcp", "workflow", "item-analysis", "--help"],
         capture_output=True,
@@ -38,8 +38,8 @@ def test_workflow_item_analysis_help_shows_multimodal_flag():
     )
 
     assert result.returncode == 0
-    assert "--multimodal" in result.stdout
-    assert "--no-multimodal" in result.stdout
+    assert "--multimodal" not in result.stdout
+    assert "--no-multimodal" not in result.stdout
     assert "--target-collection" in result.stdout
 
 

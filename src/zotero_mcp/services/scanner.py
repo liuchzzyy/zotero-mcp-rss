@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 # Tag applied to items after successful AI analysis
 AI_ANALYSIS_TAG = "AI分析"
+NON_ANALYZABLE_ITEM_TYPES = {"attachment", "note", "annotation"}
 
 
 class GlobalScanner:
@@ -45,6 +46,13 @@ class GlobalScanner:
         - Item has PDF attachment
         - Item lacks "AI分析" tag
         """
+        # Skip child/non-library items early to avoid invalid children requests.
+        item_type = ""
+        if hasattr(item, "data") and isinstance(item.data, dict):
+            item_type = str(item.data.get("itemType") or "").strip().lower()
+        if item_type in NON_ANALYZABLE_ITEM_TYPES:
+            return False
+
         # Check for AI分析 tag
         tags = item.data.get("tags", []) if hasattr(item, "data") else []
         has_ai_tag = any(
@@ -220,6 +228,7 @@ class GlobalScanner:
 
                     # Fetch this collection until exhausted or reaching cap.
                     collection_candidates = 0
+                    collection_scanned = 0
 
                     async def _fetch_collection_page(
                         start: int,
@@ -236,6 +245,7 @@ class GlobalScanner:
                     ):
                         if len(candidates) >= params.treated_limit:
                             break
+                        collection_scanned += len(items)
                         total_scanned += len(items)
 
                         # Find candidates in this batch
@@ -256,7 +266,8 @@ class GlobalScanner:
                                     break
 
                     logger.info(
-                        f"  Collection '{coll_name}': {total_scanned} items scanned, "
+                        f"  Collection '{coll_name}': "
+                        f"{collection_scanned} items scanned, "
                         f"{collection_candidates} candidates"
                     )
 
@@ -316,8 +327,24 @@ class GlobalScanner:
             # Stage 3: Process candidates
             logger.info(f"Starting AI analysis of {len(candidates)} items...")
             from zotero_mcp.clients.llm import get_llm_client
+            from zotero_mcp.clients.llm.capabilities import get_provider_capability
 
             llm_client = get_llm_client(provider=params.llm_provider)
+            provider_name = getattr(llm_client, "provider", None)
+            provider_name = provider_name if isinstance(provider_name, str) else None
+
+            # For text-only providers (e.g. deepseek), skip expensive multi-modal
+            # extraction initially and only backfill it for items lacking fulltext.
+            can_handle_images = True
+            if provider_name:
+                try:
+                    can_handle_images = get_provider_capability(
+                        provider_name
+                    ).can_handle_images()
+                except ValueError:
+                    # Unknown provider: keep previous behavior (extract multimodal).
+                    can_handle_images = True
+            initial_include_multimodal = params.include_multimodal and can_handle_images
 
             processed_count = 0
             failed_count = 0
@@ -329,9 +356,37 @@ class GlobalScanner:
                 candidate_keys,
                 include_fulltext=True,
                 include_annotations=True,
-                include_multimodal=params.include_multimodal,
+                include_multimodal=initial_include_multimodal,
             )
             full_bundle_map = {b["metadata"]["key"]: b for b in full_bundles}
+
+            # Backfill multimodal only where fulltext is missing
+            # for text-only providers.
+            if params.include_multimodal and not initial_include_multimodal:
+                missing_fulltext_keys = [
+                    key
+                    for key, bundle in full_bundle_map.items()
+                    if not bool(bundle.get("fulltext"))
+                ]
+                if missing_fulltext_keys:
+                    logger.info(
+                        "Backfilling multimodal for "
+                        f"{len(missing_fulltext_keys)} items without fulltext"
+                    )
+                    fallback_bundles = await self.batch_loader.fetch_many_bundles(
+                        missing_fulltext_keys,
+                        include_fulltext=False,
+                        include_annotations=False,
+                        include_notes=False,
+                        include_multimodal=True,
+                    )
+                    fallback_map = {
+                        b["metadata"]["key"]: b.get("multimodal", {})
+                        for b in fallback_bundles
+                    }
+                    for key in missing_fulltext_keys:
+                        if key in fallback_map and key in full_bundle_map:
+                            full_bundle_map[key]["multimodal"] = fallback_map[key]
 
             for i, item in enumerate(candidates, 1):
                 logger.info(f"Processing {i}/{len(candidates)}: {item.title[:60]}...")

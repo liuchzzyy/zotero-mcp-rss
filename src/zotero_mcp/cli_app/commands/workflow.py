@@ -51,12 +51,6 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         default="00_INBOXS",
         help="Collection to scan first (default: 00_INBOXS)",
     )
-    item_analysis.add_argument(
-        "--multimodal",
-        action=argparse.BooleanOptionalAction,
-        default=True,
-        help="Enable/disable multi-modal analysis (default: enabled)",
-    )
     add_output_arg(item_analysis)
 
     metadata = workflow_sub.add_parser(
@@ -103,7 +97,7 @@ async def _run_item_analysis(args: argparse.Namespace) -> dict[str, Any]:
         dry_run=args.dry_run,
         llm_provider=args.llm_provider,
         source_collection=args.source_collection,
-        include_multimodal=args.multimodal,
+        include_multimodal=True,
     )
 
 

@@ -34,11 +34,6 @@ on:
         default: "deepseek"
         type: choice
         options: ["auto", "deepseek", "openai", "gemini", "claude-cli"]
-      multimodal:
-        description: "Enable multimodal extraction"
-        required: false
-        default: true
-        type: boolean
       dry_run:
         description: "Preview mode (no write)"
         required: false
@@ -78,7 +73,6 @@ jobs:
           INPUT_SOURCE_COLLECTION: ${{ github.event.inputs.source_collection || '00_INBOXS' }}
           INPUT_TARGET_COLLECTION: ${{ github.event.inputs.target_collection || '01_SHORTTERMS' }}
           INPUT_LLM_PROVIDER: ${{ github.event.inputs.llm_provider || 'deepseek' }}
-          INPUT_MULTIMODAL: ${{ github.event.inputs.multimodal || 'true' }}
           INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
         run: |
           ARGS=(
@@ -89,11 +83,6 @@ jobs:
             --llm-provider "$INPUT_LLM_PROVIDER"
           )
 
-          if [ "$INPUT_MULTIMODAL" = "true" ]; then
-            ARGS+=(--multimodal)
-          else
-            ARGS+=(--no-multimodal)
-          fi
           if [ "$INPUT_DRY_RUN" = "true" ]; then
             ARGS+=(--dry-run)
           fi
@@ -173,7 +162,6 @@ jobs:
             | Source | ${{ github.event.inputs.source_collection || '00_INBOXS' }} |
             | Target | ${{ github.event.inputs.target_collection || '01_SHORTTERMS' }} |
             | LLM | ${{ github.event.inputs.llm_provider || 'deepseek' }} |
-            | Multimodal | ${{ github.event.inputs.multimodal || 'true' }} |
             | Dry Run | ${{ github.event.inputs.dry_run || 'false' }} |
           metrics: ${{ steps.metrics.outputs.json }}
 
