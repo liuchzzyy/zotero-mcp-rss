@@ -13,6 +13,7 @@ import json
 import logging
 import os
 from pathlib import Path
+import re
 import sys
 from typing import Any
 
@@ -43,6 +44,10 @@ def suppress_stdout():
 class ZoteroSemanticSearch:
     """Semantic search interface for Zotero libraries using ChromaDB."""
 
+    DEFAULT_CHUNK_SIZE = 1800
+    DEFAULT_CHUNK_OVERLAP = 200
+    DEFAULT_MAX_SOURCE_CHARS = 200_000
+
     def __init__(
         self,
         chroma_client: ChromaClient | None = None,
@@ -65,6 +70,7 @@ class ZoteroSemanticSearch:
 
         # Load update configuration
         self.update_config = self._load_update_config()
+        self.extraction_config = self._load_extraction_config()
 
     def _load_update_config(self) -> dict[str, Any]:
         """Load update configuration from file or use defaults."""
@@ -116,6 +122,53 @@ class ZoteroSemanticSearch:
         except Exception as e:
             logger.error(f"Error saving update config: {e}")
 
+    @staticmethod
+    def _positive_int(value: Any, default: int) -> int:
+        """Parse a positive integer with safe fallback."""
+        try:
+            parsed = int(value)
+            if parsed > 0:
+                return parsed
+        except Exception:
+            pass
+        return default
+
+    def _load_extraction_config(self) -> dict[str, int]:
+        """Load extraction/chunking configuration with safe defaults."""
+        config = {
+            "chunk_size": self.DEFAULT_CHUNK_SIZE,
+            "chunk_overlap": self.DEFAULT_CHUNK_OVERLAP,
+            "max_source_chars": self.DEFAULT_MAX_SOURCE_CHARS,
+        }
+
+        if self.config_path and os.path.exists(self.config_path):
+            try:
+                with open(self.config_path) as f:
+                    file_config = json.load(f)
+                extraction = (
+                    file_config.get("semantic_search", {}).get("extraction", {})
+                )
+                if isinstance(extraction, dict):
+                    config["chunk_size"] = self._positive_int(
+                        extraction.get("chunk_size"),
+                        config["chunk_size"],
+                    )
+                    config["chunk_overlap"] = self._positive_int(
+                        extraction.get("chunk_overlap"),
+                        config["chunk_overlap"],
+                    )
+                    config["max_source_chars"] = self._positive_int(
+                        extraction.get("max_source_chars"),
+                        config["max_source_chars"],
+                    )
+            except Exception as e:
+                logger.warning(f"Error loading extraction config: {e}")
+
+        if config["chunk_overlap"] >= config["chunk_size"]:
+            config["chunk_overlap"] = max(1, config["chunk_size"] // 4)
+
+        return config
+
     def _parse_last_update(self) -> datetime | None:
         """Parse `last_update` from config, returning None when invalid/missing."""
         raw_last_update = self.update_config.get("last_update")
@@ -162,6 +215,203 @@ class ZoteroSemanticSearch:
 
         return False
 
+    @staticmethod
+    def _strip_html(text: str) -> str:
+        """Remove HTML tags from note content."""
+        return re.sub(r"<[^>]+>", "", text)
+
+    def _chunk_text(
+        self,
+        text: str,
+    ) -> list[str]:
+        """Split text into overlapping chunks for fragment indexing."""
+        if not text:
+            return []
+
+        chunk_size = self._positive_int(
+            self.extraction_config.get("chunk_size"),
+            self.DEFAULT_CHUNK_SIZE,
+        )
+        overlap = self._positive_int(
+            self.extraction_config.get("chunk_overlap"),
+            self.DEFAULT_CHUNK_OVERLAP,
+        )
+        max_source_chars = self._positive_int(
+            self.extraction_config.get("max_source_chars"),
+            self.DEFAULT_MAX_SOURCE_CHARS,
+        )
+
+        if max_source_chars > 0 and len(text) > max_source_chars:
+            logger.warning(
+                "Source text too large (%s chars), truncating to %s before chunking",
+                len(text),
+                max_source_chars,
+            )
+            text = text[:max_source_chars]
+
+        if chunk_size <= 0:
+            chunk_size = self.DEFAULT_CHUNK_SIZE
+
+        safe_overlap = max(0, min(overlap, chunk_size - 1))
+        chunks: list[str] = []
+        text_len = len(text)
+        start = 0
+        while start < text_len and text[start].isspace():
+            start += 1
+
+        end_limit = text_len
+        while end_limit > start and text[end_limit - 1].isspace():
+            end_limit -= 1
+
+        if start >= end_limit:
+            return []
+
+        while start < end_limit:
+            end = min(start + chunk_size, end_limit)
+            if end < end_limit:
+                soft_floor = min(start + 200, end)
+                paragraph_break = text.rfind("\n\n", soft_floor, end)
+                whitespace_break = text.rfind(" ", soft_floor, end)
+                split_at = max(paragraph_break, whitespace_break)
+                if split_at > start:
+                    end = split_at
+
+            if end <= start:
+                end = min(start + chunk_size, end_limit)
+                if end <= start:
+                    break
+
+            chunk = text[start:end].strip()
+            if chunk:
+                chunks.append(chunk)
+
+            if end >= end_limit:
+                break
+            next_start = end - safe_overlap
+            start = next_start if next_start > start else end
+
+        return chunks
+
+    def _build_fragment_record(
+        self,
+        parent_item: dict[str, Any],
+        fragment_type: str,
+        source_key: str,
+        source_label: str,
+        text: str,
+        chunk_index: int,
+        chunk_count: int,
+    ) -> dict[str, Any]:
+        """Build an indexable fragment record for ChromaDB."""
+        parent_metadata = ZoteroMapper.create_metadata(parent_item)
+        parent_key = str(parent_metadata.get("item_key") or parent_item.get("key", ""))
+        safe_source_key = source_key or source_label or "unknown"
+
+        fragment_id = (
+            f"{parent_key}::{fragment_type}::{safe_source_key}::{chunk_index}"
+        )
+
+        metadata = dict(parent_metadata)
+        metadata.update(
+            {
+                "fragment_type": fragment_type,
+                "source_key": safe_source_key,
+                "source_label": source_label,
+                "chunk_index": chunk_index,
+                "chunk_count": chunk_count,
+            }
+        )
+
+        return {
+            "key": fragment_id,
+            "__semantic_fragment__": True,
+            "document": text.strip(),
+            "metadata": metadata,
+        }
+
+    def _collect_local_fragment_records(
+        self,
+        reader: LocalDatabaseClient,
+        item: Any,
+        parent_item: dict[str, Any],
+        extract_fulltext: bool,
+    ) -> list[dict[str, Any]]:
+        """Collect note/pdf fragments for one parent item from local storage."""
+        records: list[dict[str, Any]] = []
+
+        note_index = 0
+        for note in reader.get_item_notes(item.item_id):
+            try:
+                note_text = self._strip_html(str(note.get("note", ""))).strip()
+                if not note_text:
+                    continue
+
+                note_index += 1
+                note_key = str(note.get("key") or f"note-{note_index}")
+                chunks = self._chunk_text(note_text)
+                for idx, chunk in enumerate(chunks, start=1):
+                    records.append(
+                        self._build_fragment_record(
+                            parent_item=parent_item,
+                            fragment_type="note",
+                            source_key=note_key,
+                            source_label=f"note-{note_index}",
+                            text=chunk,
+                            chunk_index=idx,
+                            chunk_count=len(chunks),
+                        )
+                    )
+            except MemoryError:
+                logger.warning(
+                    "Skipping note fragments for item %s due MemoryError", item.key
+                )
+                continue
+            except Exception as e:
+                logger.warning(
+                    "Skipping one note fragment source for item %s: %s", item.key, e
+                )
+                continue
+
+        if not extract_fulltext:
+            return records
+
+        for pdf_key, pdf_path in reader.iter_pdf_attachments(item.item_id):
+            try:
+                pdf_text = reader._extract_pdf_text(pdf_path).strip()
+                if not pdf_text:
+                    continue
+
+                chunks = self._chunk_text(pdf_text)
+                for idx, chunk in enumerate(chunks, start=1):
+                    records.append(
+                        self._build_fragment_record(
+                            parent_item=parent_item,
+                            fragment_type="pdf",
+                            source_key=pdf_key,
+                            source_label=pdf_path.name,
+                            text=chunk,
+                            chunk_index=idx,
+                            chunk_count=len(chunks),
+                        )
+                    )
+            except MemoryError:
+                logger.warning(
+                    "Skipping pdf fragments for item %s attachment %s due MemoryError",
+                    item.key,
+                    pdf_key,
+                )
+                continue
+            except Exception as e:
+                logger.warning(
+                    "Skipping one pdf fragment source for item %s attachment %s: %s",
+                    item.key,
+                    pdf_key,
+                    e,
+                )
+                continue
+
+        return records
+
     def _get_items_from_source(
         self,
         scan_limit: int = 100,
@@ -171,7 +421,7 @@ class ZoteroSemanticSearch:
         force_rebuild: bool = False,
     ) -> list[dict[str, Any]]:
         """Get items from either local database or API."""
-        if extract_fulltext and is_local_mode():
+        if is_local_mode():
             return self._get_items_from_local_db(
                 scan_limit,
                 treated_limit,
@@ -227,71 +477,18 @@ class ZoteroSemanticSearch:
                 candidate_count = len(local_items)
                 sys.stderr.write(f"Found {candidate_count} candidate items.\n")
 
-                # TODO: Deduplication logic could go here (similar to original)
-
-                total_to_extract = len(local_items)
                 try:
-                    sys.stderr.write("Extracting content...\n")
+                    sys.stderr.write(
+                        "Building item + fragment documents from local storage...\n"
+                    )
                 except Exception:
                     pass
 
-                # Phase 2: extract fulltext if requested
-                if extract_fulltext:
-                    extracted = 0
-                    skipped_existing = 0
-                    updated_existing = 0
-                    items_to_process = []
-
-                    for it in local_items:
-                        should_extract = True
-
-                        if chroma_client and not force_rebuild:
-                            existing_metadata = chroma_client.get_document_metadata(
-                                it.key
-                            )
-                            if existing_metadata:
-                                chroma_has_fulltext = existing_metadata.get(
-                                    "has_fulltext", False
-                                )
-                                local_has_fulltext = any(
-                                    True for _ in reader._iter_attachments(it.item_id)
-                                )
-
-                                if not chroma_has_fulltext and local_has_fulltext:
-                                    updated_existing += 1
-                                else:
-                                    should_extract = False
-                                    skipped_existing += 1
-
-                        if should_extract:
-                            if not it.fulltext:
-                                text_result = reader._extract_fulltext(it.item_id)
-                                if text_result:
-                                    it.fulltext, it.fulltext_source = text_result
-                            extracted += 1
-                            items_to_process.append(it)
-
-                            if extracted % 25 == 0 and total_to_extract:
-                                try:
-                                    sys.stderr.write(
-                                        "Extracted content for "
-                                        f"{extracted}/{total_to_extract} items "
-                                        f"(skipped {skipped_existing} existing, "
-                                        f"updating {updated_existing})...\n"
-                                    )
-                                except Exception:
-                                    pass
-
-                    local_items = items_to_process
-
-                else:
-                    for it in local_items:
-                        it.fulltext = None
-                        it.fulltext_source = None
-
                 # Convert to API-compatible format
                 api_items: list[dict[str, Any]] = []
-                for item in local_items:
+                fragment_records: list[dict[str, Any]] = []
+                total_local_items = len(local_items)
+                for idx_item, item in enumerate(local_items, start=1):
                     api_item: dict[str, Any] = {
                         "key": item.key,
                         "version": 0,
@@ -301,10 +498,8 @@ class ZoteroSemanticSearch:
                             "title": item.title or "",
                             "abstractNote": item.abstract or "",
                             "extra": item.extra or "",
-                            "fulltext": item.fulltext or "" if extract_fulltext else "",
-                            "fulltextSource": (
-                                item.fulltext_source or "" if extract_fulltext else ""
-                            ),
+                            "fulltext": "",
+                            "fulltextSource": "",
                             "dateAdded": item.date_added,
                             "dateModified": item.date_modified,
                             "creators": ZoteroMapper.parse_creators_string(
@@ -322,9 +517,35 @@ class ZoteroSemanticSearch:
                         api_item["data"]["annotations"] = item.annotations
 
                     api_items.append(api_item)
+                    fragment_records.extend(
+                        self._collect_local_fragment_records(
+                            reader=reader,
+                            item=item,
+                            parent_item=api_item,
+                            extract_fulltext=extract_fulltext,
+                        )
+                    )
+                    try:
+                        pct_items = (
+                            idx_item / total_local_items * 100
+                            if total_local_items
+                            else 100.0
+                        )
+                        sys.stderr.write(
+                            "Prepared local documents: "
+                            f"{idx_item}/{total_local_items} "
+                            f"({pct_items:.1f}%), "
+                            f"fragments={len(fragment_records)}\n"
+                        )
+                    except Exception:
+                        pass
 
-                logger.info(f"Retrieved {len(api_items)} items from local database")
-                return api_items
+                logger.info(
+                    "Prepared %s parent items and %s fragment documents from local DB",
+                    len(api_items),
+                    len(fragment_records),
+                )
+                return [*api_items, *fragment_records]
 
         except Exception as e:
             logger.exception(f"Error reading from local database: {e}")
@@ -367,7 +588,8 @@ class ZoteroSemanticSearch:
             filtered_items = [
                 item
                 for item in items
-                if item.get("data", {}).get("itemType") not in ["attachment", "note"]
+                if item.get("data", {}).get("itemType")
+                not in ["attachment", "note", "annotation"]
             ]
 
             all_items.extend(filtered_items)
@@ -395,6 +617,8 @@ class ZoteroSemanticSearch:
 
         stats: dict[str, Any] = {
             "total_items": 0,
+            "total_fragments": 0,
+            "total_documents": 0,
             "processed_items": 0,
             "added_items": 0,
             "updated_items": 0,
@@ -417,16 +641,31 @@ class ZoteroSemanticSearch:
                 force_rebuild=force_full_rebuild,
             )
 
-            stats["total_items"] = len(all_items)
-            logger.info(f"Found {stats['total_items']} items to process")
+            total_fragments = sum(
+                1 for item in all_items if bool(item.get("__semantic_fragment__"))
+            )
+            stats["total_fragments"] = total_fragments
+            stats["total_items"] = len(all_items) - total_fragments
+            stats["total_documents"] = len(all_items)
+            logger.info(
+                "Found %s parent items and %s fragments to process",
+                stats["total_items"],
+                stats["total_fragments"],
+            )
 
             try:
-                sys.stderr.write(f"Total items to index: {stats['total_items']}\n")
+                sys.stderr.write(
+                    f"Total documents to index: {stats['total_documents']}\n"
+                )
             except Exception:
                 pass
 
             batch_size = 50
-            for i in range(0, len(all_items), batch_size):
+            total_docs = len(all_items)
+            total_batches = (
+                (total_docs + batch_size - 1) // batch_size if total_docs else 0
+            )
+            for batch_idx, i in enumerate(range(0, total_docs, batch_size), start=1):
                 batch = all_items[i : i + batch_size]
                 batch_stats = self._process_item_batch(batch)
 
@@ -435,6 +674,25 @@ class ZoteroSemanticSearch:
                 stats["updated_items"] += batch_stats["updated"]
                 stats["skipped_items"] += batch_stats["skipped"]
                 stats["errors"] += batch_stats["errors"]
+
+                try:
+                    pct = (
+                        (stats["processed_items"] + stats["skipped_items"])
+                        / total_docs
+                        * 100
+                        if total_docs
+                        else 100.0
+                    )
+                    sys.stderr.write(
+                        "Indexing progress: "
+                        f"batch {batch_idx}/{total_batches}, "
+                        f"processed={stats['processed_items']}, "
+                        f"skipped={stats['skipped_items']}, "
+                        f"errors={stats['errors']}, "
+                        f"{pct:.1f}%\n"
+                    )
+                except Exception:
+                    pass
 
             self.update_config["last_update"] = datetime.now().isoformat()
             self._save_update_config()
@@ -466,8 +724,17 @@ class ZoteroSemanticSearch:
                     stats["skipped"] += 1
                     continue
 
-                doc_text = ZoteroMapper.create_document_text(item)
-                metadata = ZoteroMapper.create_metadata(item)
+                if item.get("__semantic_fragment__"):
+                    doc_text = str(item.get("document", ""))
+                    raw_metadata = item.get("metadata", {})
+                    metadata = (
+                        dict(raw_metadata) if isinstance(raw_metadata, dict) else {}
+                    )
+                    metadata.setdefault("fragment_type", "fragment")
+                else:
+                    doc_text = ZoteroMapper.create_document_text(item)
+                    metadata = ZoteroMapper.create_metadata(item)
+                    metadata.setdefault("fragment_type", "item")
 
                 if not doc_text.strip():
                     stats["skipped"] += 1
@@ -555,16 +822,21 @@ class ZoteroSemanticSearch:
         documents = self._first_nested_list(chroma_results.get("documents"))
         metadatas = self._first_nested_list(chroma_results.get("metadatas"))
 
-        for i, item_key in enumerate(ids):
+        for i, result_id in enumerate(ids):
             try:
+                raw_metadata = metadatas[i] if i < len(metadatas) else {}
+                metadata = dict(raw_metadata) if isinstance(raw_metadata, dict) else {}
+                parent_item_key = str(metadata.get("item_key") or result_id)
+
                 # Use synchronous pyzotero client here as this runs in thread
-                zotero_item = self.zotero_client.item(item_key)
+                zotero_item = self.zotero_client.item(parent_item_key)
 
                 enriched_result = {
-                    "item_key": item_key,
+                    "item_key": parent_item_key,
+                    "result_id": result_id,
                     "similarity_score": 1 - distances[i] if i < len(distances) else 0,
                     "matched_text": documents[i] if i < len(documents) else "",
-                    "metadata": metadatas[i] if i < len(metadatas) else {},
+                    "metadata": metadata,
                     "zotero_item": zotero_item,
                     "query": query,
                 }
@@ -572,15 +844,19 @@ class ZoteroSemanticSearch:
                 enriched.append(enriched_result)
 
             except Exception as e:
-                logger.error(f"Error enriching result for item {item_key}: {e}")
+                raw_metadata = metadatas[i] if i < len(metadatas) else {}
+                metadata = dict(raw_metadata) if isinstance(raw_metadata, dict) else {}
+                parent_item_key = str(metadata.get("item_key") or result_id)
+                logger.error(f"Error enriching result for item {parent_item_key}: {e}")
                 enriched.append(
                     {
-                        "item_key": item_key,
+                        "item_key": parent_item_key,
+                        "result_id": result_id,
                         "similarity_score": (
                             1 - distances[i] if i < len(distances) else 0
                         ),
                         "matched_text": documents[i] if i < len(documents) else "",
-                        "metadata": metadatas[i] if i < len(metadatas) else {},
+                        "metadata": metadata,
                         "query": query,
                         "error": str(e),
                     }

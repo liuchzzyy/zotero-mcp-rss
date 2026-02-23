@@ -424,6 +424,37 @@ class LocalDatabaseClient:
         for row in conn.execute(query, (parent_item_id,)):
             yield row["key"], row["path"], row["contentType"]
 
+    def iter_pdf_attachments(self, parent_item_id: int) -> Iterator[tuple[str, Path]]:
+        """Yield (attachment_key, pdf_path) for all local PDF attachments."""
+        for key, path, content_type in self._iter_attachments(parent_item_id):
+            resolved = self._resolve_path(key, path)
+            if not resolved or not resolved.exists():
+                continue
+
+            if content_type == "application/pdf" or resolved.suffix.lower() == ".pdf":
+                yield key, resolved
+
+    def get_item_notes(self, parent_item_id: int) -> list[dict[str, str]]:
+        """Get child notes for a parent item."""
+        conn = self._get_connection()
+        query = """
+            SELECT n.note, i.key AS note_key
+            FROM itemNotes n
+            JOIN items i ON i.itemID = n.itemID
+            WHERE n.parentItemID = ?
+            ORDER BY n.itemID ASC
+        """
+
+        notes: list[dict[str, str]] = []
+        for row in conn.execute(query, (parent_item_id,)):
+            notes.append(
+                {
+                    "key": str(row["note_key"] or ""),
+                    "note": str(row["note"] or ""),
+                }
+            )
+        return notes
+
     def _resolve_path(
         self,
         attachment_key: str,
