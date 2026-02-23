@@ -57,7 +57,7 @@ jobs:
   item-analysis:
     name: Run Item Analysis
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
