@@ -173,7 +173,7 @@ class MultiModalPDFExtractor:
                     )
 
         except Exception as e:
-            logger.warning(f"Failed to extract image from page {page_num}: {e}")
+            logger.debug(f"跳过第 {page_num} 页图片提取: {e}")
 
         return images
 
@@ -214,7 +214,7 @@ class MultiModalPDFExtractor:
                 )
 
         except Exception as e:
-            logger.warning(f"Failed to extract tables from page {page_num}: {e}")
+            logger.debug(f"跳过第 {page_num} 页表格提取: {e}")
 
         return tables
 

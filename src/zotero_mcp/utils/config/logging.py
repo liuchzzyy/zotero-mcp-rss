@@ -501,6 +501,11 @@ def initialize_logging() -> None:
 
     root_logger.addHandler(console_handler)
 
+    # Silence noisy third-party loggers
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
+    logging.getLogger("hpack").setLevel(logging.WARNING)
+
     # Cleanup old logs
     cleanup_old_logs()
 

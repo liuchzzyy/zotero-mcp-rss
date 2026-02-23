@@ -311,10 +311,14 @@ class CLILLMClient:
             TimeoutError: If execution exceeds timeout
         """
         try:
+            # Remove CLAUDECODE env var to allow nested claude CLI invocations
+            import os as _os
+            subprocess_env = {k: v for k, v in _os.environ.items() if k != "CLAUDECODE"}
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                env=subprocess_env,
             )
 
             # Read stdout line by line for streaming output

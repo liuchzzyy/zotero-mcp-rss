@@ -219,17 +219,12 @@ class BatchLoader:
                     cache_dir = Path(tempfile.gettempdir()) / "zotero-mcp-downloads"
                     cached_pdf = cache_dir / f"{attachment_key}.pdf"
                     if cached_pdf.exists() and cached_pdf.stat().st_size > 0:
-                        logger.info(
-                            f"Using cached downloaded PDF for {attachment_key}"
-                        )
+                        logger.debug(f"使用本地缓存 PDF: {attachment_key}")
                         pdf_path = cached_pdf
                         break
 
                     # Download via API
-                    logger.info(
-                        f"Downloading PDF for {item_key} "
-                        f"(attachment {attachment_key}) via Web API..."
-                    )
+                    logger.info(f"  📥 本地无 PDF，从 Zotero 云端下载 ({item_key})...")
                     pdf_bytes = await self.item_service.download_attachment(
                         attachment_key
                     )
@@ -237,8 +232,7 @@ class BatchLoader:
                         cache_dir.mkdir(parents=True, exist_ok=True)
                         cached_pdf.write_bytes(pdf_bytes)
                         logger.info(
-                            f"Downloaded and cached PDF: {len(pdf_bytes)} bytes "
-                            f"-> {cached_pdf}"
+                            f"  ✓ 下载完成: {len(pdf_bytes) // 1024} KB -> 已缓存"
                         )
                         pdf_path = cached_pdf
                         break
@@ -257,7 +251,7 @@ class BatchLoader:
             return result
 
         except Exception as e:
-            logger.warning(f"Failed to extract multi-modal content for {item_key}: {e}")
+            logger.warning(f"  ⚠ PDF 多模态提取失败 ({item_key}): {e}")
             return {}
 
     async def fetch_many_bundles(
@@ -283,7 +277,7 @@ class BatchLoader:
                         include_multimodal,
                     )
                 except Exception as e:
-                    logger.error(f"Failed to fetch bundle for {key}: {e}")
+                    logger.error(f"  ✗ 获取条目数据失败 ({key}): {e}")
                     return None
 
         tasks = [_fetch_safe(key) for key in item_keys]
