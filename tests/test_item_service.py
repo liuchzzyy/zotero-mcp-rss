@@ -2,7 +2,7 @@
 Tests for ItemService.
 """
 
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -156,3 +156,43 @@ async def test_create_items_reuses_library_search_cache_for_title(
         qmode="titleCreatorYear",
         limit=25,
     )
+
+
+@pytest.mark.asyncio
+async def test_get_fulltext_prefers_local_when_local_is_richer(mock_api_client):
+    local_client = MagicMock()
+    service = ItemService(api_client=mock_api_client, local_client=local_client)
+
+    api_text = "### 附件PDF 1: A\n\nOnly one attachment"
+    local_text = (
+        "### 附件 1: A.pdf\n\nText A\n\n---\n\n"
+        "### 附件 2: B.pdf\n\nText B from second attachment"
+    )
+
+    mock_api_client.get_fulltext.return_value = api_text
+    local_client.get_fulltext_by_key.return_value = (local_text, "pdf-multi")
+
+    result = await service.get_fulltext("ITEM1")
+
+    assert result == local_text
+    mock_api_client.get_fulltext.assert_awaited_once_with("ITEM1")
+    local_client.get_fulltext_by_key.assert_called_once_with("ITEM1")
+
+
+@pytest.mark.asyncio
+async def test_get_fulltext_keeps_api_when_local_is_not_richer(mock_api_client):
+    local_client = MagicMock()
+    service = ItemService(api_client=mock_api_client, local_client=local_client)
+
+    api_text = (
+        "### 附件PDF 1: A\n\nText A\n\n---\n\n"
+        "### 附件PDF 2: B\n\nText B"
+    )
+    local_text = "### 附件 1: A.pdf\n\nText A"
+
+    mock_api_client.get_fulltext.return_value = api_text
+    local_client.get_fulltext_by_key.return_value = (local_text, "pdf")
+
+    result = await service.get_fulltext("ITEM2")
+
+    assert result == api_text

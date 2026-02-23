@@ -139,20 +139,48 @@ class ItemService:
 
     async def get_fulltext(self, item_key: str) -> str | None:
         """Get full-text content for an item."""
-        # Try API first (existing behavior)
-        result = await self.api_client.get_fulltext(item_key)
-        if result:
-            return result
+        # Try API first
+        api_result = await self.api_client.get_fulltext(item_key)
+
+        # Local extraction can be richer (e.g., multi-PDF fulltext not indexed in API)
+        local_text: str | None = None
 
         # Fallback to local extraction if available
         if self.local_client:
-            logger.info(f"API fulltext empty, trying local extraction for {item_key}")
+            if not api_result:
+                logger.info(
+                    f"API fulltext empty, trying local extraction for {item_key}"
+                )
+            else:
+                logger.info(
+                    "API fulltext found, checking local extraction for completeness: "
+                    f"{item_key}"
+                )
             local_result = self.local_client.get_fulltext_by_key(item_key)
             if local_result:
                 text, source = local_result
                 logger.info(f"Local extraction succeeded from {source}")
-                return text
-            logger.warning(f"Local extraction also failed for {item_key}")
+                local_text = text
+            elif not api_result:
+                logger.warning(f"Local extraction also failed for {item_key}")
+
+        # Prefer richer content when both API and local are available
+        if api_result and local_text:
+            api_markers = api_result.count("### 附件")
+            local_markers = local_text.count("### 附件")
+            if local_markers > api_markers or len(local_text) > len(api_result) * 1.1:
+                logger.info(
+                    "Using local fulltext (richer multi-attachment coverage) "
+                    f"for {item_key}: local_markers={local_markers}, "
+                    f"api_markers={api_markers}"
+                )
+                return local_text
+            return api_result
+
+        if api_result:
+            return api_result
+        if local_text:
+            return local_text
 
         return None
 

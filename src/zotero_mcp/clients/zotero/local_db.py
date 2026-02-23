@@ -445,7 +445,8 @@ class LocalDatabaseClient:
         item_id: int,
     ) -> tuple[str, str] | None:
         """
-        Extract fulltext from best available attachment.
+        Extract fulltext from all available PDF attachments.
+        Fallback to HTML attachments when no PDF exists.
 
         Args:
             item_id: Item ID
@@ -453,39 +454,42 @@ class LocalDatabaseClient:
         Returns:
             Tuple of (text, source) or None
         """
-        best_pdf: Path | None = None
-        best_html: Path | None = None
+        pdf_targets: list[Path] = []
+        html_targets: list[Path] = []
 
         for key, path, content_type in self._iter_attachments(item_id):
             resolved = self._resolve_path(key, path)
             if not resolved or not resolved.exists():
                 continue
 
-            if content_type == "application/pdf" and best_pdf is None:
-                best_pdf = resolved
-            elif (content_type or "").startswith("text/html") and best_html is None:
-                best_html = resolved
+            if content_type == "application/pdf":
+                pdf_targets.append(resolved)
+            elif (content_type or "").startswith("text/html"):
+                html_targets.append(resolved)
 
-        # Prefer PDF over HTML
-        target = best_pdf or best_html
-        if not target:
+        # Prefer PDF attachments; fallback to one HTML attachment.
+        targets = pdf_targets if pdf_targets else html_targets[:1]
+        if not targets:
             return None
 
-        text = self._extract_text(target)
-        if not text:
+        merged_parts: list[str] = []
+        for idx, target in enumerate(targets, start=1):
+            text = self._extract_text(target)
+            if not text:
+                continue
+            merged_parts.append(f"### 附件 {idx}: {target.name}\n\n{text.strip()}")
+
+        if not merged_parts:
             return None
 
-        # Determine source type
-        suffix = target.suffix.lower()
-        if suffix == ".pdf":
-            source = "pdf"
-        elif suffix in {".html", ".htm"}:
-            source = "html"
+        if pdf_targets:
+            source = "pdf-multi" if len(pdf_targets) > 1 else "pdf"
         else:
-            source = "file"
+            source = "html"
 
         # Truncate to reasonable size
-        return (text[:10000], source)
+        merged_text = "\n\n---\n\n".join(merged_parts)
+        return (merged_text[:30000], source)
 
     def _get_item_tags(self, item_id: int) -> list[str]:
         """Load tags for an item from local database."""

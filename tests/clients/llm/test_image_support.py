@@ -19,6 +19,33 @@ class TestDeepSeekImageSupport:
         """Test DeepSeek client initialization."""
         client = LLMClient()
         assert client.provider == "deepseek"
+        assert client.max_tokens == 8192
+
+    @patch.dict(
+        "os.environ",
+        {
+            "DEEPSEEK_API_KEY": "test-key",
+            "DEEPSEEK_MODEL": "deepseek-chat",
+            "DEEPSEEK_MAX_TOKENS": "4096",
+        },
+    )
+    def test_init_deepseek_client_uses_env_max_tokens(self):
+        """Test DeepSeek max_tokens can be configured by env."""
+        client = LLMClient()
+        assert client.max_tokens == 4096
+
+    @patch.dict(
+        "os.environ",
+        {
+            "DEEPSEEK_API_KEY": "test-key",
+            "DEEPSEEK_MODEL": "deepseek-reasoner",
+            "DEEPSEEK_MAX_TOKENS": "100000",
+        },
+    )
+    def test_init_deepseek_client_clamps_max_tokens_to_model_limit(self):
+        """Test DeepSeek max_tokens is clamped to model ceiling."""
+        client = LLMClient()
+        assert client.max_tokens == 64000
 
     @patch.dict("os.environ", {"DEEPSEEK_API_KEY": "test-key"})
     @patch("zotero_mcp.clients.llm.base.LLMClient._call_deepseek_api")

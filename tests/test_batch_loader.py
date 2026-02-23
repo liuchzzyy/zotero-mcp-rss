@@ -157,9 +157,40 @@ def mock_item_service_with_storage_pdf():
             "data": {
                 "itemType": "attachment",
                 "contentType": "application/pdf",
-                "path": "storage:test.pdf",  # Storage path (requires LocalDatabaseClient)
+                # Storage path (requires LocalDatabaseClient)
+                "path": "storage:test.pdf",
             },
         }
+    ]
+    service.get_fulltext.return_value = "Full text"
+    service.get_annotations.return_value = []
+    return service
+
+
+@pytest.fixture
+def mock_item_service_with_multiple_pdfs():
+    """Mock service with two PDF attachments."""
+    service = AsyncMock(spec=ItemService)
+    service.get_item.return_value = {"key": "KEY", "data": {"title": "Title"}}
+    service.get_item_children.return_value = [
+        {
+            "key": "ATTACH1",
+            "data": {
+                "key": "ATTACH1",
+                "itemType": "attachment",
+                "contentType": "application/pdf",
+                "path": "/fake/path/one.pdf",
+            },
+        },
+        {
+            "key": "ATTACH2",
+            "data": {
+                "key": "ATTACH2",
+                "itemType": "attachment",
+                "contentType": "application/pdf",
+                "path": "/fake/path/two.pdf",
+            },
+        },
     ]
     service.get_fulltext.return_value = "Full text"
     service.get_annotations.return_value = []
@@ -170,7 +201,7 @@ def mock_item_service_with_storage_pdf():
 async def test_get_item_bundle_multimodal_storage_path(
     mock_item_service_with_storage_pdf,
 ):
-    """Test that storage: paths return empty multimodal (requires LocalDatabaseClient)."""
+    """Test that storage: paths return empty multimodal without local client."""
     loader = BatchLoader(item_service=mock_item_service_with_storage_pdf)
 
     bundle = await loader.get_item_bundle_parallel(
@@ -183,3 +214,48 @@ async def test_get_item_bundle_multimodal_storage_path(
     assert "multimodal" in bundle
     # Storage paths can't be resolved without LocalDatabaseClient
     assert bundle["multimodal"] == {}
+
+
+@pytest.mark.asyncio
+async def test_get_item_bundle_multimodal_merges_multiple_pdfs(
+    mock_item_service_with_multiple_pdfs,
+):
+    """Should aggregate multimodal content from all PDF attachments."""
+    loader = BatchLoader(item_service=mock_item_service_with_multiple_pdfs)
+
+    with patch(
+        "zotero_mcp.utils.async_helpers.batch_loader.MultiModalPDFExtractor"
+    ) as MockExtractor:
+        mock_extractor_instance = MagicMock()
+        mock_extractor_instance.extract_elements.side_effect = [
+            {
+                "text_blocks": [{"type": "text", "content": "A", "page": 0}],
+                "images": [{"type": "image", "content": "img1", "page": 0}],
+                "tables": [],
+            },
+            {
+                "text_blocks": [{"type": "text", "content": "B", "page": 1}],
+                "images": [{"type": "image", "content": "img2", "page": 1}],
+                "tables": [{"type": "table", "content": [["x"]], "page": 1}],
+            },
+        ]
+        MockExtractor.return_value = mock_extractor_instance
+
+        with patch(
+            "zotero_mcp.utils.async_helpers.batch_loader.Path.exists", return_value=True
+        ):
+            bundle = await loader.get_item_bundle_parallel(
+                "TEST_KEY",
+                include_fulltext=True,
+                include_multimodal=True,
+            )
+
+    multimodal = bundle["multimodal"]
+    assert len(multimodal["text_blocks"]) == 2
+    assert len(multimodal["images"]) == 2
+    assert len(multimodal["tables"]) == 1
+    assert {img["attachment_key"] for img in multimodal["images"]} == {
+        "ATTACH1",
+        "ATTACH2",
+    }
+    assert mock_extractor_instance.extract_elements.call_count == 2

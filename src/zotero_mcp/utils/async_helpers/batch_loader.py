@@ -4,8 +4,8 @@ Batch Loader utility for parallel Zotero API calls.
 
 import asyncio
 import logging
-import tempfile
 from pathlib import Path
+import tempfile
 from typing import Any, cast
 
 from zotero_mcp.clients.zotero.pdf_extractor import MultiModalPDFExtractor
@@ -171,15 +171,19 @@ class BatchLoader:
                 logger.debug(f"No PDF attachments found for {item_key}")
                 return {}
 
-            # Try each PDF attachment until we find one that exists locally
-            pdf_path: Path | None = None
+            # Resolve local path per PDF attachment (not just first one)
+            resolved_pdfs: list[tuple[str, Path]] = []
+            seen_keys: set[str] = set()
             for pdf_att in pdf_attachments:
                 pdf_path_info = pdf_att.get("data", {}).get("path")
                 attachment_key = pdf_att.get("key") or pdf_att.get(
                     "data", {}
                 ).get("key")
+                if not attachment_key or attachment_key in seen_keys:
+                    continue
 
                 # Strategy 1: Resolve "storage:filename.pdf" via local_client
+                pdf_path: Path | None = None
                 if pdf_path_info and pdf_path_info.startswith("storage:"):
                     local_client = self.item_service.local_client
                     if local_client and attachment_key:
@@ -188,67 +192,72 @@ class BatchLoader:
                         )
                         if resolved and resolved.exists():
                             pdf_path = resolved
-                            break
 
                 # Strategy 2: Direct filesystem lookup by attachment key
                 # Works even without local_client or when path is None
                 # (e.g. items fetched via Web API)
-                if attachment_key:
+                if pdf_path is None:
                     found = self._find_pdf_in_storage(attachment_key)
                     if found:
                         pdf_path = found
-                        break
 
                 # Strategy 3: Direct path (non-storage)
-                if pdf_path_info and not pdf_path_info.startswith("storage:"):
+                if (
+                    pdf_path is None
+                    and pdf_path_info
+                    and not pdf_path_info.startswith("storage:")
+                ):
                     candidate = Path(pdf_path_info)
                     if candidate.exists():
                         pdf_path = candidate
-                        break
-
-            # Strategy 4: Download PDF via Zotero Web API (cloud fallback)
-            if pdf_path is None or not pdf_path.exists():
-                for pdf_att in pdf_attachments:
-                    attachment_key = pdf_att.get("key") or pdf_att.get(
-                        "data", {}
-                    ).get("key")
-                    if not attachment_key:
-                        continue
-
-                    # Check temp cache first
+                # Strategy 4: Download PDF via Zotero Web API (cloud fallback)
+                if pdf_path is None or not pdf_path.exists():
                     cache_dir = Path(tempfile.gettempdir()) / "zotero-mcp-downloads"
                     cached_pdf = cache_dir / f"{attachment_key}.pdf"
                     if cached_pdf.exists() and cached_pdf.stat().st_size > 0:
                         logger.debug(f"使用本地缓存 PDF: {attachment_key}")
                         pdf_path = cached_pdf
-                        break
-
-                    # Download via API
-                    logger.info(f"  📥 本地无 PDF，从 Zotero 云端下载 ({item_key})...")
-                    pdf_bytes = await self.item_service.download_attachment(
-                        attachment_key
-                    )
-                    if pdf_bytes and len(pdf_bytes) > 100:
-                        cache_dir.mkdir(parents=True, exist_ok=True)
-                        cached_pdf.write_bytes(pdf_bytes)
+                    else:
                         logger.info(
-                            f"  ✓ 下载完成: {len(pdf_bytes) // 1024} KB -> 已缓存"
+                            "  📥 本地无 PDF，从 Zotero 云端下载 "
+                            f"({item_key})..."
                         )
-                        pdf_path = cached_pdf
-                        break
+                        pdf_bytes = await self.item_service.download_attachment(
+                            attachment_key
+                        )
+                        if pdf_bytes and len(pdf_bytes) > 100:
+                            cache_dir.mkdir(parents=True, exist_ok=True)
+                            cached_pdf.write_bytes(pdf_bytes)
+                            logger.info(
+                                f"  ✓ 下载完成: {len(pdf_bytes) // 1024} KB -> 已缓存"
+                            )
+                            pdf_path = cached_pdf
 
-            if pdf_path is None or not pdf_path.exists():
+                if pdf_path and pdf_path.exists():
+                    resolved_pdfs.append((attachment_key, pdf_path))
+                    seen_keys.add(attachment_key)
+
+            if not resolved_pdfs:
                 logger.debug(f"No PDF found for {item_key} (all strategies exhausted)")
                 return {}
 
-            # Extract multi-modal content
+            # Extract and merge multi-modal content from all PDFs
             extractor = MultiModalPDFExtractor()
-            result = await asyncio.to_thread(
-                extractor.extract_elements,
-                pdf_path,
-            )
+            merged: dict[str, Any] = {"text_blocks": [], "images": [], "tables": []}
+            for idx, (attachment_key, pdf_path) in enumerate(resolved_pdfs, start=1):
+                result = await asyncio.to_thread(
+                    extractor.extract_elements,
+                    pdf_path,
+                )
+                for section in ("text_blocks", "images", "tables"):
+                    for element in result.get(section, []):
+                        if isinstance(element, dict):
+                            enriched = dict(element)
+                            enriched["attachment_key"] = attachment_key
+                            enriched["attachment_index"] = idx
+                            merged[section].append(enriched)
 
-            return result
+            return merged
 
         except Exception as e:
             logger.warning(f"  ⚠ PDF 多模态提取失败 ({item_key}): {e}")

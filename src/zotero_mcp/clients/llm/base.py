@@ -44,6 +44,7 @@ DEEPSEEK_CONFIG = {
     "env_key": "DEEPSEEK_API_KEY",
     "env_base_url": "DEEPSEEK_BASE_URL",
     "env_model": "DEEPSEEK_MODEL",
+    "env_max_tokens": "DEEPSEEK_MAX_TOKENS",
 }
 
 
@@ -62,6 +63,7 @@ class LLMClient:
         model: str | None = None,
         api_key: str | None = None,
         base_url: str | None = None,
+        max_tokens: int | None = None,
     ):
         """
         Initialize DeepSeek LLM client.
@@ -70,6 +72,7 @@ class LLMClient:
             model: Model name (overrides default)
             api_key: API key (overrides env var)
             base_url: Base URL (overrides env var)
+            max_tokens: Max output tokens (overrides env var and model default cap)
         """
         # Get API key
         self.api_key = api_key or os.getenv(DEEPSEEK_CONFIG["env_key"])
@@ -91,13 +94,60 @@ class LLMClient:
         # Use deepseek-v3 if available, otherwise fallback to deepseek-chat
         self.model = model or os.getenv(DEEPSEEK_CONFIG["env_model"]) or "deepseek-chat"
 
+        # Resolve max output tokens with model-aware cap.
+        env_max_tokens = os.getenv(DEEPSEEK_CONFIG["env_max_tokens"])
+        requested_max_tokens = max_tokens
+        if requested_max_tokens is None and env_max_tokens:
+            try:
+                requested_max_tokens = int(env_max_tokens.strip())
+            except ValueError:
+                logger.warning(
+                    "Invalid DEEPSEEK_MAX_TOKENS=%r, ignoring and using model default",
+                    env_max_tokens,
+                )
+        self.max_tokens = self._resolve_max_tokens(self.model, requested_max_tokens)
+
         logger.info(
             f"Initialized DeepSeek LLM client: "
-            f"model={self.model}, base_url={self.base_url}"
+            f"model={self.model}, base_url={self.base_url}, max_tokens={self.max_tokens}"
         )
 
         # Store provider for downstream use
         self.provider = "deepseek"
+
+    @staticmethod
+    def _model_output_token_limit(model: str) -> int:
+        """Return model-specific output-token ceiling."""
+        normalized = (model or "").strip().lower()
+        if "reasoner" in normalized:
+            return 64000
+        # deepseek-chat / deepseek-v3
+        return 8192
+
+    def _resolve_max_tokens(self, model: str, requested: int | None) -> int:
+        """Resolve effective max_tokens with model-aware safety clamping."""
+        model_limit = self._model_output_token_limit(model)
+        if requested is None:
+            return model_limit
+
+        if requested <= 0:
+            logger.warning(
+                "DEEPSEEK_MAX_TOKENS must be > 0, got %s; using model limit %s",
+                requested,
+                model_limit,
+            )
+            return model_limit
+
+        if requested > model_limit:
+            logger.warning(
+                "Requested max_tokens=%s exceeds model limit=%s for %s; clamped",
+                requested,
+                model_limit,
+                model,
+            )
+            return model_limit
+
+        return requested
 
     async def analyze_paper(
         self,
@@ -379,7 +429,7 @@ class LLMClient:
                     {"role": "user", "content": prompt},
                 ],
                 temperature=0.7,
-                max_tokens=8192,  # DeepSeek API maximum (for both deepseek-chat and deepseek-v3)
+                max_tokens=self.max_tokens,
             )
 
             content = response.choices[0].message.content
@@ -399,6 +449,7 @@ class LLMClient:
 def get_llm_client(
     provider: str = "auto",
     model: str | None = None,
+    max_tokens: int | None = None,
 ) -> Any:
     """
     Get configured LLM client.
@@ -406,6 +457,7 @@ def get_llm_client(
     Args:
         provider: LLM provider ("deepseek", "claude-cli", "auto")
         model: Model name (optional)
+        max_tokens: Max output tokens for DeepSeek client (optional)
 
     Returns:
         Configured LLMClient or CLILLMClient
@@ -416,7 +468,7 @@ def get_llm_client(
         return CLILLMClient(model=model)
 
     # Default: DeepSeek API client
-    return LLMClient(model=model)
+    return LLMClient(model=model, max_tokens=max_tokens)
 
 
 def is_llm_configured() -> bool:

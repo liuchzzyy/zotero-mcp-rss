@@ -239,7 +239,7 @@ class ZoteroAPIClient:
         """
         Get full-text content for an item.
 
-        If the item is a parent, attempts to find the PDF attachment first.
+        If the item is a parent, collects full-text from all PDF attachments.
 
         Args:
             item_key: Item key
@@ -262,29 +262,92 @@ class ZoteroAPIClient:
             except Exception:
                 return None
 
+        def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> str | None:
+            """Extract text directly from PDF bytes without Zotero fulltext index."""
+            try:
+                import fitz  # PyMuPDF
+            except Exception:
+                return None
+
+            try:
+                doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+                parts: list[str] = []
+                for page in doc:
+                    txt = page.get_text("text") or ""
+                    txt = txt.strip()
+                    if txt:
+                        parts.append(txt)
+                doc.close()
+                if parts:
+                    return "\n\n".join(parts)
+            except Exception:
+                return None
+            return None
+
         # 1. Try direct fetch (works if item_key IS the attachment)
         text = await fetch_text(item_key)
         if text:
             return text
 
-        # 2. If no text, assume it might be a parent item and look for PDF attachment
+        # 2. If no text, assume it is a parent item and aggregate all child PDFs
         try:
-            # Get item children
             children = await self.get_item_children(item_key)
-            pdf_key = None
-
-            # Find PDF attachment
+            pdf_attachments: list[tuple[str, str]] = []
             for child in children:
                 data = child.get("data", {})
                 if (
                     data.get("itemType") == "attachment"
                     and data.get("contentType") == "application/pdf"
                 ):
-                    pdf_key = data.get("key")
-                    break
+                    pdf_key = data.get("key") or child.get("key")
+                    if not pdf_key:
+                        continue
+                    title = (
+                        data.get("title")
+                        or data.get("filename")
+                        or f"PDF {len(pdf_attachments) + 1}"
+                    )
+                    pdf_attachments.append((pdf_key, str(title)))
 
-            if pdf_key:
-                return await fetch_text(pdf_key)
+            if not pdf_attachments:
+                return None
+
+            merged_parts: list[str] = []
+            has_real_text = False
+            for idx, (pdf_key, title) in enumerate(pdf_attachments, start=1):
+                pdf_text = await fetch_text(pdf_key)
+
+                # Fallback: if Zotero fulltext index is missing, download and parse PDF.
+                if not (pdf_text and pdf_text.strip()):
+                    try:
+                        pdf_bytes = await self.download_attachment(pdf_key)
+                    except Exception:
+                        pdf_bytes = None
+                    if pdf_bytes and len(pdf_bytes) > 100:
+                        parsed = await loop.run_in_executor(
+                            None,
+                            lambda: extract_text_from_pdf_bytes(pdf_bytes),
+                        )
+                        if parsed and parsed.strip():
+                            pdf_text = parsed
+                            logger.info(
+                                "Recovered fulltext by direct PDF parsing for "
+                                f"{pdf_key}"
+                            )
+
+                if pdf_text and pdf_text.strip():
+                    has_real_text = True
+                    merged_parts.append(
+                        f"### 附件PDF {idx}: {title} ({pdf_key})\n\n{pdf_text.strip()}"
+                    )
+                else:
+                    merged_parts.append(
+                        f"### 附件PDF {idx}: {title} ({pdf_key})\n\n"
+                        "[全文不可用：该附件未建立全文索引或无法提取]"
+                    )
+
+            if merged_parts and has_real_text:
+                return "\n\n---\n\n".join(merged_parts)
 
         except Exception:
             pass
