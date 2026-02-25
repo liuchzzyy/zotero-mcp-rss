@@ -31,6 +31,11 @@ MAX_RETRIES = 3
 RETRY_DELAY = 1.0  # Base delay in seconds
 REQUEST_TIMEOUT = 360  # Timeout in seconds (6 minutes for PDF analysis)
 
+# Context window management
+DEEPSEEK_MAX_CONTEXT_TOKENS = 131072  # DeepSeek context window limit
+PROMPT_OVERHEAD_TOKENS = 3000  # Reserved for system message, template, metadata, annotations
+CHARS_PER_TOKEN = 3  # Conservative estimate for mixed Chinese/English text
+
 
 # -------------------- Provider Configuration --------------------
 
@@ -149,6 +154,25 @@ class LLMClient:
 
         return requested
 
+    def _truncate_fulltext(self, fulltext: str) -> str:
+        """Truncate fulltext to fit within the DeepSeek context window.
+
+        Reserves tokens for system message, template, metadata, annotations,
+        and completion output before computing the character budget for fulltext.
+        """
+        max_fulltext_tokens = (
+            DEEPSEEK_MAX_CONTEXT_TOKENS - self.max_tokens - PROMPT_OVERHEAD_TOKENS
+        )
+        max_chars = max_fulltext_tokens * CHARS_PER_TOKEN
+        if len(fulltext) <= max_chars:
+            return fulltext
+        truncated = fulltext[:max_chars]
+        logger.warning(
+            f"Fulltext truncated from {len(fulltext):,} to {len(truncated):,} chars "
+            f"(budget: ~{max_fulltext_tokens:,} tokens) to fit context window"
+        )
+        return truncated + "\n\n[... 内容已截断以适应 LLM 上下文窗口限制 ...]"
+
     async def analyze_paper(
         self,
         title: str,
@@ -178,6 +202,9 @@ class LLMClient:
         Returns:
             Markdown-formatted analysis
         """
+        # Truncate fulltext to stay within context window
+        fulltext = self._truncate_fulltext(fulltext)
+
         # Build annotations section
         annotations_section = ""
         if annotations:
