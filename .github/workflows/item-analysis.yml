@@ -60,7 +60,7 @@ jobs:
     timeout-minutes: 120
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Zotero MCP
         uses: ./.github/actions/setup-zotero-mcp
@@ -99,7 +99,7 @@ jobs:
 
       - name: Upload logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: item-analysis-logs-${{ github.run_number }}
           path: item-analysis.log

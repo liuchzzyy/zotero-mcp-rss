@@ -66,3 +66,4 @@ worktrees/
 .si-downloads/
 .firecrawl/
 .playwright-mcp/
+config/
