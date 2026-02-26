@@ -6,6 +6,7 @@ with checkpoint support for resuming interrupted workflows.
 """
 
 from collections.abc import Callable
+import re
 import time
 from typing import Any, Literal
 
@@ -38,7 +39,8 @@ from zotero_mcp.utils.formatting.markdown import markdown_to_html
 logger = get_logger(__name__)
 
 _CLASSIFY_PROMPT = """\
-Classify the academic paper below as one of these types and reply with ONLY the type keyword.
+Classify the academic paper below as one of these types and reply with ONLY the
+type keyword.
 
 Types:
 - research  (original experimental / computational work reporting new results)
@@ -51,6 +53,34 @@ Abstract (first 300 chars): {abstract}
 Reply with exactly one word: research  OR  review"""
 
 
+_REVIEW_KEYWORD_PATTERNS = (
+    r"\breview\b",
+    r"\bsurvey\b",
+    r"\boverview\b",
+    r"\bperspective\b",
+    r"\btutorial\b",
+    r"\broadmap\b",
+    r"\bmeta[-\s]?analysis\b",
+    r"\bsystematic review\b",
+    r"综述",
+    r"述评",
+    r"进展",
+)
+
+
+def _rule_based_classify_item_type(
+    title: str, journal: str, abstract: str
+) -> str | None:
+    """Fast keyword-based classification for obvious review papers."""
+    text = " ".join([title or "", journal or "", abstract or ""]).lower()
+    if not text.strip():
+        return None
+    for pattern in _REVIEW_KEYWORD_PATTERNS:
+        if re.search(pattern, text):
+            return "review"
+    return None
+
+
 async def classify_item_type_async(
     title: str,
     journal: str,
@@ -61,6 +91,11 @@ async def classify_item_type_async(
     Returns one of the keys in TEMPLATE_ALIASES.  Falls back to 'research'
     on any error or ambiguous answer.
     """
+    heuristic = _rule_based_classify_item_type(title, journal, abstract)
+    if heuristic is not None:
+        logger.info(f"Rule-based classified '{title[:50]}' → {heuristic}")
+        return heuristic
+
     import os
 
     api_key = os.getenv("DEEPSEEK_API_KEY", "")
@@ -93,12 +128,20 @@ async def classify_item_type_async(
         # Tolerate slight variations: e.g. "review paper", "a review"
         for alias in TEMPLATE_ALIASES:
             if alias in label:
-                logger.info(f"Auto-classified '{title[:50]}' → {alias} (fuzzy: '{label}')")
+                logger.info(
+                    f"Auto-classified '{title[:50]}' → {alias} "
+                    f"(fuzzy: '{label}')"
+                )
                 return alias
-        logger.warning(f"Unrecognised label '{label}' for '{title[:50]}'; defaulting to 'research'")
+        logger.warning(
+            f"Unrecognised label '{label}' for '{title[:50]}'; "
+            "defaulting to 'research'"
+        )
         return "research"
     except Exception as e:
-        logger.warning(f"classify_item_type_async failed ({e}); defaulting to 'research'")
+        logger.warning(
+            f"classify_item_type_async failed ({e}); defaulting to 'research'"
+        )
         return "research"
 
 

@@ -105,8 +105,8 @@ class BatchAnalyzeInput(BaseInput):
         default=True,
         description="Whether to extract and include PDF images/tables",
     )
-    llm_provider: Literal["deepseek", "claude-cli", "auto"] = Field(
-        default="auto",
+    llm_provider: Literal["deepseek"] = Field(
+        default="deepseek",
         description="LLM provider to use for analysis",
     )
     llm_model: str | None = Field(
@@ -116,7 +116,7 @@ class BatchAnalyzeInput(BaseInput):
     template: str | None = Field(
         default=None,
         description=(
-            "Template alias (research/review/default) "
+            "Template alias (research/review/auto) "
             "or custom analysis template/instruction"
         ),
     )

@@ -122,7 +122,9 @@ def _apply_theme_styles(html: str, theme: dict[str, str]) -> str:
         "line-height: 1.6; "
         "word-spacing: 0; "
         "letter-spacing: 0; "
-        'font-family: Optima-Regular, Optima, PingFangSC-light, PingFangTC-light, "PingFang SC", Cambria, Cochin, Georgia, Times, "Times New Roman", serif; '
+        'font-family: Optima-Regular, Optima, PingFangSC-light, '
+        'PingFangTC-light, "PingFang SC", Cambria, Cochin, Georgia, Times, '
+        '"Times New Roman", serif; '
         "padding: 10px;"
     )
 
@@ -140,7 +142,10 @@ def _apply_theme_styles(html: str, theme: dict[str, str]) -> str:
     h1_margin = theme.get("h1_margin", "1em")
     html = re.sub(
         r"<h1(?:\s+[^>]*)?>",
-        f'<h1 style="font-size: 1.5rem; margin: {h1_margin} 0 0.6em; padding: 0; font-weight: bold; color: black;">',
+        (
+            f'<h1 style="font-size: 1.5rem; margin: {h1_margin} 0 0.6em; '
+            'padding: 0; font-weight: bold; color: black;">'
+        ),
         html,
     )
 
@@ -161,19 +166,41 @@ def _apply_theme_styles(html: str, theme: dict[str, str]) -> str:
     )
     html = re.sub(r"<h2(?:\s+[^>]*)?>", f'<h2 style="{h2_style}">', html)
 
-    # H3
+    # H3 - same highlighted style as H2
     h3_margin = theme.get("h3_margin", "0.9em")
+    h3_style = (
+        f"font-size: 1.3rem; "
+        f"margin: {h3_margin} 0 0.6em; "
+        "padding: 8px 15px; "
+        "font-weight: bold; "
+        f"background: {h2_bg}; "
+        f"color: {h2_color}; "
+        f"border-bottom: 2px solid {theme['primary_color']}; "
+        "border-radius: 3px; "
+        "display: block;"
+    )
     html = re.sub(
         r"<h3(?:\s+[^>]*)?>",
-        f'<h3 style="font-size: 1.3rem; margin: {h3_margin} 0 0.5em; padding: 0; font-weight: bold; color: {theme["primary_color"]};">',
+        f'<h3 style="{h3_style}">',
         html,
     )
 
-    # H4
+    # H4 - same highlighted style as H2
     h4_margin = theme.get("h4_margin", "0.8em")
+    h4_style = (
+        f"font-size: 1.2rem; "
+        f"margin: {h4_margin} 0 0.6em; "
+        "padding: 8px 15px; "
+        "font-weight: bold; "
+        f"background: {h2_bg}; "
+        f"color: {h2_color}; "
+        f"border-bottom: 2px solid {theme['primary_color']}; "
+        "border-radius: 3px; "
+        "display: block;"
+    )
     html = re.sub(
         r"<h4(?:\s+[^>]*)?>",
-        f'<h4 style="font-size: 1.2rem; margin: {h4_margin} 0 0.5em; padding: 0; font-weight: bold; color: {theme["primary_color"]};">',
+        f'<h4 style="{h4_style}">',
         html,
     )
 
@@ -196,7 +223,11 @@ def _apply_theme_styles(html: str, theme: dict[str, str]) -> str:
     link_color = theme.get("link_color", "rgb(239, 112, 96)")
     html = re.sub(
         r"<a\s+",
-        f'<a style="text-decoration: none; word-wrap: break-word; font-weight: bold; color: {link_color}; border-bottom: 1px solid {link_color};" ',
+        (
+            '<a style="text-decoration: none; word-wrap: break-word; '
+            f'font-weight: bold; color: {link_color}; '
+            f'border-bottom: 1px solid {link_color};" '
+        ),
         html,
     )
 
@@ -228,8 +259,14 @@ def _apply_theme_styles(html: str, theme: dict[str, str]) -> str:
 
     # Lists
     list_margin = theme.get("list_margin", "0.8em")
-    ul_style = f"margin: {list_margin} 0; padding-left: 25px; color: black; list-style-type: disc;"
-    ol_style = f"margin: {list_margin} 0; padding-left: 25px; color: black; list-style-type: decimal;"
+    ul_style = (
+        f"margin: {list_margin} 0; padding-left: 25px; "
+        "color: black; list-style-type: disc;"
+    )
+    ol_style = (
+        f"margin: {list_margin} 0; padding-left: 25px; "
+        "color: black; list-style-type: decimal;"
+    )
     html = re.sub(r"<ul(?:\s+[^>]*)?>", f'<ul style="{ul_style}">', html)
     html = re.sub(r"<ol(?:\s+[^>]*)?>", f'<ol style="{ol_style}">', html)
 
@@ -251,17 +288,27 @@ def _apply_theme_styles(html: str, theme: dict[str, str]) -> str:
     # Tables
     html = re.sub(
         r"<table(?:\s+[^>]*)?>",
-        f'<table style="display: table; text-align: left; border-collapse: collapse; margin: {list_margin} 0;">',
+        (
+            '<table style="display: table; text-align: left; '
+            f'border-collapse: collapse; margin: {list_margin} 0;">'
+        ),
         html,
     )
     html = re.sub(
         r"<th(?:\s+[^>]*)?>",
-        '<th style="font-size: 1rem; border: 1px solid #ccc; padding: 8px 12px; text-align: left; font-weight: bold; background-color: #f0f0f0;">',
+        (
+            '<th style="font-size: 1rem; border: 1px solid #ccc; '
+            "padding: 8px 12px; text-align: left; "
+            'font-weight: bold; background-color: #f0f0f0;">'
+        ),
         html,
     )
     html = re.sub(
         r"<td(?:\s+[^>]*)?>",
-        '<td style="font-size: 1rem; border: 1px solid #ccc; padding: 8px 12px; text-align: left;">',
+        (
+            '<td style="font-size: 1rem; border: 1px solid #ccc; '
+            'padding: 8px 12px; text-align: left;">'
+        ),
         html,
     )
 

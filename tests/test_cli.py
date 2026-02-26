@@ -4,6 +4,8 @@ import json
 import subprocess
 import sys
 
+import pytest
+
 from zotero_mcp.cli_app.commands.system import obfuscate_config_for_display
 from zotero_mcp.cli_app.registry import build_parser
 
@@ -192,6 +194,49 @@ def test_dry_run_defaults_are_disabled():
     for argv in scenarios:
         args = parser.parse_args(argv)
         assert args.dry_run is False, f"Expected dry_run=False for: {' '.join(argv)}"
+
+
+def test_item_analysis_template_accepts_auto_alias():
+    parser = build_parser()
+    args = parser.parse_args(
+        [
+            "workflow",
+            "item-analysis",
+            "--target-collection",
+            "01_SHORTTERMS",
+            "--template",
+            "auto",
+        ]
+    )
+    assert args.template == "auto"
+
+
+def test_item_analysis_template_defaults_to_auto():
+    parser = build_parser()
+    args = parser.parse_args(
+        [
+            "workflow",
+            "item-analysis",
+            "--target-collection",
+            "01_SHORTTERMS",
+        ]
+    )
+    assert args.template == "auto"
+
+
+def test_item_analysis_rejects_unimplemented_llm_provider_openai():
+    parser = build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(
+            [
+                "workflow",
+                "item-analysis",
+                "--target-collection",
+                "01_SHORTTERMS",
+                "--llm-provider",
+                "openai",
+            ]
+        )
 
 
 def test_semantic_status_supports_json_output():

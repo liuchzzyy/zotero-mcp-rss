@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "exa": {
+      "baseUrl": "https://mcp.exa.ai/mcp"
+    },
+    "--scope": {
+      "command": "home"
+    }
+  },
+  "imports": []
+}

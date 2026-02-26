@@ -736,6 +736,46 @@ async def test_analyze_single_item_resolves_review_template_alias(workflow_servi
 
 
 @pytest.mark.asyncio
+async def test_analyze_single_item_auto_detects_review_from_title_without_api_key(
+    workflow_service, monkeypatch
+):
+    item = MagicMock()
+    item.key = "ITEM4"
+    item.title = "A review of advanced battery interfaces"
+    item.authors = "Author"
+    item.date = "2026"
+    item.doi = "10.1/auto-review"
+
+    bundle = {
+        "metadata": {"data": {"publicationTitle": "Journal", "abstractNote": ""}},
+        "fulltext": "text",
+        "annotations": [],
+        "notes": [],
+        "multimodal": {"images": [], "tables": []},
+    }
+    llm_client = AsyncMock()
+    llm_client.provider = "deepseek"
+    workflow_service._call_llm_analysis = AsyncMock(return_value="analysis")
+    workflow_service._ensure_structured_quality = AsyncMock(return_value="analysis")
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+
+    result = await workflow_service._analyze_single_item(
+        item=item,
+        bundle=bundle,
+        llm_client=llm_client,
+        skip_existing=True,
+        template="auto",
+        dry_run=True,
+        use_structured=True,
+        include_multimodal=False,
+    )
+
+    assert result.success is True
+    call_kwargs = workflow_service._call_llm_analysis.await_args.kwargs
+    assert call_kwargs["template"] == REVIEW_ANALYSIS_TEMPLATE_JSON
+
+
+@pytest.mark.asyncio
 async def test_move_to_collection_accepts_top_level_key(workflow_service):
     item = MagicMock()
     item.key = "ITEM1"

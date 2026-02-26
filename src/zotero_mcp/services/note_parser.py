@@ -67,13 +67,16 @@ class StructuredNoteParser:
             recovered = self._recover_json_from_single_block(blocks)
             if recovered:
                 logger.info(
-                    f"Recovered structured JSON from markdown fallback: {len(recovered)} blocks"
+                    "Recovered structured JSON from markdown fallback: "
+                    f"{len(recovered)} blocks"
                 )
                 return recovered
 
             return blocks
 
-    def _recover_json_from_single_block(self, blocks: list[AnyBlock]) -> list[AnyBlock] | None:
+    def _recover_json_from_single_block(
+        self, blocks: list[AnyBlock]
+    ) -> list[AnyBlock] | None:
         """Try to recover JSON sections when fallback produced a single block."""
         if len(blocks) != 1:
             return None
@@ -295,7 +298,11 @@ class StructuredNoteParser:
         block_type = section.get("type")
 
         if block_type == "heading":
-            return HeadingBlock(level=section.get("level", 2), content=get_content())
+            level, content = self._normalize_heading(
+                section.get("level", 2),
+                get_content(),
+            )
+            return HeadingBlock(level=level, content=content)
         elif block_type == "paragraph":
             # Parse paragraph with optional citations
             citations_data = section.get("citations", [])
@@ -356,6 +363,22 @@ class StructuredNoteParser:
         else:
             logger.warning(f"Unknown block type: {block_type}")
             return None
+
+    @staticmethod
+    def _normalize_heading(raw_level: Any, raw_content: str) -> tuple[int, str]:
+        """Normalize heading level/content when model emits markdown-like text."""
+        level = raw_level if isinstance(raw_level, int) else 2
+        content = (raw_content or "").strip()
+
+        # Some models place markdown prefixes in heading text, e.g. "### 标题".
+        # In that case, infer true level from prefix and strip the prefix text.
+        heading_match = re.match(r"^(#{1,4})\s+(.+)$", content)
+        if heading_match:
+            level = len(heading_match.group(1))
+            content = heading_match.group(2).strip()
+
+        level = max(1, min(4, level))
+        return level, content
 
     def _parse_markdown(self, content: str) -> list[AnyBlock]:
         """

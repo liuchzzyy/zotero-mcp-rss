@@ -14,10 +14,12 @@ class ScannerRunParams(BaseModel):
     treated_limit: int = Field(default=20, ge=1)
     target_collection: str = Field(..., min_length=1)
     dry_run: bool = Field(default=False)
-    llm_provider: str = Field(default="auto")
+    llm_provider: str = Field(default="deepseek")
     source_collection: str | None = Field(default="00_INBOXS")
     include_multimodal: bool = Field(default=True)
-    template: Literal["research", "review", "default"] = Field(default="default")
+    template: Literal["research", "review", "auto"] = Field(
+        default="auto"
+    )
 
 
 class MetadataUpdateBatchParams(BaseModel):

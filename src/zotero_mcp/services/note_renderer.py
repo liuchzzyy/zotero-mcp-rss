@@ -50,7 +50,9 @@ class StructuredNoteRenderer:
             "line-height: 1.6; "
             "word-spacing: 0; "
             "letter-spacing: 0; "
-            'font-family: Optima-Regular, Optima, PingFangSC-light, PingFangTC-light, "PingFang SC", Cambria, Cochin, Georgia, Times, "Times New Roman", serif; '
+            'font-family: Optima-Regular, Optima, PingFangSC-light, '
+            'PingFangTC-light, "PingFang SC", Cambria, Cochin, Georgia, Times, '
+            '"Times New Roman", serif; '
             "padding: 10px;"
         )
         html_parts.append(f'<div style="{container_style}">')
@@ -115,8 +117,8 @@ class StructuredNoteRenderer:
 
         margin = self.theme.get(margin_key, "0.8em")
 
-        # H2 gets special styling (orange background)
-        if block.level == 2:
+        # H2/H3/H4 share highlighted background styling.
+        if block.level in (2, 3, 4):
             style = (
                 f"font-size: {font_size}; "
                 f"margin: {margin} 0 0.6em; "
@@ -239,7 +241,11 @@ class StructuredNoteRenderer:
 
         # Header
         headers_html = "\n".join(
-            f'<th style="border: 1px solid #ccc; padding: 8px; text-align: left; font-weight: bold; background-color: #f0f0f0;">{header}</th>'
+            (
+                '<th style="border: 1px solid #ccc; padding: 8px; '
+                'text-align: left; font-weight: bold; '
+                f'background-color: #f0f0f0;">{header}</th>'
+            )
             for header in block.headers
         )
 
@@ -247,12 +253,18 @@ class StructuredNoteRenderer:
         rows_html = []
         for row in block.rows:
             cells_html = "\n".join(
-                f'<td style="border: 1px solid #ccc; padding: 8px; text-align: left;">{cell}</td>'
+                (
+                    '<td style="border: 1px solid #ccc; padding: 8px; '
+                    f'text-align: left;">{cell}</td>'
+                )
                 for cell in row
             )
             rows_html.append(f"<tr>{cells_html}</tr>")
 
-        return f'<table style="{table_style}">\n<tr>{headers_html}</tr>\n{"".join(rows_html)}\n</table>'
+        return (
+            f'<table style="{table_style}">\n<tr>{headers_html}</tr>\n'
+            f'{"".join(rows_html)}\n</table>'
+        )
 
     def _render_hr(self, block: HorizontalRuleBlock) -> str:
         """Render horizontal rule."""

@@ -84,10 +84,10 @@ class GlobalScanner:
         treated_limit: int = 20,
         target_collection: str = "",
         dry_run: bool = False,
-        llm_provider: str = "auto",
+        llm_provider: str = "deepseek",
         source_collection: str | None = "00_INBOXS",
         include_multimodal: bool = True,
-        template: Literal["research", "review", "default"] = "default",
+        template: Literal["research", "review", "auto"] = "auto",
     ) -> dict[str, Any]:
         """
         Scan library and process items needing analysis.
@@ -104,9 +104,9 @@ class GlobalScanner:
             treated_limit: Maximum total number of items to process
             target_collection: Collection name to move items after analysis
             dry_run: Preview only, no changes
-            llm_provider: LLM provider for analysis (auto/claude-cli)
+            llm_provider: LLM provider for analysis (auto/claude-cli/deepseek)
             source_collection: Priority collection to scan first (default: 00_INBOXS)
-            template: Analysis template alias (research/review/default)
+            template: Analysis template alias (research/review/auto)
 
         Returns:
             Scan results with statistics
@@ -332,7 +332,39 @@ class GlobalScanner:
             from zotero_mcp.clients.llm import get_llm_client
             from zotero_mcp.clients.llm.capabilities import get_provider_capability
 
-            llm_client = get_llm_client(provider=params.llm_provider)
+            selected_provider = params.llm_provider
+            if selected_provider == "auto":
+                if params.include_multimodal and candidates:
+                    sample_keys = [item.key for item in candidates[:3]]
+                    try:
+                        sample_bundles = await self.batch_loader.fetch_many_bundles(
+                            sample_keys,
+                            include_fulltext=False,
+                            include_annotations=False,
+                            include_notes=False,
+                            include_multimodal=True,
+                        )
+                        has_images = any(
+                            bool(bundle.get("multimodal", {}).get("images"))
+                            for bundle in sample_bundles
+                        )
+                        selected_provider = "claude-cli" if has_images else "deepseek"
+                        logger.info(
+                            f"Auto-selected LLM provider: {selected_provider} "
+                            f"(has_images={has_images})"
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            f"Failed to check for images during auto-select: {e}"
+                        )
+                        selected_provider = "deepseek"
+                else:
+                    selected_provider = "deepseek"
+                    logger.info(
+                        f"Auto-selected LLM provider: {selected_provider} (text-only)"
+                    )
+
+            llm_client = get_llm_client(provider=selected_provider)
             provider_name = getattr(llm_client, "provider", None)
             provider_name = provider_name if isinstance(provider_name, str) else None
 
@@ -352,6 +384,7 @@ class GlobalScanner:
             processed_count = 0
             failed_count = 0
             skipped_no_fulltext = 0
+            skipped_existing = 0
 
             # Fetch full bundles for candidates
             candidate_keys = [item.key for item in candidates]
@@ -426,6 +459,7 @@ class GlobalScanner:
                         processed_count += 1
                         logger.info(f"  ✓ Successfully analyzed {item.key}")
                     elif result.skipped:
+                        skipped_existing += 1
                         logger.info(f"  ⊘ Skipped {item.key} (already analyzed)")
                     else:
                         failed_count += 1
@@ -441,7 +475,7 @@ class GlobalScanner:
                 "candidates": len(candidates),
                 "processed": processed_count,
                 "updated": processed_count,
-                "skipped": skipped_no_fulltext,
+                "skipped": skipped_no_fulltext + skipped_existing,
                 "failed": failed_count,
                 "removed": 0,
             }
@@ -451,6 +485,7 @@ class GlobalScanner:
                 message=(
                     f"Processed {processed_count}, "
                     f"failed {failed_count}, "
+                    f"skipped_existing {skipped_existing}, "
                     f"skipped_no_fulltext {skipped_no_fulltext} "
                     f"out of {len(candidates)} candidates"
                 ),
@@ -459,6 +494,7 @@ class GlobalScanner:
                     "candidates": len(candidates),
                     "processed": processed_count,
                     "failed": failed_count,
+                    "skipped_existing": skipped_existing,
                     "skipped_no_fulltext": skipped_no_fulltext,
                 },
             )

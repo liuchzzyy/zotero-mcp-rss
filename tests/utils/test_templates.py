@@ -54,10 +54,7 @@ class TestMultimodalTemplate:
         assert isinstance(RESEARCH_ANALYSIS_TEMPLATE_MD, str)
         assert len(RESEARCH_ANALYSIS_TEMPLATE_MD) > 1000  # Non-empty template
 
-    def test_template_alias_resolution_supports_research_review_default(self):
-        assert (
-            resolve_analysis_template("default") == RESEARCH_ANALYSIS_TEMPLATE_JSON
-        )
+    def test_template_alias_resolution_supports_research_review(self):
         assert (
             resolve_analysis_template("research") == RESEARCH_ANALYSIS_TEMPLATE_JSON
         )

@@ -42,9 +42,9 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     )
     item_analysis.add_argument(
         "--llm-provider",
-        choices=["auto", "claude-cli", "deepseek", "openai", "gemini"],
-        default="auto",
-        help="LLM provider for analysis (default: auto)",
+        choices=["deepseek"],
+        default="deepseek",
+        help="LLM provider for analysis (default: deepseek)",
     )
     item_analysis.add_argument(
         "--source-collection",
@@ -53,9 +53,9 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     )
     item_analysis.add_argument(
         "--template",
-        choices=["research", "review", "default"],
-        default="default",
-        help="Analysis template alias (default: default)",
+        choices=["research", "review", "auto"],
+        default="auto",
+        help="Analysis template alias (default: auto)",
     )
     add_output_arg(item_analysis)
 

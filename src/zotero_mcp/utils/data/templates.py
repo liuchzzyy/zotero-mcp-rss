@@ -170,7 +170,7 @@ RESEARCH_ANALYSIS_TEMPLATE_JSON = """你是一位专业的科研文献分析助�
 ```json
 {
   "sections": [
-    {"type": "heading", "level": 3, "text": "🧭 阅读协议（先执行）"},
+    {"type": "heading", "level": 3, "text": "🧭 阅读协议"},
     {"type": "bullet_list", "items": [
       {"text": "文本可读性：基本完整，少量OCR噪声（第9页）"},
       {"text": "证据优先级：图表>正文>推断"}
@@ -225,7 +225,7 @@ RESEARCH_ANALYSIS_TEMPLATE_MD = """你是一位专业的科研文献多模态分
 
 请按以下结构输出 Markdown，并确保每个关键结论都尽量绑定来源锚点（如：第12页、图片3、表格2、参考文献[15]）。
 
-### 🧭 多模态阅读协议（先执行）
+### 🧭 多模态阅读协议
 
 - 先判断文本可读性：正文是否完整、是否存在 OCR 错漏或段落断裂。
 - 建立页面与版式地图：标题层级、双栏/单栏、图表与正文邻接关系、补充材料位置。
@@ -688,7 +688,6 @@ REVIEW_ANALYSIS_TEMPLATE_JSON = """你是一位专业的科研文献综述分析
 """
 
 TEMPLATE_ALIASES: dict[str, str] = {
-    "default": RESEARCH_ANALYSIS_TEMPLATE_JSON,
     "research": RESEARCH_ANALYSIS_TEMPLATE_JSON,
     "review": REVIEW_ANALYSIS_TEMPLATE_JSON,
 }
@@ -837,7 +836,7 @@ def get_analysis_config() -> dict[str, Any]:
         questions = DEFAULT_ANALYSIS_QUESTIONS
 
     # Get template (priority: env var > config file > default).
-    # Alias names (research/review/default) are resolved to built-in templates.
+    # Alias names (research/review) are resolved to built-in templates.
     template_value = env.get("ANALYSIS_TEMPLATE", analysis_config.get("template", ""))
     if template_value:
         template = resolve_analysis_template(str(template_value), use_structured=True)

@@ -71,7 +71,7 @@ class PromptHandler:
                         PromptArgument(
                             name="template",
                             description=(
-                                "Template alias: research | review | default "
+                                "Template alias: research | review | auto "
                                 "(or custom template text)"
                             ),
                             required=False,
@@ -622,7 +622,7 @@ class PromptHandler:
                         ),
                         PromptArgument(
                             name="llm_provider",
-                            description="deepseek | claude-cli | auto",
+                            description="deepseek",
                             required=False,
                         ),
                         PromptArgument(
@@ -631,7 +631,7 @@ class PromptHandler:
                         PromptArgument(
                             name="template",
                             description=(
-                                "Template alias: research | review | default "
+                                "Template alias: research | review | auto "
                                 "(or custom template text)"
                             ),
                             required=False,
