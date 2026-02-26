@@ -358,3 +358,114 @@ async def test_scan_counts_skipped_existing_notes_in_metrics():
     assert result["metrics"]["skipped"] == 1
     assert result["skipped_existing"] == 1
     assert result["skipped_no_fulltext"] == 0
+
+
+@pytest.mark.asyncio
+async def test_scan_retries_collection_page_on_transient_failure():
+    """Collection page fetch should retry transient failures and continue."""
+    item = MagicMock()
+    item.key = "ITEM1"
+    item.title = "Paper 1"
+    item.data = {"tags": []}
+
+    data_service = AsyncMock()
+    data_service.find_collection_by_name = AsyncMock(
+        return_value=[{"key": "COLL1", "data": {"name": "00_INBOXS"}}]
+    )
+    data_service.get_collection_items = AsyncMock(
+        side_effect=[
+            [item],
+            RuntimeError("Code: 500"),
+            [],
+        ]
+    )
+    data_service.get_item_children = AsyncMock(
+        return_value=[{"data": {"contentType": "application/pdf"}}]
+    )
+    data_service.get_sorted_collections = AsyncMock(return_value=[])
+
+    workflow_service = MagicMock()
+    workflow_service._analyze_single_item = AsyncMock()
+
+    with (
+        patch(
+            "zotero_mcp.services.scanner.get_data_service",
+            return_value=data_service,
+        ),
+        patch(
+            "zotero_mcp.services.scanner.get_workflow_service",
+            return_value=workflow_service,
+        ),
+    ):
+        scanner = GlobalScanner()
+        result = await scanner.scan_and_process(
+            scan_limit=1,
+            treated_limit=1,
+            target_collection="01_SHORTTERMS",
+            source_collection="00_INBOXS",
+            dry_run=True,
+        )
+
+    assert result["success"] is True
+    assert result["candidates"] == 1
+    assert data_service.get_collection_items.await_count == 3
+
+
+@pytest.mark.asyncio
+async def test_scan_continues_to_stage2_when_source_collection_keeps_failing():
+    """Persistent source collection failures should not abort entire scan."""
+    item = MagicMock()
+    item.key = "ITEM2"
+    item.title = "Paper 2"
+    item.data = {"tags": []}
+
+    data_service = AsyncMock()
+    data_service.find_collection_by_name = AsyncMock(
+        return_value=[{"key": "COLL1", "data": {"name": "00_INBOXS"}}]
+    )
+    data_service.get_sorted_collections = AsyncMock(
+        return_value=[
+            {"key": "COLL1", "data": {"name": "00_INBOXS"}},
+            {"key": "COLL2", "data": {"name": "01_SHORTTERMS"}},
+        ]
+    )
+    data_service.get_item_children = AsyncMock(
+        return_value=[{"data": {"contentType": "application/pdf"}}]
+    )
+
+    async def _get_collection_items_side_effect(collection_key, limit=100, start=0):
+        if collection_key == "COLL1":
+            raise RuntimeError("Code: 500")
+        if start == 0:
+            return [item]
+        return []
+
+    data_service.get_collection_items = AsyncMock(
+        side_effect=_get_collection_items_side_effect
+    )
+
+    workflow_service = MagicMock()
+    workflow_service._analyze_single_item = AsyncMock()
+
+    with (
+        patch(
+            "zotero_mcp.services.scanner.get_data_service",
+            return_value=data_service,
+        ),
+        patch(
+            "zotero_mcp.services.scanner.get_workflow_service",
+            return_value=workflow_service,
+        ),
+    ):
+        scanner = GlobalScanner()
+        result = await scanner.scan_and_process(
+            scan_limit=1,
+            treated_limit=1,
+            target_collection="01_SHORTTERMS",
+            source_collection="00_INBOXS",
+            dry_run=True,
+        )
+
+    assert result["success"] is True
+    assert result["candidates"] == 1
+    assert result["processed"] == 0

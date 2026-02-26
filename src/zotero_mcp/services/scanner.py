@@ -18,6 +18,7 @@ from zotero_mcp.services.common.operation_result import (
     operation_success,
 )
 from zotero_mcp.services.common.pagination import iter_offset_batches
+from zotero_mcp.services.common.retry import async_retry_with_backoff
 from zotero_mcp.services.data_access import get_data_service
 from zotero_mcp.services.workflow import get_workflow_service
 from zotero_mcp.utils.async_helpers.batch_loader import BatchLoader
@@ -37,6 +38,21 @@ class GlobalScanner:
         self.data_service = get_data_service()
         self.workflow_service = get_workflow_service()
         self.batch_loader = BatchLoader(self.data_service.item_service)
+
+    async def _get_collection_items_with_retry(
+        self,
+        collection_key: str,
+        *,
+        start: int,
+        limit: int,
+    ):
+        """Fetch collection items with retry to tolerate transient Zotero 5xx."""
+        return await async_retry_with_backoff(
+            lambda: self.data_service.get_collection_items(
+                collection_key, limit=limit, start=start
+            ),
+            description=f"Scan collection {collection_key} (offset {start})",
+        )
 
     async def _check_item_needs_analysis(self, item) -> bool:
         """
@@ -164,31 +180,40 @@ class GlobalScanner:
                     coll_name = collections[0].get("data", {}).get("name", "")
 
                     # Fetch from source collection until exhausted or reaching cap.
-                    async for offset, items in iter_offset_batches(
-                        lambda start, limit: self.data_service.get_collection_items(
-                            collection_key, limit=limit, start=start
-                        ),
-                        batch_size=params.scan_limit,
-                    ):
-                        if len(candidates) >= params.treated_limit:
-                            break
-                        total_scanned += len(items)
-                        logger.info(
-                            "Fetched "
-                            f"{len(items)} items from '{coll_name}' (offset: {offset})"
-                        )
+                    try:
+                        async for offset, items in iter_offset_batches(
+                            lambda start, limit: self._get_collection_items_with_retry(
+                                collection_key, start=start, limit=limit
+                            ),
+                            batch_size=params.scan_limit,
+                        ):
+                            if len(candidates) >= params.treated_limit:
+                                break
+                            total_scanned += len(items)
+                            logger.info(
+                                "Fetched "
+                                f"{len(items)} items from '{coll_name}' "
+                                f"(offset: {offset})"
+                            )
 
-                        # Find candidates in this batch
-                        for item in items:
-                            scanned_keys.add(item.key)
-                            if await self._check_item_needs_analysis(item):
-                                candidates.append(item)
-                                logger.info(
-                                    "  ✓ Candidate: "
-                                    f"{item.title[:60]}... (key: {item.key})"
-                                )
-                                if len(candidates) >= params.treated_limit:
-                                    break
+                            # Find candidates in this batch
+                            for item in items:
+                                scanned_keys.add(item.key)
+                                if await self._check_item_needs_analysis(item):
+                                    candidates.append(item)
+                                    logger.info(
+                                        "  ✓ Candidate: "
+                                        f"{item.title[:60]}... (key: {item.key})"
+                                    )
+                                    if len(candidates) >= params.treated_limit:
+                                        break
+                    except Exception as e:
+                        logger.warning(
+                            "Stage 1 scan for collection '%s' "
+                            "stopped after retries: %s",
+                            coll_name,
+                            e,
+                        )
                     if len(candidates) < params.treated_limit:
                         logger.info(f"  Collection '{coll_name}' fully scanned")
                 else:
@@ -233,40 +258,45 @@ class GlobalScanner:
                     collection_candidates = 0
                     collection_scanned = 0
 
-                    async def _fetch_collection_page(
-                        start: int,
-                        limit: int,
-                        collection_key: str = coll_key,
-                    ):
-                        return await self.data_service.get_collection_items(
-                            collection_key, limit=limit, start=start
-                        )
-
-                    async for _, items in iter_offset_batches(
-                        _fetch_collection_page,
-                        batch_size=params.scan_limit,
-                    ):
-                        if len(candidates) >= params.treated_limit:
-                            break
-                        collection_scanned += len(items)
-                        total_scanned += len(items)
-
-                        # Find candidates in this batch
-                        for item in items:
-                            # Skip already scanned items
-                            if item.key in scanned_keys:
-                                continue
-
-                            scanned_keys.add(item.key)
-                            if await self._check_item_needs_analysis(item):
-                                candidates.append(item)
-                                collection_candidates += 1
-                                logger.info(
-                                    "  ✓ Candidate: "
-                                    f"{item.title[:60]}... (key: {item.key})"
+                    try:
+                        async for _, items in iter_offset_batches(
+                            lambda start, limit, collection_key=coll_key: (
+                                self._get_collection_items_with_retry(
+                                    collection_key,
+                                    start=start,
+                                    limit=limit,
                                 )
-                                if len(candidates) >= params.treated_limit:
-                                    break
+                            ),
+                            batch_size=params.scan_limit,
+                        ):
+                            if len(candidates) >= params.treated_limit:
+                                break
+                            collection_scanned += len(items)
+                            total_scanned += len(items)
+
+                            # Find candidates in this batch
+                            for item in items:
+                                # Skip already scanned items
+                                if item.key in scanned_keys:
+                                    continue
+
+                                scanned_keys.add(item.key)
+                                if await self._check_item_needs_analysis(item):
+                                    candidates.append(item)
+                                    collection_candidates += 1
+                                    logger.info(
+                                        "  ✓ Candidate: "
+                                        f"{item.title[:60]}... (key: {item.key})"
+                                    )
+                                    if len(candidates) >= params.treated_limit:
+                                        break
+                    except Exception as e:
+                        logger.warning(
+                            "Stage 2 scan for collection '%s' "
+                            "stopped after retries: %s",
+                            coll_name,
+                            e,
+                        )
 
                     logger.info(
                         f"  Collection '{coll_name}': "
