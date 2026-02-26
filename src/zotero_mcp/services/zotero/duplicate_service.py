@@ -152,12 +152,15 @@ class DuplicateDetectionService:
 
         if total_duplicates_found > params.treated_limit:
             logger.info(
-                f"⛔ Reached limit ({params.treated_limit} duplicates), trimming results"
+                "⛔ Reached limit "
+                f"({params.treated_limit} duplicates), trimming results"
             )
             duplicate_groups = self._limit_duplicate_groups(
                 duplicate_groups, params.treated_limit
             )
-            total_duplicates_found = sum(len(g.duplicate_keys) for g in duplicate_groups)
+            total_duplicates_found = sum(
+                len(g.duplicate_keys) for g in duplicate_groups
+            )
 
         logger.info(
             f"📊 Scan complete: {total_scanned} items scanned, "
@@ -197,9 +200,14 @@ class DuplicateDetectionService:
             )
 
         # Remove duplicates (permanently delete)
-        duplicates_removed = await self._remove_duplicates(duplicate_groups)
+        duplicates_removed, delete_failures = await self._remove_duplicates(
+            duplicate_groups
+        )
 
-        logger.info(f"✅ Removed {duplicates_removed} duplicate ITEM(s)")
+        logger.info(
+            f"✅ Removed {duplicates_removed} duplicate ITEM(s), "
+            f"failed to delete {delete_failures}"
+        )
 
         metrics = {
             "scanned": total_scanned,
@@ -207,17 +215,21 @@ class DuplicateDetectionService:
             "processed": total_duplicates_found,
             "updated": 0,
             "skipped": cross_folder_copies,
-            "failed": 0,
+            "failed": delete_failures,
             "removed": duplicates_removed,
         }
         return operation_success(
             "deduplicate",
             metrics,
-            message=f"Removed {duplicates_removed} duplicate items",
+            message=(
+                f"Removed {duplicates_removed} duplicate items "
+                f"(delete failures: {delete_failures})"
+            ),
             extra={
                 "total_scanned": total_scanned,
                 "duplicates_found": total_duplicates_found,
                 "duplicates_removed": duplicates_removed,
+                "delete_failures": delete_failures,
                 "cross_folder_copies": cross_folder_copies,
                 "groups": duplicate_groups,
                 "dry_run": False,
@@ -620,9 +632,10 @@ class DuplicateDetectionService:
     async def _remove_duplicates(
         self,
         duplicate_groups: list[DuplicateGroup],
-    ) -> int:
+    ) -> tuple[int, int]:
         """Remove duplicate items by permanently deleting them."""
         deleted_count = 0
+        failed_count = 0
 
         for group in duplicate_groups:
             for dup_key in group.duplicate_keys:
@@ -647,5 +660,6 @@ class DuplicateDetectionService:
                     deleted_count += 1
                 except Exception as e:
                     logger.error(f"  Failed to delete {dup_key}: {e}")
+                    failed_count += 1
 
-        return deleted_count
+        return deleted_count, failed_count

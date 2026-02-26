@@ -131,12 +131,43 @@ async def test_update_all_items_rejects_invalid_limits():
 
 
 @pytest.mark.asyncio
-async def test_fetch_enhanced_metadata_with_doi_does_not_fallback_when_not_found():
-    """If DOI lookup fails, title/url fallback should be skipped for efficiency."""
+async def test_fetch_enhanced_metadata_with_doi_falls_back_when_not_found():
+    """If DOI lookup fails, title/url fallback should still run."""
     item_service = AsyncMock()
     metadata_service = AsyncMock()
     metadata_service.get_metadata_by_doi = AsyncMock(return_value=None)
-    metadata_service.lookup_metadata = AsyncMock(return_value=None)
+    metadata_obj = type(
+        "Meta",
+        (),
+        {
+            "doi": "10.1/fallback",
+            "title": "Some Title",
+            "authors": [],
+            "journal": None,
+            "journal_abbrev": None,
+            "publisher": None,
+            "year": None,
+            "volume": None,
+            "issue": None,
+            "pages": None,
+            "abstract": None,
+            "url": None,
+            "issn": None,
+            "item_type": None,
+            "source": "crossref",
+            "language": None,
+            "rights": None,
+            "short_title": None,
+            "series": None,
+            "edition": None,
+            "place": None,
+            "citation_count": None,
+            "subjects": [],
+            "funders": [],
+            "pdf_url": None,
+        },
+    )()
+    metadata_service.lookup_metadata = AsyncMock(return_value=metadata_obj)
     service = MetadataUpdateService(item_service, metadata_service)
 
     result = await service._fetch_enhanced_metadata(
@@ -145,9 +176,41 @@ async def test_fetch_enhanced_metadata_with_doi_does_not_fallback_when_not_found
         url="https://example.com",
     )
 
-    assert result is None
+    assert result is not None
+    assert result["doi"] == "10.1/fallback"
     metadata_service.get_metadata_by_doi.assert_awaited_once_with("10.1234/missing")
-    metadata_service.lookup_metadata.assert_not_called()
+    metadata_service.lookup_metadata.assert_awaited_once_with(title="Some Title")
+
+
+@pytest.mark.asyncio
+async def test_update_all_items_deduplicates_items_across_collections():
+    """Same item key in multiple collections should be processed only once."""
+    item_service = AsyncMock()
+    metadata_service = AsyncMock()
+    service = MetadataUpdateService(item_service, metadata_service)
+
+    item_service.get_sorted_collections.return_value = [
+        {"key": "COLL1"},
+        {"key": "COLL2"},
+    ]
+    item_service.get_collection_items.side_effect = [
+        [type("Item", (), {"key": "A1", "item_type": "journalArticle", "tags": []})()],
+        [],
+        [type("Item", (), {"key": "A1", "item_type": "journalArticle", "tags": []})()],
+        [],
+    ]
+    service.update_item_metadata = AsyncMock(
+        return_value={"success": True, "updated": True}
+    )
+
+    result = await service.update_all_items(
+        scan_limit=10,
+        treated_limit=10,
+        dry_run=True,
+    )
+
+    assert result["processed_candidates"] == 1
+    service.update_item_metadata.assert_awaited_once_with("A1", dry_run=True)
 
 
 def test_build_updated_item_data_skips_periodical_fields_for_book():

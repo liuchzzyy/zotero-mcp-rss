@@ -348,6 +348,7 @@ class MetadataUpdateService:
         ai_metadata_tagged = 0
         total_processed = 0
         total_scanned = 0
+        seen_item_keys: set[str] = set()
 
         if params.collection_key:
             collection_keys = [params.collection_key]
@@ -369,6 +370,7 @@ class MetadataUpdateService:
                 treated_limit=params.treated_limit,
                 total_processed=total_processed,
                 dry_run=params.dry_run,
+                seen_item_keys=seen_item_keys,
             )
             total_scanned += scanned
             total_processed += proc
@@ -425,6 +427,7 @@ class MetadataUpdateService:
         treated_limit: int | None,
         total_processed: int,
         dry_run: bool,
+        seen_item_keys: set[str],
     ) -> tuple[int, int, int, int, int, int]:
         """
         Process a single collection for metadata updates.
@@ -461,6 +464,10 @@ class MetadataUpdateService:
             for item in parent_items:
                 if treated_limit and total_processed + processed >= treated_limit:
                     break
+
+                if item.key in seen_item_keys:
+                    continue
+                seen_item_keys.add(item.key)
 
                 # Quick check: skip if already has AI元数据 tag
                 tag_names = _extract_tag_names(item.tags or [])
@@ -520,9 +527,7 @@ class MetadataUpdateService:
             metadata = await self.metadata_service.get_metadata_by_doi(doi)
             if metadata:
                 return self._metadata_to_dict(metadata)
-            # Optimization: when DOI is provided, avoid extra title/URL fallbacks.
-            # A valid DOI should uniquely identify a record if the source indexes it.
-            return None
+            logger.debug("  DOI lookup missed, falling back to title/url")
 
         if title:
             # Clean HTML tags and entities from title before searching

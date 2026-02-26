@@ -124,7 +124,9 @@ async def test_find_and_remove_duplicates_clamps_scan_limit_to_avoid_early_stop(
     item_service = AsyncMock()
     first_page = [_api_item(f"K{i}", title=f"Paper {i}") for i in range(100)]
     second_page = [_api_item("K100", title="Paper 100")]
-    item_service.api_client.get_all_items = AsyncMock(side_effect=[first_page, second_page])
+    item_service.api_client.get_all_items = AsyncMock(
+        side_effect=[first_page, second_page]
+    )
     item_service.api_client.get_collection_items = AsyncMock()
 
     service = DuplicateDetectionService(item_service=item_service)
@@ -183,3 +185,34 @@ async def test_find_duplicate_groups_skips_items_with_parent_item():
     assert len(result["groups"]) == 1
     group = result["groups"][0]
     assert set(group.duplicate_keys) == ({"P1", "P2"} - {group.primary_key})
+
+
+@pytest.mark.asyncio
+async def test_find_and_remove_duplicates_counts_delete_failures():
+    item_service = AsyncMock()
+    item_service.api_client.get_all_items = AsyncMock(
+        side_effect=[
+            [
+                _api_item("D1", doi="10.1000/dup", title="Paper D"),
+                _api_item("D2", doi="10.1000/dup", title="Paper D copy"),
+            ],
+            [],
+        ]
+    )
+    item_service.api_client.get_item = AsyncMock(
+        return_value=_api_item("D2", doi="10.1000/dup", title="Paper D copy")
+    )
+    item_service.api_client.delete_item = AsyncMock(side_effect=RuntimeError("boom"))
+
+    service = DuplicateDetectionService(item_service=item_service)
+    result = await service.find_and_remove_duplicates(
+        scan_limit=10,
+        treated_limit=10,
+        dry_run=False,
+    )
+
+    assert result["success"] is True
+    assert result["duplicates_found"] == 1
+    assert result["duplicates_removed"] == 0
+    assert result["metrics"]["failed"] == 1
+    assert result["delete_failures"] == 1
