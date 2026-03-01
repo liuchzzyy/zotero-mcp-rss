@@ -38,6 +38,11 @@ from zotero_mcp.utils.formatting.markdown import markdown_to_html
 
 logger = get_logger(__name__)
 
+# Zotero item types treated as reference/book material → 'book' template
+_REF_ITEM_TYPES = frozenset({
+    "book", "bookSection", "encyclopediaArticle", "dictionaryEntry",
+})
+
 _CLASSIFY_PROMPT = """\
 Classify the academic paper below as one of these types and reply with ONLY the
 type keyword.
@@ -689,10 +694,21 @@ class WorkflowService:
             if template is not None and template.strip().lower() == "auto":
                 meta_data = bundle.get("metadata", {}).get("data", {})
                 fulltext_for_classify = context.get("fulltext") or ""
+                item_type_field = meta_data.get("itemType", "")
 
-                # Prefer PDF-text classification (more accurate than metadata-only)
-                # when fulltext is available; fall back to title/abstract otherwise.
-                if fulltext_for_classify:
+                # Priority 1: Reference/book item types → 'book' template directly
+                if item_type_field in _REF_ITEM_TYPES:
+                    detected = "book"
+                    logger.info(
+                        "Template auto-detected from item type",
+                        extra={
+                            "item_key": item.key,
+                            "item_type": item_type_field,
+                            "detected_type": detected,
+                        },
+                    )
+                # Priority 2: Prefer PDF-text classification when fulltext available
+                elif fulltext_for_classify:
                     pdf_type = await classify_pdf_type_async(fulltext_for_classify)
                     # 'si' and 'research' both use the 'research' template
                     detected = "review" if pdf_type == "review" else "research"
@@ -704,6 +720,7 @@ class WorkflowService:
                             "detected_type": detected,
                         },
                     )
+                # Priority 3: Fall back to title/abstract metadata classification
                 else:
                     detected = await classify_item_type_async(
                         title=item.title or "",

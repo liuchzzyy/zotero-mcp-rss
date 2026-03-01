@@ -55,9 +55,9 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     )
     item_analysis.add_argument(
         "--template",
-        choices=["research", "review", "auto"],
+        choices=["research", "review", "book", "auto"],
         default="auto",
-        help="Analysis template alias (default: auto)",
+        help="Analysis template alias (default: auto; 'book' for books/chapters/encyclopedias)",
     )
     add_output_arg(item_analysis)
 
