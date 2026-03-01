@@ -67,7 +67,7 @@ _CLASSIFY_PDF_PROMPT = """\
   ⚠️ 支撑信息的PDF通常在第一页标题处包含以下字样之一：
      'Supporting Information'、'Supplementary Materials'、
      'Electronic Supplementary Information'、'Supporting Data' 等
-- ms：研究论文正文（main study / research article）- 报告原创实验结果和发现
+- ms：研究论文正文（manuscript / research article）- 报告原创实验结果和发现
 
 文献内容（前3页）：
 {text}
