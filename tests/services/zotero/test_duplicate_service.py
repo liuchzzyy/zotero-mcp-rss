@@ -188,6 +188,22 @@ async def test_find_duplicate_groups_skips_items_with_parent_item():
 
 
 @pytest.mark.asyncio
+async def test_find_duplicate_groups_skips_attachment_and_annotation_items():
+    service = DuplicateDetectionService(item_service=AsyncMock())
+    items = [
+        _api_item("P1", doi="10.1000/parent"),
+        _api_item("P2", doi="10.1000/parent"),
+        _api_item("ATT1", doi="10.1000/parent", item_type="attachment"),
+        _api_item("ANN1", doi="10.1000/parent", item_type="annotation"),
+    ]
+
+    result = await service._find_duplicate_groups(items)
+    assert len(result["groups"]) == 1
+    group = result["groups"][0]
+    assert set(group.duplicate_keys) == ({"P1", "P2"} - {group.primary_key})
+
+
+@pytest.mark.asyncio
 async def test_find_duplicate_groups_does_not_merge_same_title_with_different_doi():
     service = DuplicateDetectionService(item_service=AsyncMock())
     items = [
