@@ -245,3 +245,32 @@ async def test_find_and_remove_duplicates_counts_delete_failures():
     assert result["duplicates_removed"] == 0
     assert result["metrics"]["failed"] == 1
     assert result["delete_failures"] == 1
+
+
+@pytest.mark.asyncio
+async def test_find_and_remove_duplicates_counts_only_parent_items_in_scan_total():
+    item_service = AsyncMock()
+    item_service.api_client.get_all_items = AsyncMock(
+        side_effect=[
+            [
+                _api_item("P1", doi="10.1000/abc", item_type="journalArticle"),
+                _api_item("P2", doi="10.1000/abc", item_type="journalArticle"),
+                _api_item("N1", doi="10.1000/abc", item_type="note", parent_item="P1"),
+                _api_item("A1", doi="10.1000/abc", item_type="attachment"),
+                _api_item("AN1", doi="10.1000/abc", item_type="annotation"),
+            ],
+            [],
+        ]
+    )
+    item_service.api_client.get_collection_items = AsyncMock()
+
+    service = DuplicateDetectionService(item_service=item_service)
+    result = await service.find_and_remove_duplicates(
+        scan_limit=10,
+        treated_limit=10,
+        dry_run=True,
+    )
+
+    assert result["success"] is True
+    assert result["total_scanned"] == 2
+    assert result["duplicates_found"] == 1

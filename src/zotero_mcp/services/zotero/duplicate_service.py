@@ -249,7 +249,7 @@ class DuplicateDetectionService:
         coll_key: str,
         scan_limit: int,
     ) -> tuple[list[dict[str, Any]], int]:
-        """Collect all items from a collection across paginated batches."""
+        """Collect parent items from a collection across paginated batches."""
         scanned = 0
         collected: list[dict[str, Any]] = []
         batch_size = self._effective_batch_size(scan_limit)
@@ -258,12 +258,13 @@ class DuplicateDetectionService:
             self._make_collection_batch_fetcher(coll_key),
             batch_size=batch_size,
         ):
-            scanned += len(items)
             batch_items = [_item_to_dict(item) for item in items]
-            collected.extend(batch_items)
+            parent_items = [item for item in batch_items if self._is_parent_item(item)]
+            scanned += len(parent_items)
+            collected.extend(parent_items)
             logger.info(
-                f"  Batch: {len(batch_items)} items fetched from collection "
-                f"(offset: {offset}, total: {scanned})"
+                f"  Batch: {len(parent_items)}/{len(batch_items)} parent items "
+                f"fetched from collection (offset: {offset}, total parents: {scanned})"
             )
 
         return collected, scanned
@@ -272,7 +273,7 @@ class DuplicateDetectionService:
         self,
         scan_limit: int,
     ) -> tuple[list[dict[str, Any]], int]:
-        """Collect all items from the entire library across paginated batches."""
+        """Collect parent items from the entire library across paginated batches."""
         scanned = 0
         collected: list[dict[str, Any]] = []
         batch_size = self._effective_batch_size(scan_limit)
@@ -281,12 +282,13 @@ class DuplicateDetectionService:
             self._make_library_batch_fetcher(),
             batch_size=batch_size,
         ):
-            scanned += len(items)
             batch_items = [_item_to_dict(item) for item in items]
-            collected.extend(batch_items)
+            parent_items = [item for item in batch_items if self._is_parent_item(item)]
+            scanned += len(parent_items)
+            collected.extend(parent_items)
             logger.info(
-                f"  Batch: {len(batch_items)} items fetched from library "
-                f"(offset: {offset}, total: {scanned})"
+                f"  Batch: {len(parent_items)}/{len(batch_items)} parent items "
+                f"fetched from library (offset: {offset}, total parents: {scanned})"
             )
 
         return collected, scanned

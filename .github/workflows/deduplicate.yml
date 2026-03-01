@@ -122,7 +122,7 @@ jobs:
                   payload = {}
 
           out = {
-              "Scanned": str(payload.get("total_scanned", 0)),
+              "Scanned parent items": str(payload.get("total_scanned", 0)),
               "Duplicates found": str(payload.get("duplicates_found", 0)),
               "Deleted": str(payload.get("duplicates_removed", 0)),
               "Cross-folder copies (skipped)": str(payload.get("cross_folder_copies", 0)),
