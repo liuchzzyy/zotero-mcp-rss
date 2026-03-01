@@ -3,7 +3,7 @@ Global scanner service for Phase 3 of Task#1.
 
 Scans library for items needing AI analysis with priority strategy:
 1. First scan 00_INBOXS_BB (or specified source collection)
-2. If need more items, scan entire library
+2. If need more items, scan non-00_INBOXS_* collections in entire library
 3. Process items with PDFs but lacking "AI分析" tag
 """
 
@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 # Tag applied to items after successful AI analysis
 AI_ANALYSIS_TAG = "AI分析"
 NON_ANALYZABLE_ITEM_TYPES = {"attachment", "note", "annotation"}
+STAGE2_EXCLUDED_COLLECTION_PREFIX = "00_INBOXS_"
 
 
 class GlobalScanner:
@@ -133,7 +134,7 @@ class GlobalScanner:
 
         Multi-stage strategy:
         1. Scan items in source_collection (default: 00_INBOXS_BB)
-        2. If need more items, scan all other collections
+        2. If need more items, scan all other collections except 00_INBOXS_*
         3. Accumulate candidates until reaching treated_limit (or all if None)
         4. Filter to items with PDFs but lacking "AI分析" tag
         5. Process up to `treated_limit` items
@@ -306,9 +307,15 @@ class GlobalScanner:
 
                     coll_key = coll["key"]
                     coll_name = coll.get("data", {}).get("name", "")
+                    coll_name_normalized = str(coll_name or "").strip().upper()
 
                     # Skip source collection (already scanned)
                     if coll_key == source_key:
+                        continue
+                    # Stage 2 skips all 00_INBOXS_* collections by design.
+                    if coll_name_normalized.startswith(
+                        STAGE2_EXCLUDED_COLLECTION_PREFIX
+                    ):
                         continue
 
                     logger.info(f"Scanning collection: {coll_name}")

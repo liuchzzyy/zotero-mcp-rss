@@ -130,7 +130,11 @@ async def test_check_item_needs_analysis_skips_items_with_parent_item():
             key="CHILD1",
             item_type="journalArticle",
             tags=[],
-            raw_data={"itemType": "journalArticle", "parentItem": "PARENT1", "tags": []},
+            raw_data={
+                "itemType": "journalArticle",
+                "parentItem": "PARENT1",
+                "tags": [],
+            },
         )
 
         needs_analysis = await scanner._check_item_needs_analysis(child_item)
@@ -504,6 +508,75 @@ async def test_scan_continues_to_stage2_when_source_collection_keeps_failing():
     assert result["success"] is True
     assert result["candidates"] == 1
     assert result["processed"] == 0
+
+
+@pytest.mark.asyncio
+async def test_scan_stage2_skips_all_00_inboxs_collections():
+    """Stage 2 should skip every 00_INBOXS_* collection."""
+    item = MagicMock()
+    item.key = "ITEM2"
+    item.title = "Paper 2"
+    item.data = {"tags": []}
+
+    data_service = AsyncMock()
+    data_service.find_collection_by_name = AsyncMock(
+        return_value=[{"key": "COLL1", "data": {"name": "00_INBOXS_BB"}}]
+    )
+    data_service.get_sorted_collections = AsyncMock(
+        return_value=[
+            {"key": "COLL1", "data": {"name": "00_INBOXS_BB"}},
+            {"key": "COLL2", "data": {"name": "00_INBOXS_AA"}},
+            {"key": "COLL3", "data": {"name": "00_INBOXS_CC"}},
+            {"key": "COLL4", "data": {"name": "01_SHORTTERMS"}},
+        ]
+    )
+    data_service.get_item_children = AsyncMock(
+        return_value=[{"data": {"contentType": "application/pdf"}}]
+    )
+
+    async def _get_collection_items_side_effect(collection_key, limit=100, start=0):
+        if collection_key == "COLL1":
+            return []
+        if collection_key == "COLL4" and start == 0:
+            return [item]
+        if collection_key == "COLL4":
+            return []
+        raise AssertionError(f"Should not scan excluded collection: {collection_key}")
+
+    data_service.get_collection_items = AsyncMock(
+        side_effect=_get_collection_items_side_effect
+    )
+
+    workflow_service = MagicMock()
+    workflow_service._analyze_single_item = AsyncMock()
+
+    with (
+        patch(
+            "zotero_mcp.services.scanner.get_data_service",
+            return_value=data_service,
+        ),
+        patch(
+            "zotero_mcp.services.scanner.get_workflow_service",
+            return_value=workflow_service,
+        ),
+    ):
+        scanner = GlobalScanner()
+        result = await scanner.scan_and_process(
+            scan_limit=1,
+            treated_limit=1,
+            target_collection="01_SHORTTERMS",
+            source_collection="00_INBOXS_BB",
+            dry_run=True,
+        )
+
+    scanned_collection_keys = [
+        call.args[0] for call in data_service.get_collection_items.await_args_list
+    ]
+    assert result["success"] is True
+    assert result["candidates"] == 1
+    assert "COLL2" not in scanned_collection_keys
+    assert "COLL3" not in scanned_collection_keys
+    assert "COLL4" in scanned_collection_keys
 
 
 @pytest.mark.asyncio
