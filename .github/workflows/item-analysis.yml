@@ -7,13 +7,13 @@ on:
   workflow_dispatch:
     inputs:
       scan_limit:
-        description: "Items per batch from API"
+        description: "Items per API batch"
         required: false
         default: "50"
         type: choice
         options: ["50", "100", "200"]
       treated_limit:
-        description: "Maximum total items to process"
+        description: "Maximum candidate parent items to process"
         required: false
         default: "20"
         type: choice
@@ -83,7 +83,6 @@ jobs:
         run: |
           ARGS=(
             --scan-limit "$INPUT_SCAN_LIMIT"
-            --treated-limit "$INPUT_TREATED_LIMIT"
             --source-collection "$INPUT_SOURCE_COLLECTION"
             --target-collection "$INPUT_TARGET_COLLECTION"
             --llm-provider "$INPUT_LLM_PROVIDER"
@@ -148,7 +147,7 @@ jobs:
               metrics.get("skipped_no_fulltext", metrics.get("skipped", 0)),
           )
           out = {
-              "Total scanned": str(payload.get("total_scanned", 0)),
+              "Scanned parent items": str(payload.get("total_scanned", 0)),
               "Candidates": str(payload.get("candidates", 0)),
               "Processed": str(payload.get("processed", 0)),
               "Failed": str(payload.get("failed", 0)),
@@ -174,6 +173,7 @@ jobs:
             | Source | ${{ github.event.inputs.source_collection || '00_INBOXS' }} |
             | Target | ${{ github.event.inputs.target_collection || '01_SHORTTERMS' }} |
             | All | ${{ github.event.inputs.all || 'false' }} |
+            | Treated limit | ${{ github.event.inputs.treated_limit || '20' }} |
             | LLM | ${{ github.event.inputs.llm_provider || 'deepseek' }} |
             | Dry Run | ${{ github.event.inputs.dry_run || 'false' }} |
           metrics: ${{ steps.metrics.outputs.json }}

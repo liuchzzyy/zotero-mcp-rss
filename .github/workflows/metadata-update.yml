@@ -11,13 +11,13 @@ on:
         required: false
         type: string
       scan_limit:
-        description: "Items per batch from API"
+        description: "Items per API batch"
         required: false
         default: "200"
         type: choice
         options: ["10", "100", "200", "500"]
       treated_limit:
-        description: "Maximum items to process"
+        description: "Maximum parent items to process"
         required: false
         default: "200"
         type: choice
@@ -144,7 +144,7 @@ jobs:
                   payload = {}
 
           out = {
-              "Items": str(payload.get("items", payload.get("total", 0))),
+              "Scanned parent items": str(payload.get("items", payload.get("total", 0))),
               "Candidates processed": str(payload.get("processed_candidates", 0)),
               "Updated": str(payload.get("updated", 0)),
               "Skipped": str(payload.get("skipped", 0)),
