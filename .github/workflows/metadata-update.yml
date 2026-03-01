@@ -22,6 +22,16 @@ on:
         default: "200"
         type: choice
         options: ["1", "100", "200", "500", "1000"]
+      all:
+        description: "Process all matching items (ignore treated_limit)"
+        required: false
+        default: false
+        type: boolean
+      include_unfiled:
+        description: "Include unfiled/root items in full-library scan"
+        required: false
+        default: true
+        type: boolean
       item_key:
         description: "Update a specific item by key"
         required: false
@@ -63,6 +73,8 @@ jobs:
           INPUT_ITEM_KEY: ${{ github.event.inputs.item_key }}
           INPUT_SCAN_LIMIT: ${{ github.event.inputs.scan_limit || '200' }}
           INPUT_TREATED_LIMIT: ${{ github.event.inputs.treated_limit || '200' }}
+          INPUT_ALL: ${{ github.event.inputs.all || 'false' }}
+          INPUT_INCLUDE_UNFILED: ${{ github.event.inputs.include_unfiled || 'true' }}
           INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
         run: |
           ARGS=()
@@ -73,7 +85,16 @@ jobs:
             ARGS+=(--item-key "$INPUT_ITEM_KEY")
           fi
           ARGS+=(--scan-limit "$INPUT_SCAN_LIMIT")
-          ARGS+=(--treated-limit "$INPUT_TREATED_LIMIT")
+          if [ "$INPUT_ALL" = "true" ]; then
+            ARGS+=(--all)
+          else
+            ARGS+=(--treated-limit "$INPUT_TREATED_LIMIT")
+          fi
+          if [ "$INPUT_INCLUDE_UNFILED" = "true" ]; then
+            ARGS+=(--include-unfiled)
+          else
+            ARGS+=(--no-include-unfiled)
+          fi
 
           if [ "$INPUT_DRY_RUN" = "true" ]; then
             ARGS+=(--dry-run)
@@ -150,7 +171,9 @@ jobs:
             | Collection | ${{ github.event.inputs.collection || 'All' }} |
             | Item key | ${{ github.event.inputs.item_key || 'None' }} |
             | Scan limit | ${{ github.event.inputs.scan_limit || '200' }} |
+            | All | ${{ github.event.inputs.all || 'false' }} |
             | Treated limit | ${{ github.event.inputs.treated_limit || '200' }} |
+            | Include unfiled | ${{ github.event.inputs.include_unfiled || 'true' }} |
             | Dry Run | ${{ github.event.inputs.dry_run || 'false' }} |
           metrics: ${{ steps.metrics.outputs.json }}
 

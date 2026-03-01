@@ -18,6 +18,11 @@ on:
         default: "100"
         type: choice
         options: ["1", "50", "100", "200", "500"]
+      all:
+        description: "Process all matching items (ignore treated_limit)"
+        required: false
+        default: false
+        type: boolean
       dry_run:
         description: "Preview mode"
         required: false
@@ -55,13 +60,16 @@ jobs:
         env:
           INPUT_SCAN_LIMIT: ${{ github.event.inputs.scan_limit || '100' }}
           INPUT_TREATED_LIMIT: ${{ github.event.inputs.treated_limit || '100' }}
+          INPUT_ALL: ${{ github.event.inputs.all || 'false' }}
           INPUT_COLLECTION: ${{ github.event.inputs.collection }}
           INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
         run: |
-          ARGS=(
-            --scan-limit "$INPUT_SCAN_LIMIT"
-            --treated-limit "$INPUT_TREATED_LIMIT"
-          )
+          ARGS=(--scan-limit "$INPUT_SCAN_LIMIT")
+          if [ "$INPUT_ALL" = "true" ]; then
+            ARGS+=(--all)
+          else
+            ARGS+=(--treated-limit "$INPUT_TREATED_LIMIT")
+          fi
 
           if [ -n "$INPUT_COLLECTION" ]; then
             ARGS+=(--collection "$INPUT_COLLECTION")
@@ -137,6 +145,7 @@ jobs:
           config_table: |
             | Run | #${{ github.run_number }} |
             | Scan limit | ${{ github.event.inputs.scan_limit || '100' }} |
+            | All | ${{ github.event.inputs.all || 'false' }} |
             | Treated limit | ${{ github.event.inputs.treated_limit || '100' }} |
             | Collection | ${{ github.event.inputs.collection || 'All' }} |
             | Dry Run | ${{ github.event.inputs.dry_run || 'false' }} |

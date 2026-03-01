@@ -18,6 +18,11 @@ on:
         default: "20"
         type: choice
         options: ["1", "10", "20", "30", "50"]
+      all:
+        description: "Process all matching items (ignore treated_limit)"
+        required: false
+        default: false
+        type: boolean
       source_collection:
         description: "Collection scanned with highest priority"
         required: false
@@ -33,7 +38,7 @@ on:
         required: false
         default: "deepseek"
         type: choice
-        options: ["auto", "deepseek", "openai", "gemini", "claude-cli"]
+        options: ["auto", "deepseek"]
       dry_run:
         description: "Preview mode (no write)"
         required: false
@@ -70,6 +75,7 @@ jobs:
         env:
           INPUT_SCAN_LIMIT: ${{ github.event.inputs.scan_limit || '50' }}
           INPUT_TREATED_LIMIT: ${{ github.event.inputs.treated_limit || '20' }}
+          INPUT_ALL: ${{ github.event.inputs.all || 'false' }}
           INPUT_SOURCE_COLLECTION: ${{ github.event.inputs.source_collection || '00_INBOXS' }}
           INPUT_TARGET_COLLECTION: ${{ github.event.inputs.target_collection || '01_SHORTTERMS' }}
           INPUT_LLM_PROVIDER: ${{ github.event.inputs.llm_provider || 'deepseek' }}
@@ -82,6 +88,12 @@ jobs:
             --target-collection "$INPUT_TARGET_COLLECTION"
             --llm-provider "$INPUT_LLM_PROVIDER"
           )
+
+          if [ "$INPUT_ALL" = "true" ]; then
+            ARGS+=(--all)
+          else
+            ARGS+=(--treated-limit "$INPUT_TREATED_LIMIT")
+          fi
 
           if [ "$INPUT_DRY_RUN" = "true" ]; then
             ARGS+=(--dry-run)
@@ -161,6 +173,7 @@ jobs:
             | Run | #${{ github.run_number }} |
             | Source | ${{ github.event.inputs.source_collection || '00_INBOXS' }} |
             | Target | ${{ github.event.inputs.target_collection || '01_SHORTTERMS' }} |
+            | All | ${{ github.event.inputs.all || 'false' }} |
             | LLM | ${{ github.event.inputs.llm_provider || 'deepseek' }} |
             | Dry Run | ${{ github.event.inputs.dry_run || 'false' }} |
           metrics: ${{ steps.metrics.outputs.json }}
