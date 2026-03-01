@@ -10,6 +10,25 @@ from zotero_mcp.services.zotero.metadata_update_service import (
 )
 
 
+def _api_item(
+    key: str,
+    *,
+    item_type: str = "journalArticle",
+    tags: list[str] | None = None,
+    parent_item: str | None = None,
+) -> dict:
+    return {
+        "key": key,
+        "data": {
+            "key": key,
+            "itemType": item_type,
+            "title": key,
+            "tags": [{"tag": tag} for tag in (tags or [])],
+            "parentItem": parent_item,
+        },
+    }
+
+
 @pytest.mark.asyncio
 async def test_update_item_metadata_skips_attachment_item_type():
     """Should skip unsupported item types instead of attempting update."""
@@ -41,14 +60,10 @@ async def test_update_all_items_skips_unsupported_item_types_before_processing()
     service = MetadataUpdateService(item_service, metadata_service)
 
     item_service.get_sorted_collections.return_value = [{"key": "COLL1"}]
-    item_service.get_collection_items.side_effect = [
+    item_service.api_client.get_collection_items.side_effect = [
         [
-            type("Item", (), {"key": "N1", "item_type": "note", "tags": []})(),
-            type(
-                "Item",
-                (),
-                {"key": "A1", "item_type": "journalArticle", "tags": []},
-            )(),
+            _api_item("N1", item_type="note"),
+            _api_item("A1", item_type="journalArticle"),
         ],
         [],
     ]
@@ -78,22 +93,10 @@ async def test_update_all_items_counts_ai_metadata_tagged_items():
     service = MetadataUpdateService(item_service, metadata_service)
 
     item_service.get_sorted_collections.return_value = [{"key": "COLL1"}]
-    item_service.get_collection_items.side_effect = [
+    item_service.api_client.get_collection_items.side_effect = [
         [
-            type(
-                "Item",
-                (),
-                {
-                    "key": "T1",
-                    "item_type": "journalArticle",
-                    "tags": [AI_METADATA_TAG],
-                },
-            )(),
-            type(
-                "Item",
-                (),
-                {"key": "A1", "item_type": "journalArticle", "tags": []},
-            )(),
+            _api_item("T1", item_type="journalArticle", tags=[AI_METADATA_TAG]),
+            _api_item("A1", item_type="journalArticle"),
         ],
         [],
     ]
@@ -196,10 +199,10 @@ async def test_update_all_items_deduplicates_items_across_collections():
         {"key": "COLL1"},
         {"key": "COLL2"},
     ]
-    item_service.get_collection_items.side_effect = [
-        [type("Item", (), {"key": "A1", "item_type": "journalArticle", "tags": []})()],
+    item_service.api_client.get_collection_items.side_effect = [
+        [_api_item("A1", item_type="journalArticle")],
         [],
-        [type("Item", (), {"key": "A1", "item_type": "journalArticle", "tags": []})()],
+        [_api_item("A1", item_type="journalArticle")],
         [],
     ]
     update_item_metadata_mock = AsyncMock(
@@ -213,6 +216,37 @@ async def test_update_all_items_deduplicates_items_across_collections():
             include_unfiled=False,
         )
 
+    assert result["processed_candidates"] == 1
+    update_item_metadata_mock.assert_awaited_once_with("A1", dry_run=True)
+
+
+@pytest.mark.asyncio
+async def test_update_all_items_skips_parent_item_children():
+    """Batch update should skip API records that have parentItem."""
+    item_service = AsyncMock()
+    metadata_service = AsyncMock()
+    service = MetadataUpdateService(item_service, metadata_service)
+
+    item_service.get_sorted_collections.return_value = [{"key": "COLL1"}]
+    item_service.api_client.get_collection_items.side_effect = [
+        [
+            _api_item("C1", item_type="journalArticle", parent_item="PARENT1"),
+            _api_item("A1", item_type="journalArticle"),
+        ],
+        [],
+    ]
+    update_item_metadata_mock = AsyncMock(
+        return_value={"success": True, "updated": False}
+    )
+    with patch.object(service, "update_item_metadata", update_item_metadata_mock):
+        result = await service.update_all_items(
+            scan_limit=10,
+            treated_limit=10,
+            dry_run=True,
+            include_unfiled=False,
+        )
+
+    assert result["total"] == 1
     assert result["processed_candidates"] == 1
     update_item_metadata_mock.assert_awaited_once_with("A1", dry_run=True)
 

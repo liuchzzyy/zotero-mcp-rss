@@ -192,14 +192,20 @@ class MetadataUpdateService:
                 }
 
             item_data = item.get("data", {})
-            item_type = item_data.get("itemType", "")
+            item_type = str(item_data.get("itemType", "")).strip().lower()
+            parent_item = str(item_data.get("parentItem") or "").strip()
 
-            if item_type in _SKIPPED_ITEM_TYPES:
-                logger.info(f"  Skipping unsupported item type: {item_type}")
+            if item_type in _SKIPPED_ITEM_TYPES or parent_item:
+                if parent_item:
+                    logger.info("  Skipping child item (has parentItem)")
+                    message = "Skipped child item (has parentItem)"
+                else:
+                    logger.info(f"  Skipping unsupported item type: {item_type}")
+                    message = f"Skipped unsupported item type: {item_type}"
                 return {
                     "success": True,
                     "updated": False,
-                    "message": f"Skipped unsupported item type: {item_type}",
+                    "message": message,
                     "source": "none",
                 }
 
@@ -486,7 +492,7 @@ class MetadataUpdateService:
                 break
 
             parent_items = [
-                item for item in items if item.item_type not in _SKIPPED_ITEM_TYPES
+                item for item in items if self._is_parent_candidate(item)
             ]
             scanned += len(parent_items)
 
@@ -555,7 +561,7 @@ class MetadataUpdateService:
                 break
 
             parent_items = [
-                item for item in items if item.item_type not in _SKIPPED_ITEM_TYPES
+                item for item in items if self._is_parent_candidate(item)
             ]
             scanned += len(parent_items)
 
@@ -599,14 +605,18 @@ class MetadataUpdateService:
                 page_limit: int = limit,
                 page_offset: int = offset,
             ):
-                return self.item_service.get_collection_items(
+                return self.item_service.api_client.get_collection_items(
                     collection_key, limit=page_limit, start=page_offset
                 )
 
-            return await async_retry_with_backoff(
+            raw_items = await async_retry_with_backoff(
                 _fetch_items,
                 description=f"Scan collection {coll_key} (offset {offset})",
             )
+            if isinstance(raw_items, int) or not isinstance(raw_items, list):
+                return []
+            parent_items = [item for item in raw_items if self._is_parent_api_item(item)]
+            return [api_item_to_search_result(item) for item in parent_items]
 
         return _fetch_page
 
@@ -626,9 +636,31 @@ class MetadataUpdateService:
             )
             if isinstance(raw_items, int) or not isinstance(raw_items, list):
                 return []
-            return [api_item_to_search_result(item) for item in raw_items]
+            parent_items = [item for item in raw_items if self._is_parent_api_item(item)]
+            return [api_item_to_search_result(item) for item in parent_items]
 
         return _fetch_page
+
+    def _is_parent_api_item(self, item: dict[str, Any]) -> bool:
+        """Check parent-item eligibility from raw API payload."""
+        data = item.get("data", {})
+        item_type = str(data.get("itemType", "")).strip().lower()
+        parent_item = str(data.get("parentItem") or "").strip()
+        return item_type not in _SKIPPED_ITEM_TYPES and not parent_item
+
+    def _is_parent_candidate(self, item: Any) -> bool:
+        """Check parent-item eligibility from SearchResultItem-like object."""
+        item_type = str(getattr(item, "item_type", "")).strip().lower()
+        if item_type in _SKIPPED_ITEM_TYPES:
+            return False
+
+        raw_data = getattr(item, "raw_data", None)
+        if isinstance(raw_data, dict):
+            parent_item = str(raw_data.get("parentItem") or "").strip()
+            if parent_item:
+                return False
+
+        return True
 
     def _effective_batch_size(self, scan_limit: int) -> int:
         """Clamp scan batch size to Zotero API max page size."""
