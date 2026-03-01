@@ -112,8 +112,7 @@ async def test_relate_note_dry_run_uses_collection_name_and_keeps_top5():
 
     result = await service.relate_note(
         note_key="TARGET01",
-        collection="collection",
-        collection_key="My Collection",
+        collection="My Collection",
         dry_run=True,
         bidirectional=True,
     )
@@ -129,6 +128,35 @@ async def test_relate_note_dry_run_uses_collection_name_and_keeps_top5():
         "N5",
     ]
     data_service.update_item.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_relate_note_rejects_collection_key_input():
+    data_service = MagicMock()
+    data_service.api_client = SimpleNamespace(library_type="user", library_id="123")
+    data_service.get_item = AsyncMock(
+        return_value={
+            "key": "TARGET01",
+            "data": {
+                "key": "TARGET01",
+                "itemType": "note",
+                "note": "<p>Target note content</p>",
+            },
+        }
+    )
+    data_service.get_collections = AsyncMock(
+        return_value=[{"key": "COLL001", "data": {"name": "My Collection"}}]
+    )
+
+    service = NoteRelationService(data_service=data_service)
+
+    with pytest.raises(ValueError, match="Collection not found: COLL001"):
+        await service.relate_note(
+            note_key="TARGET01",
+            collection="COLL001",
+            dry_run=True,
+            bidirectional=True,
+        )
 
 
 @pytest.mark.asyncio

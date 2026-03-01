@@ -271,6 +271,15 @@ def test_tags_purge_supports_collection_name():
     assert args.collection == "01_SHORTTERMS"
 
 
+def test_notes_relate_accepts_collection_name_scope():
+    parser = build_parser()
+    args = parser.parse_args(
+        ["notes", "relate", "--note-key", "ABC12345", "--collection", "My Collection"]
+    )
+    assert args.subcommand == "relate"
+    assert args.collection == "My Collection"
+
+
 def test_item_analysis_rejects_unimplemented_llm_provider_openai():
     parser = build_parser()
     with pytest.raises(SystemExit):

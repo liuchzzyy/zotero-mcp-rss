@@ -229,7 +229,7 @@ def register_notes(subparsers: argparse._SubParsersAction) -> None:
     relate.add_argument(
         "--collection",
         default="all",
-        help="'all' for entire library, or a collection key/name (default: all)",
+        help="'all' for entire library, or a collection name (default: all)",
     )
     relate.add_argument(
         "--dry-run",

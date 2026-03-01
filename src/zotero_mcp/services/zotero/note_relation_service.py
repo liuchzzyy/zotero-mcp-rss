@@ -60,11 +60,15 @@ class NoteRelationService:
         if not target_note_text.strip():
             raise ValueError(f"Target note {target_note_key} has empty content")
 
+        collection_query = collection.strip()
+        if not collection_query:
+            raise ValueError("--collection cannot be empty")
+
         resolved_collection_key: str | None = None
         resolved_collection_name: str | None = None
-        if collection.lower() != "all":
+        if collection_query.lower() != "all":
             resolved_collection_key, resolved_collection_name = (
-                await self._resolve_collection_key_or_name(collection)
+                await self._resolve_collection_by_name(collection_query)
             )
 
         candidates, scanned_items, scanned_notes = await self._collect_candidates(
@@ -380,20 +384,14 @@ class NoteRelationService:
         self._deepseek_client = AsyncOpenAI(api_key=api_key, base_url=base_url)
         return self._deepseek_client
 
-    async def _resolve_collection_key_or_name(self, query: str) -> tuple[str, str]:
-        normalized_query = query.strip()
+    async def _resolve_collection_by_name(self, name_query: str) -> tuple[str, str]:
+        normalized_query = name_query.strip()
         if not normalized_query:
-            raise ValueError("Collection identifier cannot be empty")
+            raise ValueError("Collection name cannot be empty")
 
         collections = await self.data_service.get_collections()
         if not collections:
             raise ValueError("No collections found in library")
-
-        for collection in collections:
-            key = str(collection.get("key", "")).strip()
-            name = str(collection.get("data", {}).get("name", "")).strip()
-            if key.lower() == normalized_query.lower():
-                return key, name
 
         exact_name_matches: list[tuple[str, str]] = []
         for collection in collections:
@@ -419,7 +417,7 @@ class NoteRelationService:
             choices = ", ".join(f"{name}({key})" for key, name in fuzzy_matches[:10])
             raise ValueError(f"Collection query is ambiguous: {choices}")
 
-        raise ValueError(f"Collection not found: {query}")
+        raise ValueError(f"Collection not found: {name_query}")
 
     def _merge_dc_relation_uris(
         self,
