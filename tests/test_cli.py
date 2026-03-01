@@ -280,6 +280,15 @@ def test_notes_relate_accepts_collection_name_scope():
     assert args.collection == "My Collection"
 
 
+def test_notes_search_accepts_collection_name_scope():
+    parser = build_parser()
+    args = parser.parse_args(
+        ["notes", "search", "--query", "matched", "--collection", "My Collection"]
+    )
+    assert args.subcommand == "search"
+    assert args.collection == "My Collection"
+
+
 def test_item_analysis_rejects_unimplemented_llm_provider_openai():
     parser = build_parser()
     with pytest.raises(SystemExit):

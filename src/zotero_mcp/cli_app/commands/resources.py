@@ -214,6 +214,11 @@ def register_notes(subparsers: argparse._SubParsersAction) -> None:
 
     search = notes_sub.add_parser("search", help="Search note text")
     search.add_argument("--query", required=True)
+    search.add_argument(
+        "--collection",
+        default="all",
+        help="'all' for entire library, or a collection name (default: all)",
+    )
     _add_paging(search)
     add_output_arg(search)
 
@@ -273,6 +278,7 @@ def run_notes(args: argparse.Namespace) -> int:
             query=args.query,
             limit=args.limit,
             offset=args.offset,
+            collection=args.collection,
         ),
         "delete": lambda: service.delete_note(normalize_item_key(args.note_key)),
         "relate": lambda: service.relate_note(

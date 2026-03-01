@@ -19,36 +19,80 @@ async def test_create_items_wraps_single_payload():
 
 
 @pytest.mark.asyncio
-async def test_search_notes_filters_and_paginates():
+async def test_search_notes_scans_whole_library_and_paginates_stably():
     data_service = MagicMock()
-    data_service.search_items = AsyncMock(
-        return_value=[
-            SimpleNamespace(key="I1", title="Item One"),
-            SimpleNamespace(key="I2", title="Item Two"),
+    data_service.get_all_items = AsyncMock(
+        side_effect=[
+            [
+                SimpleNamespace(key="I2", title="Item Two", item_type="journalArticle"),
+                SimpleNamespace(key="I1", title="Item One", item_type="journalArticle"),
+            ],
+            [],
         ]
     )
     data_service.get_notes = AsyncMock(
         side_effect=[
             [
-                {"data": {"key": "N1", "note": "matched note A"}},
+                {"data": {"key": "N3", "note": "Matched note B"}},
                 {"data": {"key": "N2", "note": "irrelevant"}},
             ],
-            [{"data": {"key": "N3", "note": "Matched note B"}}],
+            [{"data": {"key": "N1", "note": "matched note A"}}],
         ]
     )
     service = ResourceService(data_service=data_service)
 
     result = await service.search_notes(query="matched", limit=1, offset=1)
 
-    data_service.search_items.assert_awaited_once_with(
-        "matched",
-        limit=50,
-        offset=0,
-        qmode="everything",
-    )
+    assert data_service.get_all_items.await_count == 1
+    assert data_service.get_all_items.await_args_list[0].kwargs == {
+        "limit": 50,
+        "start": 0,
+    }
+    data_service.search_items.assert_not_called()
+    assert result["collection_key"] is None
+    assert result["collection_name"] is None
+    assert result["query"] == "matched"
     assert result["total"] == 2
     assert result["count"] == 1
     assert result["results"][0]["note_key"] == "N3"
+
+
+@pytest.mark.asyncio
+async def test_search_notes_supports_collection_name_scope():
+    data_service = MagicMock()
+    data_service.get_collections = AsyncMock(
+        return_value=[{"key": "COLL001", "data": {"name": "My Collection"}}]
+    )
+    data_service.get_collection_items = AsyncMock(
+        side_effect=[
+            [SimpleNamespace(key="I1", title="Item One", item_type="journalArticle")],
+            [],
+        ]
+    )
+    data_service.get_notes = AsyncMock(
+        return_value=[
+            {"data": {"key": "N1", "note": "matched note"}},
+        ]
+    )
+    service = ResourceService(data_service=data_service)
+
+    result = await service.search_notes(
+        query="matched",
+        limit=50,
+        offset=0,
+        collection="My Collection",
+    )
+
+    data_service.get_collection_items.assert_any_await(
+        collection_key="COLL001",
+        limit=50,
+        start=0,
+    )
+    assert result["collection_key"] == "COLL001"
+    assert result["collection_name"] == "My Collection"
+    assert result["total"] == 1
+    assert result["count"] == 1
+    assert result["results"][0]["note_key"] == "N1"
 
 
 @pytest.mark.asyncio

@@ -7,8 +7,12 @@ from pathlib import Path
 import re
 from typing import Any
 
+from zotero_mcp.services.common.pagination import iter_offset_batches
 from zotero_mcp.services.data_access import DataAccessService
 from zotero_mcp.services.zotero.note_relation_service import NoteRelationService
+
+_SKIPPED_NOTE_PARENT_TYPES = {"attachment", "annotation", "note"}
+_NOTE_SEARCH_BATCH_SIZE = 50
 
 
 class ResourceService:
@@ -113,35 +117,97 @@ class ResourceService:
         result = await self.data_service.delete_item(note_key)
         return {"deleted": True, "note_key": note_key, "result": result}
 
-    async def search_notes(self, query: str, limit: int, offset: int) -> dict[str, Any]:
-        candidates = await self.data_service.search_items(
-            query,
-            limit=max(limit * 2, 50),
-            offset=0,
-            qmode="everything",
-        )
-        hits: list[dict[str, Any]] = []
-        query_lower = query.lower()
+    async def search_notes(
+        self,
+        query: str,
+        limit: int,
+        offset: int,
+        collection: str = "all",
+    ) -> dict[str, Any]:
+        query_text = query.strip()
+        if not query_text:
+            raise ValueError("Query cannot be empty")
 
-        for item in candidates:
-            notes = await self.data_service.get_notes(item.key)
-            for note in notes:
-                data = note.get("data", {})
-                raw_note = str(data.get("note", ""))
-                if query_lower in raw_note.lower():
+        collection_query = collection.strip()
+        if not collection_query:
+            raise ValueError("--collection cannot be empty")
+
+        resolved_collection_key: str | None = None
+        resolved_collection_name: str | None = None
+        if collection_query.lower() != "all":
+            resolved_collection_key, resolved_collection_name = (
+                await self._resolve_collection_by_name(collection_query)
+            )
+
+        hits: list[dict[str, Any]] = []
+        query_lower = query_text.lower()
+        scanned_items = 0
+        scanned_notes = 0
+        seen_note_keys: set[str] = set()
+
+        async def fetch_page(start: int, page_limit: int) -> list[Any]:
+            if resolved_collection_key:
+                return await self.data_service.get_collection_items(
+                    collection_key=resolved_collection_key,
+                    limit=page_limit,
+                    start=start,
+                )
+            return await self.data_service.get_all_items(limit=page_limit, start=start)
+
+        async for _, items in iter_offset_batches(
+            fetch_page,
+            batch_size=_NOTE_SEARCH_BATCH_SIZE,
+            start=0,
+        ):
+            scanned_items += len(items)
+            for item in items:
+                item_key = str(getattr(item, "key", "")).strip().upper()
+                item_type = str(getattr(item, "item_type", "")).strip().lower()
+                item_title = str(getattr(item, "title", "") or "Untitled")
+                if not item_key or item_type in _SKIPPED_NOTE_PARENT_TYPES:
+                    continue
+
+                try:
+                    notes = await self.data_service.get_notes(item_key)
+                except Exception:
+                    continue
+
+                scanned_notes += len(notes)
+                for note in notes:
+                    data = note.get("data", {})
+                    note_key = str(data.get("key", "")).strip().upper()
+                    if not note_key or note_key in seen_note_keys:
+                        continue
+
+                    raw_note = str(data.get("note", ""))
+                    if query_lower not in raw_note.lower():
+                        continue
+
+                    seen_note_keys.add(note_key)
                     hits.append(
                         {
-                            "item_key": item.key,
-                            "item_title": item.title,
-                            "note_key": data.get("key", ""),
+                            "item_key": item_key,
+                            "item_title": item_title,
+                            "note_key": note_key,
                             "note": raw_note,
                         }
                     )
 
+        hits.sort(
+            key=lambda hit: (
+                str(hit.get("note_key", "")),
+                str(hit.get("item_key", "")),
+            )
+        )
+
         total = len(hits)
         sliced = hits[offset : offset + limit]
         return {
-            "query": query,
+            "query": query_text,
+            "collection_key": resolved_collection_key,
+            "collection_name": resolved_collection_name,
+            "scanned_items": scanned_items,
+            "scanned_notes": scanned_notes,
             "total": total,
             "count": len(sliced),
             "results": sliced,
@@ -169,6 +235,41 @@ class ResourceService:
     def _clean_note_html(note_html: str) -> str:
         cleaned = re.sub(r"<[^>]+>", "", note_html)
         return html.unescape(cleaned).strip()
+
+    async def _resolve_collection_by_name(self, name_query: str) -> tuple[str, str]:
+        normalized_query = name_query.strip()
+        if not normalized_query:
+            raise ValueError("Collection name cannot be empty")
+
+        collections = await self.data_service.get_collections()
+        if not collections:
+            raise ValueError("No collections found in library")
+
+        exact_name_matches: list[tuple[str, str]] = []
+        for collection in collections:
+            key = str(collection.get("key", "")).strip()
+            name = str(collection.get("data", {}).get("name", "")).strip()
+            if name.lower() == normalized_query.lower():
+                exact_name_matches.append((key, name))
+        if len(exact_name_matches) == 1:
+            return exact_name_matches[0]
+        if len(exact_name_matches) > 1:
+            choices = ", ".join(f"{name}({key})" for key, name in exact_name_matches)
+            raise ValueError(f"Collection name is ambiguous: {choices}")
+
+        fuzzy_matches: list[tuple[str, str]] = []
+        for collection in collections:
+            key = str(collection.get("key", "")).strip()
+            name = str(collection.get("data", {}).get("name", "")).strip()
+            if normalized_query.lower() in name.lower():
+                fuzzy_matches.append((key, name))
+        if len(fuzzy_matches) == 1:
+            return fuzzy_matches[0]
+        if len(fuzzy_matches) > 1:
+            choices = ", ".join(f"{name}({key})" for key, name in fuzzy_matches[:10])
+            raise ValueError(f"Collection query is ambiguous: {choices}")
+
+        raise ValueError(f"Collection not found: {name_query}")
 
     @staticmethod
     def _annotation_payload(annotation: dict[str, Any]) -> dict[str, Any]:
