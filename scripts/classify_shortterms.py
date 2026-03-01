@@ -135,8 +135,9 @@ def classify_single_pdf(text: str) -> str:
 
 def check_duplicates(texts: list[str]) -> bool:
     """
-    Check if 2+ PDFs are duplicates (same article, different format/version).
-    Returns True if duplicates found.
+    Check if 2+ PDFs are duplicates (same article, same version downloaded twice).
+    Returns True ONLY if two PDFs are the same article in different format/version.
+    Returns False if PDFs are complementary (e.g. main paper + supporting info).
     """
     if len(texts) < 2:
         return False
@@ -148,10 +149,15 @@ def check_duplicates(texts: list[str]) -> bool:
     combined = '\n\n'.join(parts)
     n = len(texts)
     prompt = (
-        f"以下是同一 Zotero 条目中 {n} 个 PDF 文件的前3页内容。\n"
-        "请判断这些 PDF 是否是重复文件（即相同文章的不同版本、预印本和正式版、或不同格式）。\n"
-        "如果存在两个或以上 PDF 是同一篇文章的重复，回答 YES。\n"
-        "如果所有 PDF 内容不同（如正文 + 支撑信息，或完全不同的文章），回答 NO。\n\n"
+        f"以下是同一 Zotero 条目中 {n} 个 PDF 文件的前3页内容。\n\n"
+        "请严格按以下标准判断：\n"
+        "【YES - 重复】：两个或以上 PDF 是【同一篇文章的不同版本或格式】\n"
+        "  例如：预印本 + 正式发表版、同一文章被下载了两次、英文版 + 中文版\n"
+        "【NO - 非重复】：这些 PDF 是【不同文档的组合】\n"
+        "  例如：研究论文正文 + 支撑信息(Supporting Information/Supplementary)\n"
+        "  例如：两篇完全不同主题的文章\n\n"
+        "⚠️ 特别注意：即使「正文」和「支撑信息」来自同一篇论文，\n"
+        "  它们是完全不同的文档（内容、格式均不同），应回答 NO。\n\n"
         f"{combined}\n\n"
         "只回答 YES 或 NO，不要解释。"
     )
@@ -663,5 +669,85 @@ def main():
         print(f'  {dest:20s}: {count} 条')
 
 
+# ── Re-classify DD and CC (fix duplicate detection) ──────────────────────────
+
+def reclassify_dd_cc():
+    """
+    Re-process items in DD and CC with the corrected duplicate detection prompt.
+    - DD items that are NOT true duplicates → move to CC
+    - CC items that ARE true duplicates     → move to DD
+    """
+    print('=' * 70)
+    print('  重新分类 00_INBOXS_DD 和 00_INBOXS_CC')
+    print('=' * 70)
+
+    stats: Counter = Counter()
+
+    for col_key, col_name, expect_dup in [
+        (DD_KEY, '00_INBOXS_DD', True),
+        (CC_KEY, '00_INBOXS_CC', False),
+    ]:
+        raw = zot.everything(zot.collection_items(col_key, itemType='-attachment'))
+        items = [i for i in raw if i['data'].get('itemType') != 'note']
+        print(f'\n{col_name}: {len(items)} 个条目\n')
+
+        for idx, item in enumerate(items, 1):
+            key   = item['key']
+            data  = item['data']
+            title = re.sub(r'<[^>]+>', '', data.get('title', '(无标题)'))[:55]
+            year  = data.get('date', '')[:4]
+
+            prefix = f'[{idx:04d}/{len(items)}]'
+            print(f'\n{prefix} [{key}] ({year}) {title}')
+
+            children = zot.children(key)
+            pdfs = [c for c in children
+                    if c['data'].get('itemType') == 'attachment'
+                    and c['data'].get('contentType') == 'application/pdf']
+            pdf_count = len(pdfs)
+            print(f'  PDFs: {pdf_count}')
+
+            if pdf_count < 2:
+                print(f'  ⚠️  PDF数量 < 2，跳过（保留在 {col_name}）')
+                stats[f'skip_{col_name}'] += 1
+                time.sleep(0.1)
+                continue
+
+            texts = []
+            for pdf in pdfs:
+                local_path = get_local_pdf_path(pdf)
+                texts.append(extract_pdf_text(local_path) if local_path else '')
+
+            print(f'  🤖 DeepSeek 重复检测中... ({pdf_count} 个PDF)')
+            has_dups = check_duplicates(texts)
+            print(f'  → 有重复: {has_dups}')
+
+            if expect_dup and not has_dups:
+                # DD → CC
+                ok = move_item(key, col_key, CC_KEY)
+                result = '→CC' if ok else 'move_failed'
+                print(f'  {"✅" if ok else "❌"} 移到 00_INBOXS_CC (非重复，正文+SI)')
+            elif not expect_dup and has_dups:
+                # CC → DD
+                ok = move_item(key, col_key, DD_KEY)
+                result = '→DD' if ok else 'move_failed'
+                print(f'  {"✅" if ok else "❌"} 移到 00_INBOXS_DD (发现重复)')
+            else:
+                result = 'stay'
+                print(f'  ✓ 保留在 {col_name}')
+
+            stats[result] += 1
+            time.sleep(0.3)
+
+    print('\n' + '=' * 70)
+    print('完成！结果汇总：')
+    for k, v in sorted(stats.items()):
+        print(f'  {k:20s}: {v} 条')
+
+
 if __name__ == '__main__':
-    main()
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == 'reclassify':
+        reclassify_dd_cc()
+    else:
+        main()
