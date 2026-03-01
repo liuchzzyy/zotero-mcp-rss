@@ -59,33 +59,31 @@ Key variables:
 > **Security note:** Git history was rewritten (2026-03) to redact leaked API keys.
 > All previously exposed keys (Zotero, DeepSeek, Elsevier, OpenAlex) should be regenerated.
 
-## Key Scripts (`scripts/`)
+## Key Scripts
 
-### `classify_shortterms.py`
+### `classify_shortterms.py` — moved to skill
 
-Routes items from `01_SHORTTERMS` collection into four inboxes based on AI tag and PDF content:
+**Canonical location:** `~/.claude/skills/zotero-shortterms-classify/classify_shortterms.py`
+
+Routes items from `01_SHORTTERMS` into four inboxes:
 
 | Inbox | Criteria |
 |-------|----------|
-| `00_INBOXS_AA` | Single PDF, no SI, AI-tagged — ready for analysis |
-| `00_INBOXS_BB` | Has SI file attached |
-| `00_INBOXS_CC` | Multiple PDFs (main paper + SI combined) |
-| `00_INBOXS_DD` | Suspected duplicate PDFs (same article twice) |
+| `00_INBOXS_AA` | Single PDF, AI-tagged — ready for analysis |
+| `00_INBOXS_BB` | Review articles (综述) |
+| `00_INBOXS_CC` | Multiple PDFs (main + SI combined) |
+| `00_INBOXS_DD` | Duplicate PDFs (same article twice) |
 
 ```bash
-# Classify new items from 01_SHORTTERMS
-uv run python scripts/classify_shortterms.py
-
-# Re-evaluate CC↔DD boundary using DeepSeek LLM
-uv run python scripts/classify_shortterms.py recheck
+SCRIPT="C:/Users/chengliu/.claude/skills/zotero-shortterms-classify/classify_shortterms.py"
+uv run python "$SCRIPT"            # classify new items
+uv run python "$SCRIPT" recheck    # re-check CC↔DD boundary
+uv run python "$SCRIPT" recheck_bb # re-verify BB review items
 ```
 
-**Duplicate detection (`is_duplicate_set`):**
-- Skips LLM when fewer than 2 readable PDFs found
-- Conservative prompt: only YES when very certain (main+SI pairs → NO)
-- Uses DeepSeek model configured in `.env`
+See `~/.claude/skills/zotero-shortterms-classify/SKILL.md` for full details.
 
-### `generate_zotero_windows_shortcuts_pdf.py`
+### `scripts/generate_zotero_windows_shortcuts_pdf.py`
 
 Generates a keyboard shortcut reference PDF for Zotero on Windows.
 
