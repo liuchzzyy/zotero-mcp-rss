@@ -15,6 +15,7 @@ Commands:
   uv run python scripts/classify_shortterms.py           # route 01_SHORTTERMS
   uv run python scripts/classify_shortterms.py recheck   # re-check DD and CC
 """
+import os
 import sys
 import re
 import time
@@ -24,26 +25,29 @@ from pathlib import Path
 
 import fitz  # PyMuPDF
 import httpx
+from dotenv import load_dotenv
 from openai import OpenAI
 import pyzotero.zotero as zotero
 import requests
 
+load_dotenv(Path(__file__).resolve().parent.parent / '.env')
+
 # ── Config ────────────────────────────────────────────────────────────────────
-LIBRARY_ID        = '5452188'
-API_KEY           = '***ZOTERO_API_KEY***'
-DEEPSEEK_API_KEY  = '***DEEPSEEK_API_KEY***'
-DEEPSEEK_BASE_URL = 'https://api.deepseek.com'
-ELSEVIER_API_KEY  = '***ELSEVIER_API_KEY***'
+LIBRARY_ID        = os.environ['ZOTERO_LIBRARY_ID']
+API_KEY           = os.environ['ZOTERO_API_KEY']
+DEEPSEEK_API_KEY  = os.environ['DEEPSEEK_API_KEY']
+DEEPSEEK_BASE_URL = os.environ['DEEPSEEK_BASE_URL']
+ELSEVIER_API_KEY  = os.environ['ELSEVIER_API_KEY']
 
-SHORTTERMS_KEY = '478IFSJ3'  # 01_SHORTTERMS (source)
-AA_KEY         = '2PSBFJEI'  # 00_INBOXS_AA
-BB_KEY         = '866TNWZ9'  # 00_INBOXS_BB
-CC_KEY         = 'H7KTSUR7'  # 00_INBOXS_CC
-DD_KEY         = 'UQDFUUYV'  # 00_INBOXS_DD
+SHORTTERMS_KEY = os.environ['ZOTERO_SHORTTERMS_KEY']   # 01_SHORTTERMS (source)
+AA_KEY         = os.environ['ZOTERO_INBOXS_AA_KEY']    # 00_INBOXS_AA
+BB_KEY         = os.environ['ZOTERO_INBOXS_BB_KEY']    # 00_INBOXS_BB
+CC_KEY         = os.environ['ZOTERO_INBOXS_CC_KEY']    # 00_INBOXS_CC
+DD_KEY         = os.environ['ZOTERO_INBOXS_DD_KEY']    # 00_INBOXS_DD
 
-ZOTERO_STORAGE = Path('C:/Users/chengliu/Zotero/storage')
-SI_DIR         = Path('F:/ICMAB-Data/UAB-Thesis/zotero-mcp/.si-downloads/shortterms')
-BLOCKED_FILE   = Path('F:/ICMAB-Data/UAB-Thesis/zotero-mcp/.si-downloads/shortterms_blocked.txt')
+ZOTERO_STORAGE = Path(os.environ['ZOTERO_STORAGE_PATH'])
+SI_DIR         = Path(os.environ['SHORTTERMS_SI_DIR'])
+BLOCKED_FILE   = Path(os.environ['SHORTTERMS_BLOCKED_FILE'])
 SI_DIR.mkdir(parents=True, exist_ok=True)
 
 ALLOWED_EXT    = {'.pdf', '.docx', '.doc'}
@@ -143,24 +147,33 @@ def is_duplicate_set(texts: list[str]) -> bool:
     """
     Return True if 2+ PDFs are the same article (preprint+published, double download).
     Return False if they are distinct documents (main paper + SI, different articles).
+
+    Conservative: returns False when texts are too sparse to judge.
     """
     if len(texts) < 2:
         return False
-    n = len(texts)
+    # If fewer than 2 PDFs have extractable text, cannot determine → treat as non-duplicate
+    non_empty = [t for t in texts if t.strip()]
+    if len(non_empty) < 2:
+        print('    ℹ️  可读PDF不足2个，默认非重复')
+        return False
+    n = len(non_empty)
     parts = []
-    for i, text in enumerate(texts, 1):
-        snippet = text[:PDF_MAX_CHARS // n] if text else '（无法提取文本）'
+    for i, text in enumerate(non_empty, 1):
+        snippet = text[:PDF_MAX_CHARS // n]
         parts.append(f"=== PDF {i} ===\n{snippet}")
     prompt = (
         f"以下是同一 Zotero 条目中 {n} 个 PDF 文件的前3页内容。\n\n"
-        "请严格按以下标准判断：\n"
-        "【YES - 重复】：两个或以上 PDF 是【同一篇文章的不同版本或格式】\n"
-        "  例如：预印本 + 正式发表版、同一文章被下载了两次、英文版 + 中文版\n"
-        "【NO - 非重复】：这些 PDF 是【不同文档的组合】\n"
-        "  例如：研究论文正文 + 支撑信息(Supporting Information/Supplementary)\n"
-        "  例如：两篇完全不同主题的文章\n\n"
-        "⚠️ 特别注意：即使「正文」和「支撑信息」来自同一篇论文，\n"
-        "  它们是完全不同的文档（内容、格式均不同），应回答 NO。\n\n"
+        "任务：判断这些PDF是否为【同一篇文章的重复副本】。\n\n"
+        "【YES - 是重复】严格定义：两个PDF包含几乎相同的正文内容\n"
+        "  ✓ 同一文章被下载了两次（内容完全相同）\n"
+        "  ✓ 预印本版本 + 正式发表版本（标题/作者相同，正文高度相似）\n\n"
+        "【NO - 不是重复】以下情况均回答NO：\n"
+        "  ✓ 研究论文正文 + 支撑信息/附录（即使来自同一篇论文）\n"
+        "  ✓ 两篇不同的文章\n"
+        "  ✓ 正文 + 图表数据文件\n"
+        "  ✓ 内容长度或格式差异明显\n\n"
+        "⚠️ 判断原则：如果不确定，请回答 NO。只有在非常确定是同一文章重复下载时才回答 YES。\n\n"
         + '\n\n'.join(parts) + "\n\n"
         "只回答 YES 或 NO，不要解释。"
     )
