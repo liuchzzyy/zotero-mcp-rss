@@ -1,0 +1,151 @@
+{
+  "success": true,
+  "operation": "deduplicate",
+  "status": "completed",
+  "message": "Removed 8 duplicate items (delete failures: 0)",
+  "metrics": {
+    "scanned": 1119,
+    "candidates": 8,
+    "processed": 8,
+    "updated": 0,
+    "skipped": 0,
+    "failed": 0,
+    "removed": 8
+  },
+  "total_scanned": 1119,
+  "duplicates_found": 8,
+  "duplicates_removed": 8,
+  "delete_failures": 0,
+  "cross_folder_copies": 0,
+  "groups": [
+    {
+      "match_reason": "doi",
+      "match_value": "10.1002/adfm.202519437",
+      "primary_item": {
+        "key": "AWGXIHP6",
+        "title": "Dynamic Interhalogen Coupling Engineered by Multifunctional Ionic Liquid for High‐Energy Aqueous Zn‐I                     <sub>2</sub>                     Batteries",
+        "item_type": "journalArticle"
+      },
+      "duplicate_items": [
+        {
+          "key": "I7H8G8UD",
+          "title": "Dynamic Interhalogen Coupling Engineered by Multifunctional Ionic Liquid for High‐Energy Aqueous Zn‐I2 Batteries",
+          "item_type": "journalArticle"
+        }
+      ]
+    },
+    {
+      "match_reason": "doi",
+      "match_value": "10.1002/adfm.202518076",
+      "primary_item": {
+        "key": "MNIN54CM",
+        "title": "Stable zinc deposition enabled by descriptor-guided screening of organic electrolyte additives based on molecular polarizability and surface energy",
+        "item_type": "journalArticle"
+      },
+      "duplicate_items": [
+        {
+          "key": "ZM2S3KXU",
+          "title": "Stable Zinc Deposition Enabled by Descriptor‐Guided Screening of Organic Electrolyte Additives Based on Molecular Polarizability and Surface Energy",
+          "item_type": "journalArticle"
+        }
+      ]
+    },
+    {
+      "match_reason": "doi",
+      "match_value": "10.1002/adfm.202517166",
+      "primary_item": {
+        "key": "M8PJVNG9",
+        "title": "Hydrogen‐Bond‐Rich Supramolecular Multiblock Copolymers Facilitate Rapid Zn<sup>2+</sup> Migration in Quasi‐Solid‐State Zinc‐Ion Batteries",
+        "item_type": "journalArticle"
+      },
+      "duplicate_items": [
+        {
+          "key": "4C426H6D",
+          "title": "Hydrogen‐Bond‐Rich Supramolecular Multiblock Copolymers Facilitate Rapid Zn2+ Migration in Quasi‐Solid‐State Zinc‐Ion Batteries",
+          "item_type": "journalArticle"
+        }
+      ]
+    },
+    {
+      "match_reason": "doi",
+      "match_value": "10.1002/adfm.202532042",
+      "primary_item": {
+        "key": "6332TBBW",
+        "title": "Regulating single-plane growth by selective self-assembly shielding molecule for ultra-high areal capacity Zn-metal batteries",
+        "item_type": "journalArticle"
+      },
+      "duplicate_items": [
+        {
+          "key": "GDGEWP3Q",
+          "title": "Regulating Single‐Plane Growth by Selective Self‐Assembly Shielding Molecule for Ultra‐High Areal Capacity Zn‐Metal Batteries",
+          "item_type": "journalArticle"
+        }
+      ]
+    },
+    {
+      "match_reason": "doi",
+      "match_value": "10.1002/aenm.202505649",
+      "primary_item": {
+        "key": "CJW58KHB",
+        "title": "A Quantitative Water‐Speciation Identification Strategy Enables Efficient Four‐Electron Conversion in Aqueous Zn‐I                     <sub>2</sub>                     Batteries",
+        "item_type": "journalArticle"
+      },
+      "duplicate_items": [
+        {
+          "key": "IMIKPXRX",
+          "title": "A Quantitative Water‐Speciation Identification Strategy Enables Efficient Four‐Electron Conversion in Aqueous Zn‐I2 Batteries",
+          "item_type": "journalArticle"
+        }
+      ]
+    },
+    {
+      "match_reason": "doi",
+      "match_value": "10.1002/aenm.202506522",
+      "primary_item": {
+        "key": "9TEEPK5F",
+        "title": "Resolving the Anti‐freezing/Self‐healing Trade‐off in Zn‐Ion Batteries with a Zn                     <sup>2+</sup>                     ‐Anchored Dynamic Quaternary Hydrogen‐Bond Network for Extreme‐Temperature Operation",
+        "item_type": "journalArticle"
+      },
+      "duplicate_items": [
+        {
+          "key": "VRTI8NZ5",
+          "title": "Resolving the Anti‐freezing/Self‐healing Trade‐off in Zn‐Ion Batteries with a Zn2+‐Anchored Dynamic Quaternary Hydrogen‐Bond Network for Extreme‐Temperature Operation",
+          "item_type": "journalArticle"
+        }
+      ]
+    },
+    {
+      "match_reason": "doi",
+      "match_value": "10.1002/anie.202521414",
+      "primary_item": {
+        "key": "HTR4TX2Z",
+        "title": "Nucleophilic Substitution Enables Robust Fluorinated Interphase for Low N/P Ratio Zinc Battery",
+        "item_type": "journalArticle"
+      },
+      "duplicate_items": [
+        {
+          "key": "IGDHDU75",
+          "title": "Nucleophilic Substitution Enables Robust Fluorinated Interphase for Low                     <i>N</i>                     /                     <i>P</i>                     Ratio Zinc Battery",
+          "item_type": "journalArticle"
+        }
+      ]
+    },
+    {
+      "match_reason": "doi",
+      "match_value": "10.1002/adma.202523371",
+      "primary_item": {
+        "key": "U8QR3NS6",
+        "title": "MOF‐Derived High‐Entropy Biphasic Sulfides for Zn‐I                     <sub>2</sub>                     ‐S Synergistic Batteries with Machine‐Learning‐Assisted Prediction and In Situ Synchrotron Spectroscopy",
+        "item_type": "journalArticle"
+      },
+      "duplicate_items": [
+        {
+          "key": "C5T4KV55",
+          "title": "MOF‐Derived High‐Entropy Biphasic Sulfides for Zn‐I2‐S Synergistic Batteries with Machine‐Learning‐Assisted Prediction and In Situ Synchrotron Spectroscopy",
+          "item_type": "journalArticle"
+        }
+      ]
+    }
+  ],
+  "dry_run": false
+}
