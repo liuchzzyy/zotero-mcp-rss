@@ -26,7 +26,7 @@ on:
       source_collection:
         description: "Collection scanned with highest priority"
         required: false
-        default: "00_INBOXS"
+        default: "00_INBOXS_AA"
         type: string
       target_collection:
         description: "Collection to move processed items to"
@@ -76,7 +76,7 @@ jobs:
           INPUT_SCAN_LIMIT: ${{ github.event.inputs.scan_limit || '50' }}
           INPUT_TREATED_LIMIT: ${{ github.event.inputs.treated_limit || '20' }}
           INPUT_ALL: ${{ github.event.inputs.all || 'false' }}
-          INPUT_SOURCE_COLLECTION: ${{ github.event.inputs.source_collection || '00_INBOXS' }}
+          INPUT_SOURCE_COLLECTION: ${{ github.event.inputs.source_collection || '00_INBOXS_AA' }}
           INPUT_TARGET_COLLECTION: ${{ github.event.inputs.target_collection || '01_SHORTTERMS' }}
           INPUT_LLM_PROVIDER: ${{ github.event.inputs.llm_provider || 'deepseek' }}
           INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
@@ -170,7 +170,7 @@ jobs:
           log_file: item-analysis.log
           config_table: |
             | Run | #${{ github.run_number }} |
-            | Source | ${{ github.event.inputs.source_collection || '00_INBOXS' }} |
+            | Source | ${{ github.event.inputs.source_collection || '00_INBOXS_AA' }} |
             | Target | ${{ github.event.inputs.target_collection || '01_SHORTTERMS' }} |
             | All | ${{ github.event.inputs.all || 'false' }} |
             | Treated limit | ${{ github.event.inputs.treated_limit || '20' }} |
