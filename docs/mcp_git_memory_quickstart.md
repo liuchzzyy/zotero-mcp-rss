@@ -1,4 +1,4 @@
-# Git MCP + Memory MCP Quickstart
+# Memory MCP Quickstart
 
 Date: 2026-03-01
 
@@ -8,39 +8,14 @@ Updated user config file:
 
 `C:\Users\chengliu\.codex\config.toml`
 
-Added:
+Current:
 
 ```toml
-[mcp_servers.git]
-command = "uvx"
-args = ["mcp-server-git", "--repository", "F:/ICMAB-Data/UAB-Thesis/zotero-mcp"]
-
 [mcp_servers.memory]
 command = "npx"
 args = ["-y", "@modelcontextprotocol/server-memory"]
 env = { MEMORY_FILE_PATH = "C:/Users/chengliu/.codex/memory.jsonl" }
 ```
-
-## How To Use Git MCP
-
-After restarting Codex/session, ask directly in natural language:
-
-- "Show git status of current repo."
-- "Show unstaged diff."
-- "Show last 5 commits."
-- "Create branch `feat/x` from current branch."
-- "Commit staged changes with message `fix(cli): ...`."
-
-Typical tools behind the scenes:
-
-- `git_status`
-- `git_diff_unstaged`
-- `git_diff_staged`
-- `git_log`
-- `git_add`
-- `git_commit`
-- `git_create_branch`
-- `git_checkout`
 
 ## How To Use Memory MCP
 
@@ -64,6 +39,4 @@ Memory file location:
 
 ## Notes
 
-- Git MCP is scoped to this repository path:
-  `F:/ICMAB-Data/UAB-Thesis/zotero-mcp`
-- If you want Git MCP to access multiple repositories, add more server entries or remove `--repository` and provide paths per call.
+- Git MCP has been removed from local Codex config.
