@@ -63,18 +63,16 @@ class GlobalScanner:
         - Item lacks "AI分析" tag
         """
         # Skip child/non-library items early to avoid invalid children requests.
-        item_type = ""
-        item_data = getattr(item, "data", {})
-        if isinstance(item_data, dict):
-            item_type = str(item_data.get("itemType") or "").strip().lower()
-        if not item_type:
-            item_type = str(getattr(item, "item_type", "") or "").strip().lower()
-        if item_type in NON_ANALYZABLE_ITEM_TYPES:
+        if not self._is_parent_item(item):
             return False
 
         # Check for AI分析 tag
-        if isinstance(item_data, dict):
-            tags = item_data.get("tags", getattr(item, "tags", []))
+        item_data = getattr(item, "data", {})
+        raw_data = getattr(item, "raw_data", {})
+        if isinstance(item_data, dict) and "tags" in item_data:
+            tags = item_data.get("tags", [])
+        elif isinstance(raw_data, dict) and "tags" in raw_data:
+            tags = raw_data.get("tags", [])
         else:
             tags = getattr(item, "tags", [])
         has_ai_tag = any(
@@ -99,6 +97,25 @@ class GlobalScanner:
             # If so, treat as no PDF attachment.
             logger.debug(f"  ⊘ Skipping {item.key}: cannot fetch children ({e})")
             return False
+
+    def _is_parent_item(self, item: Any) -> bool:
+        """Only include top-level bibliographic items in scan candidates."""
+        item_data = getattr(item, "data", {})
+        raw_data = getattr(item, "raw_data", {})
+
+        item_type = ""
+        parent_item = ""
+        if isinstance(item_data, dict):
+            item_type = str(item_data.get("itemType") or "").strip().lower()
+            parent_item = str(item_data.get("parentItem") or "").strip()
+        if not item_type and isinstance(raw_data, dict):
+            item_type = str(raw_data.get("itemType") or "").strip().lower()
+        if not parent_item and isinstance(raw_data, dict):
+            parent_item = str(raw_data.get("parentItem") or "").strip()
+        if not item_type:
+            item_type = str(getattr(item, "item_type", "") or "").strip().lower()
+
+        return item_type not in NON_ANALYZABLE_ITEM_TYPES and not parent_item
 
     async def scan_and_process(
         self,
@@ -212,15 +229,19 @@ class GlobalScanner:
                                     and len(candidates) >= params.treated_limit
                                 ):
                                     break
-                                total_scanned += len(items)
+                                parent_items = [
+                                    item for item in items if self._is_parent_item(item)
+                                ]
+                                total_scanned += len(parent_items)
                                 logger.info(
                                     "Fetched "
-                                    f"{len(items)} items from '{coll_name}' "
+                                    f"{len(parent_items)}/{len(items)} parent items "
+                                    f"from '{coll_name}' "
                                     f"(offset: {offset})"
                                 )
 
                                 # Find candidates in this batch
-                                for item in items:
+                                for item in parent_items:
                                     scanned_keys.add(item.key)
                                     if await self._check_item_needs_analysis(item):
                                         candidates.append(item)
@@ -312,11 +333,14 @@ class GlobalScanner:
                                 and len(candidates) >= params.treated_limit
                             ):
                                 break
-                            collection_scanned += len(items)
-                            total_scanned += len(items)
+                            parent_items = [
+                                item for item in items if self._is_parent_item(item)
+                            ]
+                            collection_scanned += len(parent_items)
+                            total_scanned += len(parent_items)
 
                             # Find candidates in this batch
-                            for item in items:
+                            for item in parent_items:
                                 # Skip already scanned items
                                 if item.key in scanned_keys:
                                     continue

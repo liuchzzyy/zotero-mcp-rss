@@ -111,6 +111,35 @@ async def test_check_item_needs_analysis_skips_non_library_item_types():
 
 
 @pytest.mark.asyncio
+async def test_check_item_needs_analysis_skips_items_with_parent_item():
+    data_service = AsyncMock()
+    data_service.get_item_children = AsyncMock()
+
+    with (
+        patch(
+            "zotero_mcp.services.scanner.get_data_service",
+            return_value=data_service,
+        ),
+        patch(
+            "zotero_mcp.services.scanner.get_workflow_service",
+            return_value=MagicMock(),
+        ),
+    ):
+        scanner = GlobalScanner()
+        child_item = SimpleNamespace(
+            key="CHILD1",
+            item_type="journalArticle",
+            tags=[],
+            raw_data={"itemType": "journalArticle", "parentItem": "PARENT1", "tags": []},
+        )
+
+        needs_analysis = await scanner._check_item_needs_analysis(child_item)
+
+    assert needs_analysis is False
+    data_service.get_item_children.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 async def test_scan_uses_text_only_initial_fetch_for_deepseek():
     item = MagicMock()
     item.key = "ITEM1"
@@ -475,3 +504,67 @@ async def test_scan_continues_to_stage2_when_source_collection_keeps_failing():
     assert result["success"] is True
     assert result["candidates"] == 1
     assert result["processed"] == 0
+
+
+@pytest.mark.asyncio
+async def test_scan_counts_only_parent_items_in_total_scanned():
+    parent_item = SimpleNamespace(
+        key="PARENT1",
+        title="Parent Paper",
+        item_type="journalArticle",
+        tags=[],
+        raw_data={"itemType": "journalArticle", "tags": []},
+    )
+    note_item = SimpleNamespace(
+        key="NOTE1",
+        title="Note",
+        item_type="note",
+        tags=[],
+        raw_data={"itemType": "note", "parentItem": "PARENT1", "tags": []},
+    )
+    child_biblio_item = SimpleNamespace(
+        key="CHILD2",
+        title="Child Biblio",
+        item_type="journalArticle",
+        tags=[],
+        raw_data={"itemType": "journalArticle", "parentItem": "PARENT1", "tags": []},
+    )
+
+    data_service = AsyncMock()
+    data_service.find_collection_by_name = AsyncMock(
+        return_value=[{"key": "COLL1", "data": {"name": "00_INBOXS"}}]
+    )
+    data_service.get_collection_items = AsyncMock(
+        side_effect=[[parent_item, note_item, child_biblio_item], []]
+    )
+    data_service.get_item_children = AsyncMock(
+        return_value=[{"data": {"contentType": "application/pdf"}}]
+    )
+    data_service.get_sorted_collections = AsyncMock(return_value=[])
+
+    workflow_service = MagicMock()
+    workflow_service._analyze_single_item = AsyncMock()
+
+    with (
+        patch(
+            "zotero_mcp.services.scanner.get_data_service",
+            return_value=data_service,
+        ),
+        patch(
+            "zotero_mcp.services.scanner.get_workflow_service",
+            return_value=workflow_service,
+        ),
+    ):
+        scanner = GlobalScanner()
+        result = await scanner.scan_and_process(
+            scan_limit=10,
+            treated_limit=1,
+            target_collection="01_SHORTTERMS",
+            source_collection="00_INBOXS",
+            dry_run=True,
+        )
+
+    assert result["success"] is True
+    assert result["total_scanned"] == 1
+    assert result["metrics"]["scanned"] == 1
+    assert result["candidates"] == 1
