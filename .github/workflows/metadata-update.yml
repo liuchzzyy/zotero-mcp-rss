@@ -19,9 +19,9 @@ on:
       treated_limit:
         description: "Maximum parent items to process"
         required: false
-        default: "200"
+        default: "20"
         type: choice
-        options: ["1", "100", "200", "500", "1000"]
+        options: ["1", "20", "100", "200", "500", "1000"]
       all:
         description: "Process all matching items (ignore treated_limit)"
         required: false
@@ -72,10 +72,10 @@ jobs:
           INPUT_COLLECTION: ${{ github.event.inputs.collection }}
           INPUT_ITEM_KEY: ${{ github.event.inputs.item_key }}
           INPUT_SCAN_LIMIT: ${{ github.event.inputs.scan_limit || '200' }}
-          INPUT_TREATED_LIMIT: ${{ github.event.inputs.treated_limit || '200' }}
+          INPUT_TREATED_LIMIT: ${{ github.event.inputs.treated_limit || '20' }}
           INPUT_ALL: ${{ github.event.inputs.all || 'false' }}
           INPUT_INCLUDE_UNFILED: ${{ github.event.inputs.include_unfiled || 'true' }}
-          INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
+          INPUT_DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
         run: |
           ARGS=()
           if [ -n "$INPUT_COLLECTION" ]; then
@@ -172,7 +172,7 @@ jobs:
             | Item key | ${{ github.event.inputs.item_key || 'None' }} |
             | Scan limit | ${{ github.event.inputs.scan_limit || '200' }} |
             | All | ${{ github.event.inputs.all || 'false' }} |
-            | Treated limit | ${{ github.event.inputs.treated_limit || '200' }} |
+            | Treated limit | ${{ github.event.inputs.treated_limit || '20' }} |
             | Include unfiled | ${{ github.event.inputs.include_unfiled || 'true' }} |
             | Dry Run | ${{ github.event.inputs.dry_run || 'false' }} |
           metrics: ${{ steps.metrics.outputs.json }}

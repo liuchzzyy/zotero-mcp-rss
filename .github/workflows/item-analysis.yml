@@ -24,7 +24,7 @@ on:
         default: false
         type: boolean
       source_collection:
-        description: "Collection scanned with highest priority"
+        description: "Priority collection for Stage 1 (Stage 2 excludes 00_INBOXS_*)"
         required: false
         default: "00_INBOXS_BB"
         type: string
@@ -79,7 +79,7 @@ jobs:
           INPUT_SOURCE_COLLECTION: ${{ github.event.inputs.source_collection || '00_INBOXS_BB' }}
           INPUT_TARGET_COLLECTION: ${{ github.event.inputs.target_collection || '01_SHORTTERMS' }}
           INPUT_LLM_PROVIDER: ${{ github.event.inputs.llm_provider || 'deepseek' }}
-          INPUT_DRY_RUN: ${{ github.event.inputs.dry_run }}
+          INPUT_DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
         run: |
           ARGS=(
             --scan-limit "$INPUT_SCAN_LIMIT"

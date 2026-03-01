@@ -76,7 +76,7 @@
   - 写走 Zotero API
 
 #### 批处理工作流实现
-- `scanner.py`：两阶段扫描（优先源集合，再全库补足），仅处理父条目（过滤 `note/attachment/annotation` 与有 `parentItem` 的子条目），筛选“有 PDF 且无 `AI分析` 标签”。
+- `scanner.py`：两阶段扫描（Stage 1 默认优先 `00_INBOXS_BB`；Stage 2 按顺序扫描但排除所有 `00_INBOXS_*` 集合），仅处理父条目（过滤 `note/attachment/annotation` 与有 `parentItem` 的子条目），筛选“有 PDF 且无 `AI分析` 标签”。
 - `metadata_update_service.py`：先 DOI，再标题等补充路径，更新后打 `AI元数据` 标签；支持 `include_unfiled`。
 - `duplicate_service.py`：
   - 仅处理父条目（过滤 `note/attachment/annotation` 及有 `parentItem` 的子条目）
