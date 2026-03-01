@@ -50,8 +50,8 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     )
     item_analysis.add_argument(
         "--source-collection",
-        default="00_INBOXS",
-        help="Collection to scan first (default: 00_INBOXS)",
+        default="00_INBOXS_AA",
+        help="Collection to scan first (default: 00_INBOXS_AA)",
     )
     item_analysis.add_argument(
         "--template",
@@ -66,7 +66,11 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     )
     metadata.add_argument("--collection", help="Limit to specific collection (by key)")
     add_scan_limit_arg(metadata, default=500)
-    add_treated_limit_arg(metadata)
+    add_treated_limit_arg(
+        metadata,
+        default=20,
+        help_text="Maximum total number of items to process (default: 20)",
+    )
     add_all_arg(metadata)
     metadata.add_argument("--item-key", help="Update a specific item by key")
     metadata.add_argument(

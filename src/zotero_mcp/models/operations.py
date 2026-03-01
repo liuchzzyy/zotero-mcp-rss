@@ -15,7 +15,7 @@ class ScannerRunParams(BaseModel):
     target_collection: str = Field(..., min_length=1)
     dry_run: bool = Field(default=False)
     llm_provider: Literal["auto", "deepseek"] = Field(default="deepseek")
-    source_collection: str | None = Field(default="00_INBOXS")
+    source_collection: str | None = Field(default="00_INBOXS_AA")
     include_multimodal: bool = Field(default=True)
     template: Literal["research", "review", "auto"] = Field(
         default="auto"

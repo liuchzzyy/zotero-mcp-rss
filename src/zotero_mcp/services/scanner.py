@@ -2,7 +2,7 @@
 Global scanner service for Phase 3 of Task#1.
 
 Scans library for items needing AI analysis with priority strategy:
-1. First scan 00_INBOXS (or specified source collection)
+1. First scan 00_INBOXS_AA (or specified source collection)
 2. If need more items, scan entire library
 3. Process items with PDFs but lacking "AI分析" tag
 """
@@ -124,7 +124,7 @@ class GlobalScanner:
         target_collection: str = "",
         dry_run: bool = False,
         llm_provider: Literal["auto", "deepseek"] = "deepseek",
-        source_collection: str | None = "00_INBOXS",
+        source_collection: str | None = "00_INBOXS_AA",
         include_multimodal: bool = True,
         template: Literal["research", "review", "auto"] = "auto",
     ) -> dict[str, Any]:
@@ -132,7 +132,7 @@ class GlobalScanner:
         Scan library and process items needing analysis.
 
         Multi-stage strategy:
-        1. Scan items in source_collection (default: 00_INBOXS)
+        1. Scan items in source_collection (default: 00_INBOXS_AA)
         2. If need more items, scan all other collections
         3. Accumulate candidates until reaching treated_limit (or all if None)
         4. Filter to items with PDFs but lacking "AI分析" tag
@@ -144,7 +144,7 @@ class GlobalScanner:
             target_collection: Collection name to move items after analysis
             dry_run: Preview only, no changes
             llm_provider: LLM provider for analysis (auto/deepseek)
-            source_collection: Priority collection to scan first (default: 00_INBOXS)
+            source_collection: Priority collection to scan first (default: 00_INBOXS_AA)
             template: Analysis template alias (research/review/auto)
 
         Returns:
@@ -189,7 +189,7 @@ class GlobalScanner:
             scanned_keys = set()  # Track already scanned items to avoid duplicates
             collections: list[dict[str, Any]] = []
 
-            # Stage 1: Scan source collection (e.g., 00_INBOXS)
+            # Stage 1: Scan source collection (e.g., 00_INBOXS_AA)
             if params.source_collection:
                 logger.info(
                     f"Stage 1: Scanning collection '{params.source_collection}'"
