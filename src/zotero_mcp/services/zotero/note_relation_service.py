@@ -8,7 +8,7 @@ import html
 import json
 import os
 import re
-from typing import Any, Literal
+from typing import Any
 
 from zotero_mcp.services.common.pagination import iter_offset_batches
 from zotero_mcp.services.common.retry import async_retry_with_backoff
@@ -44,8 +44,7 @@ class NoteRelationService:
         self,
         note_key: str,
         *,
-        collection: Literal["all", "collection"] = "all",
-        collection_key: str | None = None,
+        collection: str = "all",
         dry_run: bool = False,
         bidirectional: bool = True,
         top_k: int = _DEFAULT_TOP_K,
@@ -63,19 +62,13 @@ class NoteRelationService:
 
         resolved_collection_key: str | None = None
         resolved_collection_name: str | None = None
-        if collection == "collection":
-            if not collection_key:
-                raise ValueError(
-                    "--collection collection requires --collection-key "
-                    "(supports key or name)"
-                )
+        if collection.lower() != "all":
             resolved_collection_key, resolved_collection_name = (
-                await self._resolve_collection_key_or_name(collection_key)
+                await self._resolve_collection_key_or_name(collection)
             )
 
         candidates, scanned_items, scanned_notes = await self._collect_candidates(
             target_note_key=target_note_key,
-            collection=collection,
             collection_key=resolved_collection_key,
         )
 
@@ -108,7 +101,6 @@ class NoteRelationService:
             existing_note_html = str(target_data.get("note", ""))
             target_data["note"] = self._append_relation_section(
                 existing_note_html=existing_note_html,
-                collection=collection,
                 collection_key=resolved_collection_key,
                 collection_name=resolved_collection_name,
                 top_candidates=top_candidates,
@@ -139,7 +131,6 @@ class NoteRelationService:
         return {
             "success": success,
             "note_key": target_note_key,
-            "collection": collection,
             "collection_key": resolved_collection_key,
             "collection_name": resolved_collection_name,
             "dry_run": dry_run,
@@ -160,7 +151,6 @@ class NoteRelationService:
         self,
         *,
         target_note_key: str,
-        collection: Literal["all", "collection"],
         collection_key: str | None,
     ) -> tuple[list[_CandidateNote], int, int]:
         scanned_items = 0
@@ -169,9 +159,7 @@ class NoteRelationService:
         seen_note_keys: set[str] = set()
 
         async def fetch_page(offset: int, limit: int) -> list[Any]:
-            if collection == "collection":
-                if not collection_key:
-                    return []
+            if collection_key:
                 return await self.data_service.get_collection_items(
                     collection_key=collection_key,
                     limit=limit,
@@ -486,16 +474,15 @@ class NoteRelationService:
         self,
         *,
         existing_note_html: str,
-        collection: Literal["all", "collection"],
         collection_key: str | None,
         collection_name: str | None,
         top_candidates: list[dict[str, Any]],
     ) -> str:
         timestamp = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
-        if collection == "all":
-            scope = "all"
+        if collection_key:
+            scope = f"{collection_name or collection_key} ({collection_key})"
         else:
-            scope = f"{collection_name or 'collection'} ({collection_key or ''})"
+            scope = "all"
 
         parts: list[str] = [
             f"<h4>AI Note Relevance Analysis ({html.escape(timestamp)})</h4>",

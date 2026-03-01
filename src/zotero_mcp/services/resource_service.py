@@ -5,7 +5,7 @@ from __future__ import annotations
 import html
 from pathlib import Path
 import re
-from typing import Any, Literal
+from typing import Any
 
 from zotero_mcp.services.data_access import DataAccessService
 from zotero_mcp.services.zotero.note_relation_service import NoteRelationService
@@ -150,8 +150,7 @@ class ResourceService:
     async def relate_note(
         self,
         note_key: str,
-        collection: Literal["all", "collection"],
-        collection_key: str | None,
+        collection: str,
         dry_run: bool,
         bidirectional: bool,
     ) -> dict[str, Any]:
@@ -159,7 +158,6 @@ class ResourceService:
         return await service.relate_note(
             note_key=note_key,
             collection=collection,
-            collection_key=collection_key,
             dry_run=dry_run,
             bidirectional=bidirectional,
             top_k=5,

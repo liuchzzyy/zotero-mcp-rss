@@ -228,13 +228,8 @@ def register_notes(subparsers: argparse._SubParsersAction) -> None:
     relate.add_argument("--note-key", required=True)
     relate.add_argument(
         "--collection",
-        choices=["all", "collection"],
         default="all",
-        help="Scope to all library notes or one collection",
-    )
-    relate.add_argument(
-        "--collection-key",
-        help="Collection key or name when --collection=collection",
+        help="'all' for entire library, or a collection key/name (default: all)",
     )
     relate.add_argument(
         "--dry-run",
@@ -256,16 +251,6 @@ def run_notes(args: argparse.Namespace) -> int:
 
     if args.subcommand == "create" and bool(args.content) == bool(args.content_file):
         raise ValueError("Provide exactly one of --content or --content-file")
-    if (
-        args.subcommand == "relate"
-        and args.collection == "collection"
-        and not args.collection_key
-    ):
-        raise ValueError(
-            "--collection collection requires --collection-key "
-            "(supports key or collection name)"
-        )
-
     service = ResourceService()
 
     def _resolve_note_content() -> str:
@@ -293,7 +278,6 @@ def run_notes(args: argparse.Namespace) -> int:
         "relate": lambda: service.relate_note(
             note_key=normalize_item_key(args.note_key),
             collection=args.collection,
-            collection_key=args.collection_key,
             dry_run=args.dry_run,
             bidirectional=args.bidirectional,
         ),
