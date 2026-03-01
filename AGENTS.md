@@ -78,10 +78,16 @@
 #### 批处理工作流实现
 - `scanner.py`：两阶段扫描（优先源集合，再全库补足），筛选“有 PDF 且无 `AI分析` 标签”。
 - `metadata_update_service.py`：先 DOI，再标题等补充路径，更新后打 `AI元数据` 标签；支持 `include_unfiled`。
-- `duplicate_service.py`：按 `DOI > title > URL` 分组，保留信息最完整条目，删除其余重复条目；同标题但 DOI 冲突不合并。
+- `duplicate_service.py`：
+  - 仅处理父条目（过滤 `note/attachment/annotation` 及有 `parentItem` 的子条目）
+  - 匹配优先级：`DOI > title > URL+title`
+  - URL 去重要求“同 URL 且同规范化标题”，避免通用出版商落地页误判
+  - 同标题但 DOI 冲突不合并
+  - `groups` 返回结构化明细（包含 `primary_item`/`duplicate_items` 的 `key + title + item_type`）
 
 #### CLI 输出与退出码
 - 所有新命令支持 `--output text|json`。
+- `--output json` 默认输出到 stdout；如需落盘请使用 shell 重定向（例如 `> dedup_run.json`）。
 - 主入口退出码（`cli_app/main.py`）：
   - `0` 成功
   - `1` 运行错误
