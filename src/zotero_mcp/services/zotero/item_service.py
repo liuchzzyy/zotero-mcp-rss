@@ -21,6 +21,7 @@ from zotero_mcp.utils.async_helpers.cache import ResponseCache
 from zotero_mcp.utils.formatting.helpers import clean_title
 
 logger = logging.getLogger(__name__)
+_CHILD_ITEM_TYPES = {"attachment", "note", "annotation"}
 
 
 def _normalize_doi(raw_doi: str | None) -> str:
@@ -112,7 +113,19 @@ class ItemService:
         item_type: str | None = None,
     ) -> list[SearchResultItem]:
         """Get all items in the library."""
+        item_type_lower = item_type.lower() if item_type else None
+
         if self.local_client:
+            # Local DB intentionally excludes child item types.
+            # Route child-type queries to API to avoid empty/incomplete results.
+            if item_type_lower in _CHILD_ITEM_TYPES:
+                api_items = await self.api_client.get_all_items(
+                    limit=limit,
+                    start=start,
+                    item_type=item_type_lower,
+                )
+                return [api_item_to_search_result(item) for item in api_items]
+
             if item_type:
                 # Apply item-type filtering before paging to avoid dropped results.
                 all_items = self.local_client.get_items(

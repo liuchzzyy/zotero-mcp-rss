@@ -144,54 +144,58 @@ class ResourceService:
         scanned_items = 0
         scanned_notes = 0
         seen_note_keys: set[str] = set()
+        allowed_parent_keys: set[str] | None = None
 
-        async def fetch_page(start: int, page_limit: int) -> list[Any]:
-            if resolved_collection_key:
-                return await self.data_service.get_collection_items(
-                    collection_key=resolved_collection_key,
-                    limit=page_limit,
-                    start=start,
-                )
-            return await self.data_service.get_all_items(limit=page_limit, start=start)
+        if resolved_collection_key:
+            allowed_parent_keys, scanned_items = (
+                await self._collect_collection_parent_keys(resolved_collection_key)
+            )
 
-        async for _, items in iter_offset_batches(
-            fetch_page,
+        async def fetch_note_page(start: int, page_limit: int) -> list[Any]:
+            return await self.data_service.get_all_items(
+                limit=page_limit,
+                start=start,
+                item_type="note",
+            )
+
+        async for _, notes in iter_offset_batches(
+            fetch_note_page,
             batch_size=_NOTE_SEARCH_BATCH_SIZE,
             start=0,
         ):
-            scanned_items += len(items)
-            for item in items:
-                item_key = str(getattr(item, "key", "")).strip().upper()
-                item_type = str(getattr(item, "item_type", "")).strip().lower()
-                item_title = str(getattr(item, "title", "") or "Untitled")
-                if not item_key or item_type in _SKIPPED_NOTE_PARENT_TYPES:
+            scanned_notes += len(notes)
+            for note_item in notes:
+                note_key = str(getattr(note_item, "key", "")).strip().upper()
+                if not note_key or note_key in seen_note_keys:
                     continue
 
-                try:
-                    notes = await self.data_service.get_notes(item_key)
-                except Exception:
+                data = getattr(note_item, "raw_data", None)
+                if not isinstance(data, dict):
                     continue
 
-                scanned_notes += len(notes)
-                for note in notes:
-                    data = note.get("data", {})
-                    note_key = str(data.get("key", "")).strip().upper()
-                    if not note_key or note_key in seen_note_keys:
-                        continue
+                parent_key = str(data.get("parentItem", "")).strip().upper()
+                if not parent_key:
+                    # Keep search scope consistent with legacy behavior:
+                    # attached notes only.
+                    continue
+                if (
+                    allowed_parent_keys is not None
+                    and parent_key not in allowed_parent_keys
+                ):
+                    continue
 
-                    raw_note = str(data.get("note", ""))
-                    if query_lower not in raw_note.lower():
-                        continue
+                raw_note = str(data.get("note", ""))
+                if query_lower not in raw_note.lower():
+                    continue
 
-                    seen_note_keys.add(note_key)
-                    hits.append(
-                        {
-                            "item_key": item_key,
-                            "item_title": item_title,
-                            "note_key": note_key,
-                            "note": raw_note,
-                        }
-                    )
+                seen_note_keys.add(note_key)
+                hits.append(
+                    {
+                        "item_key": parent_key,
+                        "note_key": note_key,
+                        "note": raw_note,
+                    }
+                )
 
         hits.sort(
             key=lambda hit: (
@@ -202,6 +206,7 @@ class ResourceService:
 
         total = len(hits)
         sliced = hits[offset : offset + limit]
+        await self._attach_item_titles(sliced)
         return {
             "query": query_text,
             "collection_key": resolved_collection_key,
@@ -212,6 +217,61 @@ class ResourceService:
             "count": len(sliced),
             "results": sliced,
         }
+
+    async def _collect_collection_parent_keys(
+        self, collection_key: str
+    ) -> tuple[set[str], int]:
+        parent_keys: set[str] = set()
+        scanned_items = 0
+
+        async def fetch_page(start: int, page_limit: int) -> list[Any]:
+            return await self.data_service.get_collection_items(
+                collection_key=collection_key,
+                limit=page_limit,
+                start=start,
+            )
+
+        async for _, items in iter_offset_batches(
+            fetch_page,
+            batch_size=_NOTE_SEARCH_BATCH_SIZE,
+            start=0,
+        ):
+            scanned_items += len(items)
+            for item in items:
+                item_key = str(getattr(item, "key", "")).strip().upper()
+                item_type = str(getattr(item, "item_type", "")).strip().lower()
+                if not item_key or item_type in _SKIPPED_NOTE_PARENT_TYPES:
+                    continue
+                parent_keys.add(item_key)
+
+        return parent_keys, scanned_items
+
+    async def _attach_item_titles(self, note_hits: list[dict[str, Any]]) -> None:
+        item_titles: dict[str, str] = {}
+        parent_keys = sorted(
+            {
+                str(hit.get("item_key", "")).strip().upper()
+                for hit in note_hits
+                if str(hit.get("item_key", "")).strip()
+            }
+        )
+        for parent_key in parent_keys:
+            default_title = "Untitled"
+            item_titles[parent_key] = default_title
+            try:
+                item_payload = await self.data_service.get_item(parent_key)
+            except Exception:
+                continue
+            item_data = (
+                item_payload.get("data", item_payload)
+                if isinstance(item_payload, dict)
+                else {}
+            )
+            item_titles[parent_key] = str(item_data.get("title") or default_title)
+
+        for hit in note_hits:
+            item_key = str(hit.get("item_key", "")).strip().upper()
+            hit["item_title"] = item_titles.get(item_key, "Untitled")
 
     async def relate_note(
         self,

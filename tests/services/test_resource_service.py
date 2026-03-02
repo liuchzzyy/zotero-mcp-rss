@@ -24,21 +24,25 @@ async def test_search_notes_scans_whole_library_and_paginates_stably():
     data_service.get_all_items = AsyncMock(
         side_effect=[
             [
-                SimpleNamespace(key="I2", title="Item Two", item_type="journalArticle"),
-                SimpleNamespace(key="I1", title="Item One", item_type="journalArticle"),
-            ],
-            [],
+                SimpleNamespace(
+                    key="N3",
+                    item_type="note",
+                    raw_data={"parentItem": "I2", "note": "Matched note B"},
+                ),
+                SimpleNamespace(
+                    key="N2",
+                    item_type="note",
+                    raw_data={"parentItem": "I1", "note": "irrelevant"},
+                ),
+                SimpleNamespace(
+                    key="N1",
+                    item_type="note",
+                    raw_data={"parentItem": "I1", "note": "matched note A"},
+                ),
+            ]
         ]
     )
-    data_service.get_notes = AsyncMock(
-        side_effect=[
-            [
-                {"data": {"key": "N3", "note": "Matched note B"}},
-                {"data": {"key": "N2", "note": "irrelevant"}},
-            ],
-            [{"data": {"key": "N1", "note": "matched note A"}}],
-        ]
-    )
+    data_service.get_item = AsyncMock(return_value={"data": {"title": "Item Two"}})
     service = ResourceService(data_service=data_service)
 
     result = await service.search_notes(query="matched", limit=1, offset=1)
@@ -47,8 +51,11 @@ async def test_search_notes_scans_whole_library_and_paginates_stably():
     assert data_service.get_all_items.await_args_list[0].kwargs == {
         "limit": 50,
         "start": 0,
+        "item_type": "note",
     }
+    data_service.get_notes.assert_not_called()
     data_service.search_items.assert_not_called()
+    data_service.get_item.assert_awaited_once_with("I2")
     assert result["collection_key"] is None
     assert result["collection_name"] is None
     assert result["query"] == "matched"
@@ -66,14 +73,25 @@ async def test_search_notes_supports_collection_name_scope():
     data_service.get_collection_items = AsyncMock(
         side_effect=[
             [SimpleNamespace(key="I1", title="Item One", item_type="journalArticle")],
-            [],
         ]
     )
-    data_service.get_notes = AsyncMock(
-        return_value=[
-            {"data": {"key": "N1", "note": "matched note"}},
+    data_service.get_all_items = AsyncMock(
+        side_effect=[
+            [
+                SimpleNamespace(
+                    key="N1",
+                    item_type="note",
+                    raw_data={"parentItem": "I1", "note": "matched note"},
+                ),
+                SimpleNamespace(
+                    key="N2",
+                    item_type="note",
+                    raw_data={"parentItem": "I9", "note": "matched but out of scope"},
+                ),
+            ]
         ]
     )
+    data_service.get_item = AsyncMock(return_value={"data": {"title": "Item One"}})
     service = ResourceService(data_service=data_service)
 
     result = await service.search_notes(
@@ -88,6 +106,7 @@ async def test_search_notes_supports_collection_name_scope():
         limit=50,
         start=0,
     )
+    data_service.get_all_items.assert_any_await(limit=50, start=0, item_type="note")
     assert result["collection_key"] == "COLL001"
     assert result["collection_name"] == "My Collection"
     assert result["total"] == 1
