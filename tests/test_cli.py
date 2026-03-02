@@ -1,6 +1,7 @@
 """Tests for refactored CLI command tree."""
 
 import argparse
+import asyncio
 import json
 import subprocess
 import sys
@@ -416,6 +417,58 @@ def test_semantic_db_update_returns_nonzero_on_error(monkeypatch):
     )
     code = semantic.run(args)
     assert code == 1
+
+
+def test_workflow_metadata_update_rejects_item_key_with_all():
+    from zotero_mcp.cli_app.commands import workflow
+
+    args = argparse.Namespace(
+        item_key="ABC123",
+        collection=None,
+        scan_limit=50,
+        treated_limit=20,
+        all=True,
+        dry_run=False,
+        include_unfiled=True,
+    )
+    result = asyncio.run(workflow._run_metadata_update(args))
+
+    assert result["success"] is False
+    assert result["error"] == "--item-key cannot be combined with --all"
+
+
+def test_workflow_metadata_update_rejects_empty_collection():
+    from zotero_mcp.cli_app.commands import workflow
+
+    args = argparse.Namespace(
+        item_key=None,
+        collection="   ",
+        scan_limit=50,
+        treated_limit=20,
+        all=True,
+        dry_run=False,
+        include_unfiled=True,
+    )
+    result = asyncio.run(workflow._run_metadata_update(args))
+
+    assert result["success"] is False
+    assert result["error"] == "--collection cannot be empty"
+
+
+def test_workflow_deduplicate_rejects_empty_collection():
+    from zotero_mcp.cli_app.commands import workflow
+
+    args = argparse.Namespace(
+        collection=" ",
+        scan_limit=50,
+        treated_limit=20,
+        all=True,
+        dry_run=True,
+    )
+    result = asyncio.run(workflow._run_deduplicate(args))
+
+    assert result["success"] is False
+    assert result["error"] == "--collection cannot be empty"
 
 
 def test_obfuscate_config_masks_api_keys_and_tokens():

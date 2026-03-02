@@ -149,6 +149,7 @@ class DuplicateDetectionService:
             all_items, total_scanned = await self._collect_library_items(
                 scan_limit=params.scan_limit
             )
+        scoped_item_keys = {str(item.get("key", "")) for item in all_items}
 
         group_result = await self._find_duplicate_groups(all_items)
         duplicate_groups = group_result["groups"]
@@ -209,13 +210,17 @@ class DuplicateDetectionService:
             )
 
         # Remove duplicates (permanently delete)
-        duplicates_removed, delete_failures = await self._remove_duplicates(
-            duplicate_groups
+        duplicates_removed, delete_failures, scope_guard_skipped = (
+            await self._remove_duplicates(
+                duplicate_groups,
+                allowed_item_keys=scoped_item_keys,
+            )
         )
 
         logger.info(
             f"✅ Removed {duplicates_removed} duplicate ITEM(s), "
-            f"failed to delete {delete_failures}"
+            f"failed to delete {delete_failures}, "
+            f"scope-guard skipped {scope_guard_skipped}"
         )
 
         metrics = {
@@ -223,7 +228,7 @@ class DuplicateDetectionService:
             "candidates": total_duplicates_found,
             "processed": total_duplicates_found,
             "updated": 0,
-            "skipped": cross_folder_copies,
+            "skipped": cross_folder_copies + scope_guard_skipped,
             "failed": delete_failures,
             "removed": duplicates_removed,
         }
@@ -240,6 +245,7 @@ class DuplicateDetectionService:
                 "duplicates_removed": duplicates_removed,
                 "delete_failures": delete_failures,
                 "cross_folder_copies": cross_folder_copies,
+                "scope_guard_skipped": scope_guard_skipped,
                 "groups": group_summaries,
                 "dry_run": False,
             },
@@ -702,13 +708,22 @@ class DuplicateDetectionService:
     async def _remove_duplicates(
         self,
         duplicate_groups: list[DuplicateGroup],
-    ) -> tuple[int, int]:
+        allowed_item_keys: set[str] | None = None,
+    ) -> tuple[int, int, int]:
         """Remove duplicate items by permanently deleting them."""
         deleted_count = 0
         failed_count = 0
+        scope_guard_skipped = 0
 
         for group in duplicate_groups:
             for dup_key in group.duplicate_keys:
+                if allowed_item_keys is not None and dup_key not in allowed_item_keys:
+                    logger.warning(
+                        "  ⊘ Scope guard: skipping out-of-scope duplicate key %s",
+                        dup_key,
+                    )
+                    scope_guard_skipped += 1
+                    continue
                 try:
                     item = await self.item_service.api_client.get_item(dup_key)
                     item_type = item.get("data", {}).get("itemType", "")
@@ -732,4 +747,4 @@ class DuplicateDetectionService:
                     logger.error(f"  Failed to delete {dup_key}: {e}")
                     failed_count += 1
 
-        return deleted_count, failed_count
+        return deleted_count, failed_count, scope_guard_skipped

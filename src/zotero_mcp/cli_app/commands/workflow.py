@@ -17,6 +17,13 @@ from zotero_mcp.cli_app.output import emit
 from zotero_mcp.utils.config import load_config
 
 
+def _normalize_collection_key(raw_collection: str | None) -> str | None:
+    if raw_collection is None:
+        return None
+    normalized = raw_collection.strip()
+    return normalized or None
+
+
 def register(subparsers: argparse._SubParsersAction) -> None:
     workflow = subparsers.add_parser("workflow", help="Batch workflow commands")
     workflow_sub = workflow.add_subparsers(dest="subcommand", required=True)
@@ -57,7 +64,10 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         "--template",
         choices=["research", "review", "book", "auto"],
         default="auto",
-        help="Analysis template alias (default: auto; 'book' for books/chapters/encyclopedias)",
+        help=(
+            "Analysis template alias "
+            "(default: auto; 'book' for books/chapters/encyclopedias)"
+        ),
     )
     add_output_arg(item_analysis)
 
@@ -123,6 +133,20 @@ async def _run_item_analysis(args: argparse.Namespace) -> dict[str, Any]:
 
 
 async def _run_metadata_update(args: argparse.Namespace) -> dict[str, Any]:
+    collection_key = _normalize_collection_key(args.collection)
+    if args.collection is not None and collection_key is None:
+        return {"success": False, "error": "--collection cannot be empty"}
+    if args.item_key and args.all:
+        return {
+            "success": False,
+            "error": "--item-key cannot be combined with --all",
+        }
+    if args.item_key and collection_key:
+        return {
+            "success": False,
+            "error": "--item-key cannot be combined with --collection",
+        }
+
     from zotero_mcp.services.data_access import DataAccessService
     from zotero_mcp.services.zotero.metadata_update_service import MetadataUpdateService
 
@@ -137,7 +161,7 @@ async def _run_metadata_update(args: argparse.Namespace) -> dict[str, Any]:
             dry_run=args.dry_run,
         )
     return await update_service.update_all_items(
-        collection_key=args.collection,
+        collection_key=collection_key,
         scan_limit=args.scan_limit,
         treated_limit=None if args.all else args.treated_limit,
         dry_run=args.dry_run,
@@ -146,13 +170,17 @@ async def _run_metadata_update(args: argparse.Namespace) -> dict[str, Any]:
 
 
 async def _run_deduplicate(args: argparse.Namespace) -> dict[str, Any]:
+    collection_key = _normalize_collection_key(args.collection)
+    if args.collection is not None and collection_key is None:
+        return {"success": False, "error": "--collection cannot be empty"}
+
     from zotero_mcp.services.data_access import DataAccessService
     from zotero_mcp.services.zotero.duplicate_service import DuplicateDetectionService
 
     data_service = DataAccessService()
     service = DuplicateDetectionService(data_service.item_service)
     return await service.find_and_remove_duplicates(
-        collection_key=args.collection,
+        collection_key=collection_key,
         scan_limit=args.scan_limit,
         treated_limit=None if args.all else args.treated_limit,
         dry_run=args.dry_run,

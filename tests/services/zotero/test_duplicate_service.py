@@ -2,7 +2,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from zotero_mcp.services.zotero.duplicate_service import DuplicateDetectionService
+from zotero_mcp.services.zotero.duplicate_service import (
+    DuplicateDetectionService,
+    DuplicateGroup,
+)
 
 
 def _api_item(
@@ -316,3 +319,27 @@ async def test_find_and_remove_duplicates_returns_group_titles_for_confirmation(
     assert group["primary_item"]["title"] in {"Primary Title", "Duplicate Title"}
     duplicate_titles = {item["title"] for item in group["duplicate_items"]}
     assert duplicate_titles <= {"Primary Title", "Duplicate Title"}
+
+
+@pytest.mark.asyncio
+async def test_remove_duplicates_scope_guard_skips_out_of_scope_keys():
+    item_service = AsyncMock()
+    service = DuplicateDetectionService(item_service=item_service)
+    duplicate_groups = [
+        DuplicateGroup(
+            primary_key="P1",
+            duplicate_keys=["OUTSIDE1"],
+            match_reason="doi",
+            match_value="10.1000/test",
+        )
+    ]
+
+    deleted, failed, scope_guard_skipped = await service._remove_duplicates(
+        duplicate_groups,
+        allowed_item_keys={"P1"},
+    )
+
+    assert deleted == 0
+    assert failed == 0
+    assert scope_guard_skipped == 1
+    item_service.api_client.get_item.assert_not_awaited()
