@@ -44,10 +44,6 @@ class NoteRelationService:
         self.data_service = data_service or DataAccessService()
         self._deepseek_client: Any | None = None
         self._deepseek_model = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
-        self._use_semantic_candidates = self._read_bool_env(
-            "NOTE_RELATION_USE_SEMANTIC_CANDIDATES",
-            True,
-        )
         self._semantic_pool = self._read_positive_int_env(
             "NOTE_RELATION_SEMANTIC_POOL",
             _DEFAULT_SEMANTIC_POOL,
@@ -196,8 +192,6 @@ class NoteRelationService:
         collection_key: str | None,
     ) -> tuple[list[_CandidateNote], int, int, str]:
         scanned_items = 0
-        candidates: list[_CandidateNote] = []
-        seen_note_keys: set[str] = set()
         allowed_parent_keys: set[str] | None = None
         parent_title_map: dict[str, str] = {}
 
@@ -207,83 +201,23 @@ class NoteRelationService:
             )
             allowed_parent_keys = set(parent_title_map)
 
-        if self._use_semantic_candidates:
-            semantic_candidates = await self._collect_candidates_from_semantic(
-                target_note_key=target_note_key,
-                target_note_text=target_note_text,
-                allowed_parent_keys=allowed_parent_keys,
-                parent_title_map=parent_title_map,
-            )
-            if semantic_candidates:
-                semantic_scanned_items = (
-                    scanned_items
-                    if collection_key
-                    else len({c.parent_item_key for c in semantic_candidates})
-                )
-                return (
-                    semantic_candidates,
-                    semantic_scanned_items,
-                    len(semantic_candidates),
-                    "semantic",
-                )
-
-        scanned_notes = 0
-        observed_parent_keys: set[str] = set()
-
-        async def fetch_note_page(offset: int, limit: int) -> list[Any]:
-            return await self.data_service.get_all_items(
-                limit=limit,
-                start=offset,
-                item_type="note",
-            )
-
-        async for _, notes in iter_offset_batches(
-            fetch_note_page,
-            batch_size=_DEFAULT_SCAN_BATCH_SIZE,
-            start=0,
-        ):
-            scanned_notes += len(notes)
-            for note_item in notes:
-                note_key = str(getattr(note_item, "key", "")).strip().upper()
-                if (
-                    not note_key
-                    or note_key == target_note_key
-                    or note_key in seen_note_keys
-                ):
-                    continue
-
-                data = getattr(note_item, "raw_data", None)
-                if not isinstance(data, dict):
-                    continue
-
-                parent_key = str(data.get("parentItem", "")).strip().upper()
-                if not parent_key:
-                    continue
-                if (
-                    allowed_parent_keys is not None
-                    and parent_key not in allowed_parent_keys
-                ):
-                    continue
-                observed_parent_keys.add(parent_key)
-
-                note_text = self._clean_note_html(str(data.get("note", ""))).strip()
-                if not note_text:
-                    continue
-
-                seen_note_keys.add(note_key)
-                candidates.append(
-                    _CandidateNote(
-                        note_key=note_key,
-                        parent_item_key=parent_key,
-                        parent_item_title=parent_title_map.get(parent_key, ""),
-                        note_text=note_text,
-                    )
-                )
-
-        if not collection_key:
-            scanned_items = len(observed_parent_keys)
-
-        return candidates, scanned_items, scanned_notes, "scan"
+        semantic_candidates = await self._collect_candidates_from_semantic(
+            target_note_key=target_note_key,
+            target_note_text=target_note_text,
+            allowed_parent_keys=allowed_parent_keys,
+            parent_title_map=parent_title_map,
+        )
+        semantic_scanned_items = (
+            scanned_items
+            if collection_key
+            else len({c.parent_item_key for c in semantic_candidates})
+        )
+        return (
+            semantic_candidates,
+            semantic_scanned_items,
+            len(semantic_candidates),
+            "semantic",
+        )
 
     async def _collect_candidates_from_semantic(
         self,
@@ -319,7 +253,7 @@ class NoteRelationService:
             )
         except Exception as exc:
             logger.info(
-                "Semantic candidate retrieval failed, fallback to scan: %s",
+                "Semantic candidate retrieval failed: %s",
                 exc,
             )
             return []
@@ -534,17 +468,6 @@ class NoteRelationService:
         except ValueError:
             return default
         return value if value >= 1 else default
-
-    @staticmethod
-    def _read_bool_env(name: str, default: bool) -> bool:
-        raw = os.getenv(name, "").strip().lower()
-        if not raw:
-            return default
-        if raw in {"1", "true", "yes", "on"}:
-            return True
-        if raw in {"0", "false", "no", "off"}:
-            return False
-        return default
 
     async def _score_candidates_with_deepseek(
         self,

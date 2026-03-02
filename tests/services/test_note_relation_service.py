@@ -12,11 +12,6 @@ from zotero_mcp.services.zotero.note_relation_service import (
 )
 
 
-@pytest.fixture(autouse=True)
-def _disable_semantic_candidates_by_default(monkeypatch):
-    monkeypatch.setenv("NOTE_RELATION_USE_SEMANTIC_CANDIDATES", "0")
-
-
 @pytest.mark.asyncio
 async def test_relate_note_dry_run_uses_collection_name_and_keeps_top5():
     data_service = MagicMock()
@@ -45,43 +40,19 @@ async def test_relate_note_dry_run_uses_collection_name_and_keeps_top5():
             ],
         ]
     )
-    data_service.get_all_items = AsyncMock(
-        return_value=[
-            SimpleNamespace(
-                key="N1",
-                item_type="note",
-                raw_data={"parentItem": "ITEM001", "note": "<p>candidate one</p>"},
-            ),
-            SimpleNamespace(
-                key="N2",
-                item_type="note",
-                raw_data={"parentItem": "ITEM001", "note": "<p>candidate two</p>"},
-            ),
-            SimpleNamespace(
-                key="N3",
-                item_type="note",
-                raw_data={"parentItem": "ITEM001", "note": "<p>candidate three</p>"},
-            ),
-            SimpleNamespace(
-                key="N4",
-                item_type="note",
-                raw_data={"parentItem": "ITEM001", "note": "<p>candidate four</p>"},
-            ),
-            SimpleNamespace(
-                key="N5",
-                item_type="note",
-                raw_data={"parentItem": "ITEM001", "note": "<p>candidate five</p>"},
-            ),
-            SimpleNamespace(
-                key="N6",
-                item_type="note",
-                raw_data={"parentItem": "ITEM001", "note": "<p>candidate six</p>"},
-            ),
-        ]
-    )
     data_service.update_item = AsyncMock()
 
     service = NoteRelationService(data_service=data_service)
+    service._collect_candidates_from_semantic = AsyncMock(  # type: ignore[method-assign]
+        return_value=[
+            _CandidateNote("N1", "ITEM001", "Paper A", "candidate one"),
+            _CandidateNote("N2", "ITEM001", "Paper A", "candidate two"),
+            _CandidateNote("N3", "ITEM001", "Paper A", "candidate three"),
+            _CandidateNote("N4", "ITEM001", "Paper A", "candidate four"),
+            _CandidateNote("N5", "ITEM001", "Paper A", "candidate five"),
+            _CandidateNote("N6", "ITEM001", "Paper A", "candidate six"),
+        ]
+    )
     service._score_candidates_with_deepseek = AsyncMock(  # type: ignore[method-assign]
         return_value=[
             {
@@ -158,7 +129,7 @@ async def test_relate_note_dry_run_uses_collection_name_and_keeps_top5():
         "N4",
         "N5",
     ]
-    data_service.get_all_items.assert_any_await(limit=50, start=0, item_type="note")
+    assert result["candidate_source"] == "semantic"
     data_service.update_item.assert_not_awaited()
 
 
@@ -230,23 +201,15 @@ async def test_relate_note_updates_only_target_note_content():
         return copy.deepcopy(items_by_key[key])
 
     data_service.get_item = AsyncMock(side_effect=fake_get_item)
-    data_service.get_all_items = AsyncMock(
-        return_value=[
-            SimpleNamespace(
-                key="CAND001",
-                item_type="note",
-                raw_data={"parentItem": "ITEM001", "note": "<p>candidate one</p>"},
-            ),
-            SimpleNamespace(
-                key="CAND002",
-                item_type="note",
-                raw_data={"parentItem": "ITEM001", "note": "<p>candidate two</p>"},
-            ),
-        ]
-    )
     data_service.update_item = AsyncMock(return_value={"ok": True})
 
     service = NoteRelationService(data_service=data_service)
+    service._collect_candidates_from_semantic = AsyncMock(  # type: ignore[method-assign]
+        return_value=[
+            _CandidateNote("CAND001", "ITEM001", "Paper A", "candidate one"),
+            _CandidateNote("CAND002", "ITEM001", "Paper A", "candidate two"),
+        ]
+    )
     service._score_candidates_with_deepseek = AsyncMock(  # type: ignore[method-assign]
         return_value=[
             {
@@ -287,7 +250,6 @@ async def test_relate_note_updates_only_target_note_content():
     assert "AI Note Relevance Analysis" in updated_payloads[0]["data"]["note"]
     assert "AI Note Relevance Analysis" not in updated_payloads[1]["data"]["note"]
     assert "AI Note Relevance Analysis" not in updated_payloads[2]["data"]["note"]
-    data_service.get_all_items.assert_any_await(limit=50, start=0, item_type="note")
 
 
 @pytest.mark.asyncio
@@ -306,27 +268,14 @@ async def test_relate_note_prefilters_candidates_before_llm(monkeypatch):
             },
         }
     )
-    data_service.get_all_items = AsyncMock(
+    service = NoteRelationService(data_service=data_service)
+    service._collect_candidates_from_semantic = AsyncMock(  # type: ignore[method-assign]
         return_value=[
-            SimpleNamespace(
-                key="N1",
-                item_type="note",
-                raw_data={"parentItem": "I1", "note": "<p>alpha text</p>"},
-            ),
-            SimpleNamespace(
-                key="N2",
-                item_type="note",
-                raw_data={"parentItem": "I2", "note": "<p>alpha beta text</p>"},
-            ),
-            SimpleNamespace(
-                key="N3",
-                item_type="note",
-                raw_data={"parentItem": "I3", "note": "<p>gamma text</p>"},
-            ),
+            _CandidateNote("N1", "I1", "", "alpha text"),
+            _CandidateNote("N2", "I2", "", "alpha beta text"),
+            _CandidateNote("N3", "I3", "", "gamma text"),
         ]
     )
-
-    service = NoteRelationService(data_service=data_service)
     service._score_candidates_with_deepseek = AsyncMock(  # type: ignore[method-assign]
         return_value=[
             {
@@ -359,9 +308,7 @@ async def test_relate_note_prefilters_candidates_before_llm(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_relate_note_uses_semantic_candidates_when_enabled(monkeypatch):
-    monkeypatch.setenv("NOTE_RELATION_USE_SEMANTIC_CANDIDATES", "1")
-
+async def test_relate_note_uses_semantic_candidates():
     data_service = MagicMock()
     data_service.api_client = SimpleNamespace(library_type="user", library_id="123")
     data_service.get_item = AsyncMock(
@@ -403,4 +350,3 @@ async def test_relate_note_uses_semantic_candidates_when_enabled(monkeypatch):
     result = await service.relate_note(note_key="TARGET01", dry_run=True)
 
     assert result["candidate_source"] == "semantic"
-    data_service.get_all_items.assert_not_called()
