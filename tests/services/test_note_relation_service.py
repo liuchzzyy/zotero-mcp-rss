@@ -35,17 +35,40 @@ async def test_relate_note_dry_run_uses_collection_name_and_keeps_top5():
                     title="Paper A",
                 )
             ],
-            [],
         ]
     )
-    data_service.get_notes = AsyncMock(
+    data_service.get_all_items = AsyncMock(
         return_value=[
-            {"data": {"key": "N1", "note": "<p>candidate one</p>"}},
-            {"data": {"key": "N2", "note": "<p>candidate two</p>"}},
-            {"data": {"key": "N3", "note": "<p>candidate three</p>"}},
-            {"data": {"key": "N4", "note": "<p>candidate four</p>"}},
-            {"data": {"key": "N5", "note": "<p>candidate five</p>"}},
-            {"data": {"key": "N6", "note": "<p>candidate six</p>"}},
+            SimpleNamespace(
+                key="N1",
+                item_type="note",
+                raw_data={"parentItem": "ITEM001", "note": "<p>candidate one</p>"},
+            ),
+            SimpleNamespace(
+                key="N2",
+                item_type="note",
+                raw_data={"parentItem": "ITEM001", "note": "<p>candidate two</p>"},
+            ),
+            SimpleNamespace(
+                key="N3",
+                item_type="note",
+                raw_data={"parentItem": "ITEM001", "note": "<p>candidate three</p>"},
+            ),
+            SimpleNamespace(
+                key="N4",
+                item_type="note",
+                raw_data={"parentItem": "ITEM001", "note": "<p>candidate four</p>"},
+            ),
+            SimpleNamespace(
+                key="N5",
+                item_type="note",
+                raw_data={"parentItem": "ITEM001", "note": "<p>candidate five</p>"},
+            ),
+            SimpleNamespace(
+                key="N6",
+                item_type="note",
+                raw_data={"parentItem": "ITEM001", "note": "<p>candidate six</p>"},
+            ),
         ]
     )
     data_service.update_item = AsyncMock()
@@ -127,6 +150,7 @@ async def test_relate_note_dry_run_uses_collection_name_and_keeps_top5():
         "N4",
         "N5",
     ]
+    data_service.get_all_items.assert_any_await(limit=50, start=0, item_type="note")
     data_service.update_item.assert_not_awaited()
 
 
@@ -199,21 +223,17 @@ async def test_relate_note_updates_only_target_note_content():
 
     data_service.get_item = AsyncMock(side_effect=fake_get_item)
     data_service.get_all_items = AsyncMock(
-        side_effect=[
-            [
-                SimpleNamespace(
-                    key="ITEM001",
-                    item_type="journalArticle",
-                    title="Paper A",
-                )
-            ],
-            [],
-        ]
-    )
-    data_service.get_notes = AsyncMock(
         return_value=[
-            {"data": {"key": "CAND001", "note": "<p>candidate one</p>"}},
-            {"data": {"key": "CAND002", "note": "<p>candidate two</p>"}},
+            SimpleNamespace(
+                key="CAND001",
+                item_type="note",
+                raw_data={"parentItem": "ITEM001", "note": "<p>candidate one</p>"},
+            ),
+            SimpleNamespace(
+                key="CAND002",
+                item_type="note",
+                raw_data={"parentItem": "ITEM001", "note": "<p>candidate two</p>"},
+            ),
         ]
     )
     data_service.update_item = AsyncMock(return_value={"ok": True})
@@ -259,3 +279,72 @@ async def test_relate_note_updates_only_target_note_content():
     assert "AI Note Relevance Analysis" in updated_payloads[0]["data"]["note"]
     assert "AI Note Relevance Analysis" not in updated_payloads[1]["data"]["note"]
     assert "AI Note Relevance Analysis" not in updated_payloads[2]["data"]["note"]
+    data_service.get_all_items.assert_any_await(limit=50, start=0, item_type="note")
+
+
+@pytest.mark.asyncio
+async def test_relate_note_prefilters_candidates_before_llm(monkeypatch):
+    monkeypatch.setenv("NOTE_RELATION_MAX_LLM_CANDIDATES", "2")
+
+    data_service = MagicMock()
+    data_service.api_client = SimpleNamespace(library_type="user", library_id="123")
+    data_service.get_item = AsyncMock(
+        return_value={
+            "key": "TARGET01",
+            "data": {
+                "key": "TARGET01",
+                "itemType": "note",
+                "note": "<p>alpha keyword target</p>",
+            },
+        }
+    )
+    data_service.get_all_items = AsyncMock(
+        return_value=[
+            SimpleNamespace(
+                key="N1",
+                item_type="note",
+                raw_data={"parentItem": "I1", "note": "<p>alpha text</p>"},
+            ),
+            SimpleNamespace(
+                key="N2",
+                item_type="note",
+                raw_data={"parentItem": "I2", "note": "<p>alpha beta text</p>"},
+            ),
+            SimpleNamespace(
+                key="N3",
+                item_type="note",
+                raw_data={"parentItem": "I3", "note": "<p>gamma text</p>"},
+            ),
+        ]
+    )
+
+    service = NoteRelationService(data_service=data_service)
+    service._score_candidates_with_deepseek = AsyncMock(  # type: ignore[method-assign]
+        return_value=[
+            {
+                "note_key": "N2",
+                "parent_item_key": "I2",
+                "parent_item_title": "",
+                "relevance_score": 90.0,
+                "rating": "A",
+                "hit_reasons": ["r2"],
+                "scoring": "s2",
+            },
+            {
+                "note_key": "N1",
+                "parent_item_key": "I1",
+                "parent_item_title": "",
+                "relevance_score": 80.0,
+                "rating": "B",
+                "hit_reasons": ["r1"],
+                "scoring": "s1",
+            },
+        ]
+    )
+
+    result = await service.relate_note(note_key="TARGET01", dry_run=True)
+
+    score_call = service._score_candidates_with_deepseek.await_args.kwargs
+    assert len(score_call["candidates"]) == 2
+    assert result["candidate_total_raw"] == 3
+    assert result["candidate_scored"] == 2

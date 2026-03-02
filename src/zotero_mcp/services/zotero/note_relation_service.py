@@ -22,6 +22,7 @@ _SKIPPED_ITEM_TYPES = {"attachment", "annotation", "note"}
 _DEFAULT_SCAN_BATCH_SIZE = 50
 _DEFAULT_SCORE_BATCH_SIZE = 10
 _DEFAULT_TOP_K = 5
+_DEFAULT_MAX_LLM_CANDIDATES = 200
 
 
 @dataclass
@@ -39,6 +40,10 @@ class NoteRelationService:
         self.data_service = data_service or DataAccessService()
         self._deepseek_client: Any | None = None
         self._deepseek_model = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+        self._max_llm_candidates = self._read_positive_int_env(
+            "NOTE_RELATION_MAX_LLM_CANDIDATES",
+            _DEFAULT_MAX_LLM_CANDIDATES,
+        )
 
     async def relate_note(
         self,
@@ -75,16 +80,22 @@ class NoteRelationService:
             target_note_key=target_note_key,
             collection_key=resolved_collection_key,
         )
+        candidate_total_raw = len(candidates)
+        candidates_for_scoring = self._prefilter_candidates(
+            target_note_text=target_note_text,
+            candidates=candidates,
+        )
 
         scored_candidates = await self._score_candidates_with_deepseek(
             target_note_text=target_note_text,
-            candidates=candidates,
+            candidates=candidates_for_scoring,
         )
         scored_candidates.sort(
             key=lambda item: float(item.get("relevance_score", 0.0)),
             reverse=True,
         )
         top_candidates = scored_candidates[: max(1, top_k)]
+        await self._fill_missing_parent_titles(top_candidates)
 
         relation_errors: list[dict[str, str]] = []
         target_relations_changed = False
@@ -142,6 +153,8 @@ class NoteRelationService:
             "scanned_items": scanned_items,
             "scanned_notes": scanned_notes,
             "candidate_total": len(scored_candidates),
+            "candidate_total_raw": candidate_total_raw,
+            "candidate_scored": len(candidates_for_scoring),
             "top_k": min(max(1, top_k), _DEFAULT_TOP_K),
             "count": len(top_candidates),
             "candidates": top_candidates,
@@ -161,15 +174,85 @@ class NoteRelationService:
         scanned_notes = 0
         candidates: list[_CandidateNote] = []
         seen_note_keys: set[str] = set()
+        allowed_parent_keys: set[str] | None = None
+        parent_title_map: dict[str, str] = {}
+
+        if collection_key:
+            parent_title_map, scanned_items = (
+                await self._collect_collection_parent_titles(collection_key)
+            )
+            allowed_parent_keys = set(parent_title_map)
+        else:
+            observed_parent_keys: set[str] = set()
+
+        async def fetch_note_page(offset: int, limit: int) -> list[Any]:
+            return await self.data_service.get_all_items(
+                limit=limit,
+                start=offset,
+                item_type="note",
+            )
+
+        async for _, notes in iter_offset_batches(
+            fetch_note_page,
+            batch_size=_DEFAULT_SCAN_BATCH_SIZE,
+            start=0,
+        ):
+            scanned_notes += len(notes)
+            for note_item in notes:
+                note_key = str(getattr(note_item, "key", "")).strip().upper()
+                if (
+                    not note_key
+                    or note_key == target_note_key
+                    or note_key in seen_note_keys
+                ):
+                    continue
+
+                data = getattr(note_item, "raw_data", None)
+                if not isinstance(data, dict):
+                    continue
+
+                parent_key = str(data.get("parentItem", "")).strip().upper()
+                if not parent_key:
+                    continue
+                if (
+                    allowed_parent_keys is not None
+                    and parent_key not in allowed_parent_keys
+                ):
+                    continue
+                if not collection_key:
+                    observed_parent_keys.add(parent_key)
+
+                note_text = self._clean_note_html(str(data.get("note", ""))).strip()
+                if not note_text:
+                    continue
+
+                seen_note_keys.add(note_key)
+                candidates.append(
+                    _CandidateNote(
+                        note_key=note_key,
+                        parent_item_key=parent_key,
+                        parent_item_title=parent_title_map.get(parent_key, ""),
+                        note_text=note_text,
+                    )
+                )
+
+        if not collection_key:
+            scanned_items = len(observed_parent_keys)
+
+        return candidates, scanned_items, scanned_notes
+
+    async def _collect_collection_parent_titles(
+        self, collection_key: str
+    ) -> tuple[dict[str, str], int]:
+        parent_titles: dict[str, str] = {}
+        scanned_items = 0
 
         async def fetch_page(offset: int, limit: int) -> list[Any]:
-            if collection_key:
-                return await self.data_service.get_collection_items(
-                    collection_key=collection_key,
-                    limit=limit,
-                    start=offset,
-                )
-            return await self.data_service.get_all_items(limit=limit, start=offset)
+            return await self.data_service.get_collection_items(
+                collection_key=collection_key,
+                limit=limit,
+                start=offset,
+            )
 
         async for _, items in iter_offset_batches(
             fetch_page,
@@ -179,40 +262,81 @@ class NoteRelationService:
             scanned_items += len(items)
             for item in items:
                 item_key = str(getattr(item, "key", "")).strip().upper()
-                item_type = str(getattr(item, "item_type", "")).lower()
-                item_title = str(getattr(item, "title", "") or "Untitled")
+                item_type = str(getattr(item, "item_type", "")).strip().lower()
                 if not item_key or item_type in _SKIPPED_ITEM_TYPES:
                     continue
+                parent_titles[item_key] = str(getattr(item, "title", "") or "Untitled")
 
-                try:
-                    notes = await self.data_service.get_notes(item_key)
-                except Exception:
-                    continue
+        return parent_titles, scanned_items
 
-                scanned_notes += len(notes)
-                for note in notes:
-                    data = note.get("data", {})
-                    note_key = str(data.get("key", "")).strip().upper()
-                    if not note_key or note_key == target_note_key:
-                        continue
-                    if note_key in seen_note_keys:
-                        continue
+    def _prefilter_candidates(
+        self,
+        *,
+        target_note_text: str,
+        candidates: list[_CandidateNote],
+    ) -> list[_CandidateNote]:
+        if len(candidates) <= self._max_llm_candidates:
+            return candidates
 
-                    note_text = self._clean_note_html(str(data.get("note", ""))).strip()
-                    if not note_text:
-                        continue
+        target_tokens = self._tokenize_for_prefilter(target_note_text)
+        ranked: list[tuple[float, str, _CandidateNote]] = []
+        for candidate in candidates:
+            candidate_tokens = self._tokenize_for_prefilter(candidate.note_text)
+            if not target_tokens or not candidate_tokens:
+                score = 0.0
+            else:
+                overlap = len(target_tokens & candidate_tokens)
+                ratio = overlap / max(1, min(len(target_tokens), len(candidate_tokens)))
+                score = overlap + ratio
+            ranked.append((score, candidate.note_key, candidate))
 
-                    seen_note_keys.add(note_key)
-                    candidates.append(
-                        _CandidateNote(
-                            note_key=note_key,
-                            parent_item_key=item_key,
-                            parent_item_title=item_title,
-                            note_text=note_text,
-                        )
-                    )
+        ranked.sort(key=lambda row: (row[0], row[1]), reverse=True)
+        return [row[2] for row in ranked[: self._max_llm_candidates]]
 
-        return candidates, scanned_items, scanned_notes
+    async def _fill_missing_parent_titles(
+        self, candidates: list[dict[str, Any]]
+    ) -> None:
+        key_to_title: dict[str, str] = {}
+        keys_to_fetch = sorted(
+            {
+                str(candidate.get("parent_item_key", "")).strip().upper()
+                for candidate in candidates
+                if str(candidate.get("parent_item_key", "")).strip()
+                and not str(candidate.get("parent_item_title", "")).strip()
+            }
+        )
+
+        for item_key in keys_to_fetch:
+            key_to_title[item_key] = "Untitled"
+            try:
+                payload = await self.data_service.get_item(item_key)
+            except Exception:
+                continue
+            data = payload.get("data", payload) if isinstance(payload, dict) else {}
+            key_to_title[item_key] = str(data.get("title") or "Untitled")
+
+        for candidate in candidates:
+            current_title = str(candidate.get("parent_item_title", "")).strip()
+            if current_title:
+                continue
+            item_key = str(candidate.get("parent_item_key", "")).strip().upper()
+            candidate["parent_item_title"] = key_to_title.get(item_key, "Untitled")
+
+    @staticmethod
+    def _tokenize_for_prefilter(text: str) -> set[str]:
+        tokens = re.findall(r"[A-Za-z0-9]{2,}|[\u4e00-\u9fff]{1,4}", text.lower())
+        return set(tokens)
+
+    @staticmethod
+    def _read_positive_int_env(name: str, default: int) -> int:
+        raw = os.getenv(name, "")
+        if not raw.strip():
+            return default
+        try:
+            value = int(raw)
+        except ValueError:
+            return default
+        return value if value >= 1 else default
 
     async def _score_candidates_with_deepseek(
         self,
