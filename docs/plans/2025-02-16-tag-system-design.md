@@ -156,8 +156,8 @@ def is_valid_focus_tag(tag: str) -> bool:
 
 ### Existing Tags (Preserved)
 
-- `AI分析` - AI analysis completed
-- `AI元数据` - AI metadata updated
+- `AI/条目分析` - AI analysis completed
+- `AI/元数据更新` - AI metadata updated
 
 ### Auto-Tagging on Import
 
@@ -238,6 +238,7 @@ status/read (without use or focus tags)
 
 - Total categories: 3 (status, use, focus)
 - Total core tags: ~35
-- Preserved existing tags: `AI分析`, `AI元数据`
+- Preserved existing tags: `AI/条目分析`, `AI/元数据更新`
 - Compatible with Zotero's native color coding
 - No material/battery-type tags (use focus tags instead)
+

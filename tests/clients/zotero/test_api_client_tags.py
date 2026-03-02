@@ -18,7 +18,7 @@ async def test_add_tags_normalizes_and_avoids_duplicate_append():
         return_value={
             "key": "ITEM1",
             "data": {
-                "tags": [{"tag": "AI分析"}, "保留"],
+                "tags": [{"tag": "AI/条目分析"}, "保留"],
             },
         }
     )
@@ -30,7 +30,8 @@ async def test_add_tags_normalizes_and_avoids_duplicate_append():
     update_item_mock.assert_called_once()
     updated = update_item_mock.call_args.args[0]
     assert updated["data"]["tags"] == [
-        {"tag": "AI分析"},
+        {"tag": "AI/条目分析"},
         {"tag": "保留"},
         {"tag": "新增"},
     ]
+

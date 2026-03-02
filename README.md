@@ -36,7 +36,7 @@
 - 逻辑阶段:
 1. 扫描 `source_collection`（默认 `00_INBOXS`）
 2. 候选不足时按集合顺序继续扫描
-3. 过滤规则: 必须有 PDF 且未带 `AI分析` 标签
+3. 过滤规则: 必须有 PDF 且未带 `AI/条目分析` 标签
 4. 执行分析并可移动到 `target_collection`
 
 ### 2. Metadata Update Service (`metadata_update_service.py`)

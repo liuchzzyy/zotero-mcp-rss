@@ -40,7 +40,7 @@
 - `focus/theory/dft`, `focus/theory/md`, `focus/theory/ml`
 
 ### 2.4 现有标签兼容
-- 保留：`AI分析`、`AI元数据`
+- 保留：`AI/条目分析`、`AI/元数据更新`
 - 不纳入互斥逻辑，不自动删除。
 
 ## 3. 规则（执行标准）
@@ -135,3 +135,4 @@ uv run zotero-mcp tags search --tags use/intro focus/prep/synth --output json
 1. 先完成 Phase A + Phase B（立刻可做）。  
 2. 紧接着做 Phase C（互斥规则脚本），这是体系稳定运行的关键。  
 3. 之后再考虑 AI 自动推荐标签（放到增强迭代，不阻塞当前上线）。
+

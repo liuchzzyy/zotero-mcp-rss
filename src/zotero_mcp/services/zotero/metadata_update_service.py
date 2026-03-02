@@ -25,7 +25,7 @@ from zotero_mcp.services.zotero.result_mapper import api_item_to_search_result
 
 logger = logging.getLogger(__name__)
 
-AI_METADATA_TAG = "AI元数据"
+AI_METADATA_TAG = "AI/元数据更新"
 _SKIPPED_ITEM_TYPES = {"attachment", "note", "annotation"}
 _ZOTERO_API_MAX_PAGE_SIZE = 100
 
@@ -161,7 +161,7 @@ class MetadataUpdateService:
     Service for updating Zotero item metadata from external APIs.
 
     Fetches complete metadata from Crossref/OpenAlex, updates items with
-    missing information, and adds 'AI元数据' tag on successful updates.
+    missing information, and adds 'AI/元数据更新' tag on successful updates.
     """
 
     def __init__(self, item_service: ItemService, metadata_service: MetadataService):
@@ -507,7 +507,7 @@ class MetadataUpdateService:
                     continue
                 seen_item_keys.add(item.key)
 
-                # Quick check: skip if already has AI元数据 tag
+                # Quick check: skip if already has AI/元数据更新 tag
                 tag_names = _extract_tag_names(item.tags or [])
                 if AI_METADATA_TAG in tag_names:
                     skipped += 1
@@ -883,7 +883,7 @@ class MetadataUpdateService:
         )
 
     def _add_ai_metadata_tag(self, item_data: dict[str, Any]) -> dict[str, Any]:
-        """Add AI元数据 tag to item."""
+        """Add AI/元数据更新 tag to item."""
         updated = item_data.copy()
         existing_tags = updated.get("tags", [])
 

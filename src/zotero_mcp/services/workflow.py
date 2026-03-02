@@ -38,6 +38,9 @@ from zotero_mcp.utils.formatting.markdown import markdown_to_html
 
 logger = get_logger(__name__)
 
+AI_ANALYSIS_TAG = "AI/条目分析"
+AI_DEEPSEEK_TAG = "AI/DeepSeek"
+
 # Zotero item types treated as reference/book material → 'book' template
 _REF_ITEM_TYPES = frozenset({
     "book",
@@ -1054,7 +1057,7 @@ class WorkflowService:
         # Fallback to markdown
         journal = metadata.get("data", {}).get("publicationTitle") or "未知"
         basic_info = (
-            f"# AI分析 - {item.title}\n\n"
+            f"# AI条目分析 - {item.title}\n\n"
             f"## 论文基本信息\n\n"
             f"- **标题**: {item.title}\n"
             f"- **作者**: {item.authors or '未知'}\n"
@@ -1070,9 +1073,9 @@ class WorkflowService:
         self, item: Any, html_note: str, llm_client: Any
     ) -> str | None:
         """Save note to item and return note key."""
-        # Generate tags: AI分析 + LLM provider name (on parent item, not note)
+        # Generate tags: AI/条目分析 + LLM provider name (on parent item, not note)
         provider_map = {
-            "deepseek": "DeepSeek",
+            "deepseek": AI_DEEPSEEK_TAG,
             "claude-cli": "Claude",
             "claude": "Claude",
         }
@@ -1092,7 +1095,9 @@ class WorkflowService:
         )
 
         # Add tags to parent item instead of note
-        await self.data_service.add_tags_to_item(item.key, ["AI分析", provider_name])
+        await self.data_service.add_tags_to_item(
+            item.key, [AI_ANALYSIS_TAG, provider_name]
+        )
 
         # Extract note key
         if isinstance(result, dict):

@@ -402,7 +402,7 @@ async def test_batch_analyze_auto_selects_multimodal_llm(
     assert response.results[0].success is True
     mock_get_llm_client.assert_called_once_with(provider="claude-cli", model=None)
     workflow_service.data_service.add_tags_to_item.assert_awaited_once_with(
-        "ITEM1", ["AI分析", "Claude"]
+        "ITEM1", ["AI/条目分析", "Claude"]
     )
 
 
@@ -491,7 +491,7 @@ async def test_batch_analyze_auto_selects_text_llm(workflow_service, mock_batch_
     assert response.processed == 1
     mock_get_llm_client.assert_called_once_with(provider="deepseek", model=None)
     workflow_service.data_service.add_tags_to_item.assert_awaited_once_with(
-        "ITEM1", ["AI分析", "DeepSeek"]
+        "ITEM1", ["AI/条目分析", "AI/DeepSeek"]
     )
 
 
@@ -907,3 +907,4 @@ async def test_move_to_collection_accepts_top_level_key(workflow_service):
     workflow_service.data_service.remove_item_from_collection.assert_awaited_once_with(
         "SRC1", "ITEM1"
     )
+

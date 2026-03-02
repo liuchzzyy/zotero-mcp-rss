@@ -4,7 +4,7 @@ Global scanner service for Phase 3 of Task#1.
 Scans library for items needing AI analysis with priority strategy:
 1. First scan 00_INBOXS_BB (or specified source collection)
 2. If need more items, scan non-00_INBOXS_* collections in entire library
-3. Process items with PDFs but lacking "AI分析" tag
+3. Process items with PDFs but lacking "AI/条目分析" tag
 """
 
 import logging
@@ -26,7 +26,7 @@ from zotero_mcp.utils.async_helpers.batch_loader import BatchLoader
 logger = logging.getLogger(__name__)
 
 # Tag applied to items after successful AI analysis
-AI_ANALYSIS_TAG = "AI分析"
+AI_ANALYSIS_TAG = "AI/条目分析"
 NON_ANALYZABLE_ITEM_TYPES = {"attachment", "note", "annotation"}
 STAGE2_EXCLUDED_COLLECTION_PREFIX = "00_INBOXS_"
 
@@ -61,13 +61,13 @@ class GlobalScanner:
 
         Returns True if:
         - Item has PDF attachment
-        - Item lacks "AI分析" tag
+        - Item lacks "AI/条目分析" tag
         """
         # Skip child/non-library items early to avoid invalid children requests.
         if not self._is_parent_item(item):
             return False
 
-        # Check for AI分析 tag
+        # Check for AI/条目分析 tag
         item_data = getattr(item, "data", {})
         raw_data = getattr(item, "raw_data", {})
         if isinstance(item_data, dict) and "tags" in item_data:
@@ -136,7 +136,7 @@ class GlobalScanner:
         1. Scan items in source_collection (default: 00_INBOXS_BB)
         2. If need more items, scan all other collections except 00_INBOXS_*
         3. Accumulate candidates until reaching treated_limit (or all if None)
-        4. Filter to items with PDFs but lacking "AI分析" tag
+        4. Filter to items with PDFs but lacking "AI/条目分析" tag
         5. Process up to `treated_limit` items
 
         Args:
@@ -397,7 +397,10 @@ class GlobalScanner:
                 return operation_success(
                     "global_scan",
                     metrics,
-                    message="No items need analysis (all have AI分析 tag or no PDF)",
+                    message=(
+                        "No items need analysis "
+                        "(all have AI/条目分析 tag or no PDF)"
+                    ),
                     extra={
                         "total_scanned": total_scanned,
                         "candidates": 0,

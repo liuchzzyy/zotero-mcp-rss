@@ -12,7 +12,7 @@ def test_create_document_text_includes_fulltext_notes_tags_and_annotations():
             "DOI": "10.1000/example",
             "url": "https://example.org/paper",
             "extra": "Citation Key: smith2025",
-            "tags": [{"tag": "AI元数据"}, {"tag": "battery"}],
+            "tags": [{"tag": "AI/元数据更新"}, {"tag": "battery"}],
             "note": "<p>single note</p>",
             "notes": [{"note": "<div>child note</div>"}],
             "annotations": [
@@ -36,9 +36,10 @@ def test_create_document_text_includes_fulltext_notes_tags_and_annotations():
     assert "10.1000/example" in text
     assert "https://example.org/paper" in text
     assert "Citation Key: smith2025" in text
-    assert "AI元数据 battery" in text
+    assert "AI/元数据更新 battery" in text
     assert "single note" in text
     assert "child note" in text
     assert "highlight important finding check this 5" in text
     assert "PDF extracted content" in text
+
 

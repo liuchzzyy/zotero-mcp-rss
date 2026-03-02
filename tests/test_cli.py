@@ -193,7 +193,7 @@ def test_dry_run_defaults_are_disabled():
         ["items", "delete-empty"],
         ["tags", "set-status", "--item-key", "ABC123", "--status", "read"],
         ["tags", "delete", "--item-key", "ABC123", "--all"],
-        ["tags", "purge", "--tags", "AI分析"],
+        ["tags", "purge", "--tags", "AI/条目分析"],
         ["tags", "rename", "--old-name", "old", "--new-name", "new"],
         ["collections", "delete-empty"],
         ["notes", "relate", "--note-key", "ABC12345", "--collection", "all"],
@@ -368,7 +368,7 @@ def test_tags_set_status_returns_error_for_invalid_status(monkeypatch):
 def test_tags_purge_supports_collection_name():
     parser = build_parser()
     args = parser.parse_args(
-        ["tags", "purge", "--tags", "AI分析", "--collection", "01_SHORTTERMS"]
+        ["tags", "purge", "--tags", "AI/条目分析", "--collection", "01_SHORTTERMS"]
     )
     assert args.subcommand == "purge"
     assert args.collection == "01_SHORTTERMS"
@@ -590,3 +590,4 @@ def test_obfuscate_config_masks_api_keys_and_tokens():
     assert obfuscated["CUSTOM_TOKEN"].startswith("toke")
     assert "*" in obfuscated["CUSTOM_TOKEN"]
     assert obfuscated["NORMAL_VALUE"] == "visible"
+

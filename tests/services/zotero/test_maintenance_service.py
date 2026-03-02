@@ -83,7 +83,7 @@ async def test_purge_tags_updates_items_and_reports_summary():
     )
     data_service.get_item = AsyncMock(
         side_effect=[
-            {"data": {"tags": [{"tag": "AI分析"}, {"tag": "keep"}]}},
+            {"data": {"tags": [{"tag": "AI/条目分析"}, {"tag": "keep"}]}},
             {"data": {"tags": [{"tag": "keep"}]}},
         ]
     )
@@ -91,7 +91,7 @@ async def test_purge_tags_updates_items_and_reports_summary():
 
     service = LibraryMaintenanceService(data_service=data_service)
     result = await service.purge_tags(
-        tags=[" AI分析 ", "AI分析"],
+        tags=[" AI/条目分析 ", "AI/条目分析"],
         collection_name=None,
         batch_size=10,
         scan_limit=None,
@@ -99,7 +99,7 @@ async def test_purge_tags_updates_items_and_reports_summary():
         dry_run=False,
     )
 
-    assert result["tags"] == ["AI分析"]
+    assert result["tags"] == ["AI/条目分析"]
     assert result["total_items_scanned"] == 2
     assert result["items_updated"] == 1
     assert result["total_tags_removed"] == 1
@@ -107,7 +107,7 @@ async def test_purge_tags_updates_items_and_reports_summary():
     updated_item = data_service.update_item.await_args.args[0]
     assert updated_item["data"]["tags"] == [{"tag": "keep"}]
     assert result["details"][0]["item_key"] == "I1"
-    assert result["details"][0]["removed_tags"] == ["AI分析"]
+    assert result["details"][0]["removed_tags"] == ["AI/条目分析"]
 
 
 @pytest.mark.asyncio
@@ -124,15 +124,15 @@ async def test_purge_tags_respects_scan_limit_and_collection_name():
     )
     data_service.get_item = AsyncMock(
         side_effect=[
-            {"data": {"tags": [{"tag": "AI分析"}, {"tag": "keep"}]}},
-            {"data": {"tags": [{"tag": "AI分析"}]}},
+            {"data": {"tags": [{"tag": "AI/条目分析"}, {"tag": "keep"}]}},
+            {"data": {"tags": [{"tag": "AI/条目分析"}]}},
         ]
     )
     data_service.update_item = AsyncMock(return_value={})
 
     service = LibraryMaintenanceService(data_service=data_service)
     result = await service.purge_tags(
-        tags=["AI分析"],
+        tags=["AI/条目分析"],
         collection_name="Inbox",
         batch_size=10,
         scan_limit=1,
@@ -148,3 +148,4 @@ async def test_purge_tags_respects_scan_limit_and_collection_name():
     assert result["items_updated"] == 1
     data_service.get_item.assert_awaited_once()
     data_service.update_item.assert_not_awaited()
+

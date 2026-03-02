@@ -64,7 +64,7 @@ async def test_search_by_tag_filters_mixed_tag_payload(search_service, mock_api_
             "data": {
                 "key": "K1",
                 "title": "Pass",
-                "tags": [{"tag": "AI分析"}, "保留"],
+                "tags": [{"tag": "AI/条目分析"}, "保留"],
             },
         },
         {
@@ -72,7 +72,7 @@ async def test_search_by_tag_filters_mixed_tag_payload(search_service, mock_api_
             "data": {
                 "key": "K2",
                 "title": "Excluded",
-                "tags": [{"tag": "AI分析"}, {"tag": "保留"}, {"tag": "跳过"}],
+                "tags": [{"tag": "AI/条目分析"}, {"tag": "保留"}, {"tag": "跳过"}],
             },
         },
         {
@@ -80,19 +80,19 @@ async def test_search_by_tag_filters_mixed_tag_payload(search_service, mock_api_
             "data": {
                 "key": "K3",
                 "title": "Missing include",
-                "tags": [{"tag": "AI分析"}],
+                "tags": [{"tag": "AI/条目分析"}],
             },
         },
     ]
 
     results = await search_service.search_by_tag(
-        tags=[" AI分析 ", "保留"],
+        tags=[" AI/条目分析 ", "保留"],
         exclude_tags=[" 跳过 "],
         limit=10,
     )
 
     mock_api_client.get_items_by_tag.assert_awaited_once_with(
-        "AI分析",
+        "AI/条目分析",
         limit=100,
         start=0,
     )
@@ -106,26 +106,26 @@ async def test_search_by_tag_normalizes_and_respects_limit(
     mock_api_client.get_items_by_tag.return_value = [
         {
             "key": "K1",
-            "data": {"key": "K1", "title": "One", "tags": [{"tag": "AI分析"}]},
+            "data": {"key": "K1", "title": "One", "tags": [{"tag": "AI/条目分析"}]},
         },
         {
             "key": "K2",
-            "data": {"key": "K2", "title": "Two", "tags": [{"tag": "AI分析"}]},
+            "data": {"key": "K2", "title": "Two", "tags": [{"tag": "AI/条目分析"}]},
         },
         {
             "key": "K3",
-            "data": {"key": "K3", "title": "Three", "tags": [{"tag": "AI分析"}]},
+            "data": {"key": "K3", "title": "Three", "tags": [{"tag": "AI/条目分析"}]},
         },
     ]
 
     results = await search_service.search_by_tag(
-        tags=["AI分析", "AI分析", " "],
+        tags=["AI/条目分析", "AI/条目分析", " "],
         exclude_tags=None,
         limit=2,
     )
 
     mock_api_client.get_items_by_tag.assert_awaited_once_with(
-        "AI分析",
+        "AI/条目分析",
         limit=100,
         start=0,
     )
@@ -145,3 +145,4 @@ async def test_search_by_tag_returns_empty_when_include_tags_invalid(
 
     assert results == []
     mock_api_client.get_items_by_tag.assert_not_called()
+

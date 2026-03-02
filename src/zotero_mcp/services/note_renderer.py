@@ -66,7 +66,7 @@ class StructuredNoteRenderer:
                 "font-weight: bold; "
                 "color: black;"
             )
-            html_parts.append(f'<h1 style="{h1_style}">AI分析 - {title}</h1>')
+            html_parts.append(f'<h1 style="{h1_style}">AI条目分析 - {title}</h1>')
 
         # Render each block
         for block in blocks:
