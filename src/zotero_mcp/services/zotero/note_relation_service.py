@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 from datetime import UTC, datetime
 import html
@@ -23,6 +24,9 @@ _DEFAULT_SCAN_BATCH_SIZE = 50
 _DEFAULT_SCORE_BATCH_SIZE = 10
 _DEFAULT_TOP_K = 5
 _DEFAULT_MAX_LLM_CANDIDATES = 200
+_DEFAULT_SEMANTIC_POOL = 300
+_DEFAULT_SEMANTIC_QUERY_CHARS = 1800
+_DEFAULT_NOTE_FETCH_CONCURRENCY = 8
 
 
 @dataclass
@@ -40,9 +44,25 @@ class NoteRelationService:
         self.data_service = data_service or DataAccessService()
         self._deepseek_client: Any | None = None
         self._deepseek_model = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+        self._use_semantic_candidates = self._read_bool_env(
+            "NOTE_RELATION_USE_SEMANTIC_CANDIDATES",
+            True,
+        )
+        self._semantic_pool = self._read_positive_int_env(
+            "NOTE_RELATION_SEMANTIC_POOL",
+            _DEFAULT_SEMANTIC_POOL,
+        )
+        self._semantic_query_chars = self._read_positive_int_env(
+            "NOTE_RELATION_SEMANTIC_QUERY_CHARS",
+            _DEFAULT_SEMANTIC_QUERY_CHARS,
+        )
         self._max_llm_candidates = self._read_positive_int_env(
             "NOTE_RELATION_MAX_LLM_CANDIDATES",
             _DEFAULT_MAX_LLM_CANDIDATES,
+        )
+        self._note_fetch_concurrency = self._read_positive_int_env(
+            "NOTE_RELATION_NOTE_FETCH_CONCURRENCY",
+            _DEFAULT_NOTE_FETCH_CONCURRENCY,
         )
 
     async def relate_note(
@@ -76,9 +96,12 @@ class NoteRelationService:
                 await self._resolve_collection_by_name(collection_query)
             )
 
-        candidates, scanned_items, scanned_notes = await self._collect_candidates(
-            target_note_key=target_note_key,
-            collection_key=resolved_collection_key,
+        candidates, scanned_items, scanned_notes, candidate_source = (
+            await self._collect_candidates(
+                target_note_key=target_note_key,
+                target_note_text=target_note_text,
+                collection_key=resolved_collection_key,
+            )
         )
         candidate_total_raw = len(candidates)
         candidates_for_scoring = self._prefilter_candidates(
@@ -150,6 +173,7 @@ class NoteRelationService:
             "collection_name": resolved_collection_name,
             "dry_run": dry_run,
             "bidirectional": bidirectional,
+            "candidate_source": candidate_source,
             "scanned_items": scanned_items,
             "scanned_notes": scanned_notes,
             "candidate_total": len(scored_candidates),
@@ -168,10 +192,10 @@ class NoteRelationService:
         self,
         *,
         target_note_key: str,
+        target_note_text: str,
         collection_key: str | None,
-    ) -> tuple[list[_CandidateNote], int, int]:
+    ) -> tuple[list[_CandidateNote], int, int, str]:
         scanned_items = 0
-        scanned_notes = 0
         candidates: list[_CandidateNote] = []
         seen_note_keys: set[str] = set()
         allowed_parent_keys: set[str] | None = None
@@ -182,8 +206,29 @@ class NoteRelationService:
                 await self._collect_collection_parent_titles(collection_key)
             )
             allowed_parent_keys = set(parent_title_map)
-        else:
-            observed_parent_keys: set[str] = set()
+
+        if self._use_semantic_candidates:
+            semantic_candidates = await self._collect_candidates_from_semantic(
+                target_note_key=target_note_key,
+                target_note_text=target_note_text,
+                allowed_parent_keys=allowed_parent_keys,
+                parent_title_map=parent_title_map,
+            )
+            if semantic_candidates:
+                semantic_scanned_items = (
+                    scanned_items
+                    if collection_key
+                    else len({c.parent_item_key for c in semantic_candidates})
+                )
+                return (
+                    semantic_candidates,
+                    semantic_scanned_items,
+                    len(semantic_candidates),
+                    "semantic",
+                )
+
+        scanned_notes = 0
+        observed_parent_keys: set[str] = set()
 
         async def fetch_note_page(offset: int, limit: int) -> list[Any]:
             return await self.data_service.get_all_items(
@@ -219,8 +264,7 @@ class NoteRelationService:
                     and parent_key not in allowed_parent_keys
                 ):
                     continue
-                if not collection_key:
-                    observed_parent_keys.add(parent_key)
+                observed_parent_keys.add(parent_key)
 
                 note_text = self._clean_note_html(str(data.get("note", ""))).strip()
                 if not note_text:
@@ -239,7 +283,160 @@ class NoteRelationService:
         if not collection_key:
             scanned_items = len(observed_parent_keys)
 
-        return candidates, scanned_items, scanned_notes
+        return candidates, scanned_items, scanned_notes, "scan"
+
+    async def _collect_candidates_from_semantic(
+        self,
+        *,
+        target_note_key: str,
+        target_note_text: str,
+        allowed_parent_keys: set[str] | None,
+        parent_title_map: dict[str, str],
+    ) -> list[_CandidateNote]:
+        query_text = self._truncate(
+            target_note_text,
+            self._semantic_query_chars,
+        ).strip()
+        if not query_text:
+            return []
+
+        try:
+            from zotero_mcp.services.zotero.semantic_search import (
+                create_semantic_search,
+            )
+        except Exception:
+            return []
+
+        loop = asyncio.get_running_loop()
+        try:
+            payload = await loop.run_in_executor(
+                None,
+                lambda: create_semantic_search().search(
+                    query=query_text,
+                    limit=self._semantic_pool,
+                    filters={"fragment_type": "note"},
+                ),
+            )
+        except Exception as exc:
+            logger.info(
+                "Semantic candidate retrieval failed, fallback to scan: %s",
+                exc,
+            )
+            return []
+
+        semantic_results = (
+            payload.get("results", []) if isinstance(payload, dict) else []
+        )
+        if not isinstance(semantic_results, list) or not semantic_results:
+            return []
+
+        best_by_note: dict[str, dict[str, Any]] = {}
+        for result in semantic_results:
+            if not isinstance(result, dict):
+                continue
+            metadata = result.get("metadata", {})
+            if not isinstance(metadata, dict):
+                continue
+            if str(metadata.get("fragment_type", "")).strip().lower() != "note":
+                continue
+
+            note_key = str(metadata.get("source_key", "")).strip().upper()
+            if not note_key or note_key == target_note_key:
+                continue
+
+            parent_key = str(metadata.get("item_key", "")).strip().upper()
+            if not parent_key:
+                continue
+            if (
+                allowed_parent_keys is not None
+                and parent_key not in allowed_parent_keys
+            ):
+                continue
+
+            try:
+                similarity_score = float(result.get("similarity_score", 0.0))
+            except (TypeError, ValueError):
+                similarity_score = 0.0
+
+            normalized = {
+                "note_key": note_key,
+                "parent_item_key": parent_key,
+                "parent_item_title": (
+                    parent_title_map.get(parent_key)
+                    or str(metadata.get("title", "")).strip()
+                ),
+                "fallback_text": self._clean_note_html(
+                    str(result.get("matched_text", ""))
+                ).strip(),
+                "score": similarity_score,
+            }
+
+            existing = best_by_note.get(note_key)
+            if existing is None or similarity_score > float(
+                existing.get("score", 0.0)
+            ):
+                best_by_note[note_key] = normalized
+
+        if not best_by_note:
+            return []
+
+        ranked = sorted(
+            best_by_note.values(),
+            key=lambda row: (
+                float(row.get("score", 0.0)),
+                str(row.get("note_key", "")),
+            ),
+            reverse=True,
+        )
+
+        note_text_map = await self._fetch_note_texts_for_candidates(ranked)
+
+        candidates: list[_CandidateNote] = []
+        for row in ranked:
+            note_key = str(row.get("note_key", ""))
+            note_text = note_text_map.get(note_key, "").strip()
+            if not note_text:
+                note_text = str(row.get("fallback_text", "")).strip()
+            if not note_text:
+                continue
+            candidates.append(
+                _CandidateNote(
+                    note_key=note_key,
+                    parent_item_key=str(row.get("parent_item_key", "")),
+                    parent_item_title=str(row.get("parent_item_title", "")),
+                    note_text=note_text,
+                )
+            )
+
+        return candidates
+
+    async def _fetch_note_texts_for_candidates(
+        self, ranked_rows: list[dict[str, Any]]
+    ) -> dict[str, str]:
+        note_text_map: dict[str, str] = {}
+        semaphore = asyncio.Semaphore(self._note_fetch_concurrency)
+
+        async def fetch_one(row: dict[str, Any]) -> tuple[str, str]:
+            note_key = str(row.get("note_key", "")).strip().upper()
+            fallback = str(row.get("fallback_text", "")).strip()
+            if not note_key:
+                return "", ""
+            async with semaphore:
+                try:
+                    item = await self.data_service.get_item(note_key)
+                except Exception:
+                    return note_key, fallback
+            data = item.get("data", item) if isinstance(item, dict) else {}
+            note_html = str(data.get("note", ""))
+            note_text = self._clean_note_html(note_html).strip()
+            return note_key, note_text or fallback
+
+        tasks = [fetch_one(row) for row in ranked_rows]
+        results = await asyncio.gather(*tasks)
+        for note_key, note_text in results:
+            if note_key and note_text:
+                note_text_map[note_key] = note_text
+        return note_text_map
 
     async def _collect_collection_parent_titles(
         self, collection_key: str
@@ -337,6 +534,17 @@ class NoteRelationService:
         except ValueError:
             return default
         return value if value >= 1 else default
+
+    @staticmethod
+    def _read_bool_env(name: str, default: bool) -> bool:
+        raw = os.getenv(name, "").strip().lower()
+        if not raw:
+            return default
+        if raw in {"1", "true", "yes", "on"}:
+            return True
+        if raw in {"0", "false", "no", "off"}:
+            return False
+        return default
 
     async def _score_candidates_with_deepseek(
         self,

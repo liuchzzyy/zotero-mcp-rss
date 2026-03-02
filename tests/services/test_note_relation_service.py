@@ -6,7 +6,15 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from zotero_mcp.services.zotero.note_relation_service import NoteRelationService
+from zotero_mcp.services.zotero.note_relation_service import (
+    NoteRelationService,
+    _CandidateNote,
+)
+
+
+@pytest.fixture(autouse=True)
+def _disable_semantic_candidates_by_default(monkeypatch):
+    monkeypatch.setenv("NOTE_RELATION_USE_SEMANTIC_CANDIDATES", "0")
 
 
 @pytest.mark.asyncio
@@ -348,3 +356,51 @@ async def test_relate_note_prefilters_candidates_before_llm(monkeypatch):
     assert len(score_call["candidates"]) == 2
     assert result["candidate_total_raw"] == 3
     assert result["candidate_scored"] == 2
+
+
+@pytest.mark.asyncio
+async def test_relate_note_uses_semantic_candidates_when_enabled(monkeypatch):
+    monkeypatch.setenv("NOTE_RELATION_USE_SEMANTIC_CANDIDATES", "1")
+
+    data_service = MagicMock()
+    data_service.api_client = SimpleNamespace(library_type="user", library_id="123")
+    data_service.get_item = AsyncMock(
+        return_value={
+            "key": "TARGET01",
+            "data": {
+                "key": "TARGET01",
+                "itemType": "note",
+                "note": "<p>semantic target text</p>",
+            },
+        }
+    )
+
+    service = NoteRelationService(data_service=data_service)
+    service._collect_candidates_from_semantic = AsyncMock(  # type: ignore[method-assign]
+        return_value=[
+            _CandidateNote(
+                note_key="N1",
+                parent_item_key="I1",
+                parent_item_title="Paper A",
+                note_text="candidate from semantic",
+            )
+        ]
+    )
+    service._score_candidates_with_deepseek = AsyncMock(  # type: ignore[method-assign]
+        return_value=[
+            {
+                "note_key": "N1",
+                "parent_item_key": "I1",
+                "parent_item_title": "Paper A",
+                "relevance_score": 92.0,
+                "rating": "A",
+                "hit_reasons": ["semantic hit"],
+                "scoring": "high semantic overlap",
+            }
+        ]
+    )
+
+    result = await service.relate_note(note_key="TARGET01", dry_run=True)
+
+    assert result["candidate_source"] == "semantic"
+    data_service.get_all_items.assert_not_called()
