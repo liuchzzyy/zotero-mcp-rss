@@ -64,6 +64,19 @@ jobs:
           INPUT_COLLECTION: ${{ github.event.inputs.collection }}
           INPUT_DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
         run: |
+          trim() {
+            local value="${1:-}"
+            value="${value#"${value%%[![:space:]]*}"}"
+            value="${value%"${value##*[![:space:]]}"}"
+            printf "%s" "$value"
+          }
+
+          COLLECTION_TRIMMED="$(trim "$INPUT_COLLECTION")"
+          if [ -n "$INPUT_COLLECTION" ] && [ -z "$COLLECTION_TRIMMED" ]; then
+            echo "::error::Invalid input: collection cannot be blank/whitespace"
+            exit 2
+          fi
+
           ARGS=(--scan-limit "$INPUT_SCAN_LIMIT")
           if [ "$INPUT_ALL" = "true" ]; then
             ARGS+=(--all)
@@ -71,8 +84,8 @@ jobs:
             ARGS+=(--treated-limit "$INPUT_TREATED_LIMIT")
           fi
 
-          if [ -n "$INPUT_COLLECTION" ]; then
-            ARGS+=(--collection "$INPUT_COLLECTION")
+          if [ -n "$COLLECTION_TRIMMED" ]; then
+            ARGS+=(--collection "$COLLECTION_TRIMMED")
           fi
           if [ "$INPUT_DRY_RUN" = "true" ]; then
             ARGS+=(--dry-run)
@@ -126,6 +139,7 @@ jobs:
               "Duplicates found": str(payload.get("duplicates_found", 0)),
               "Deleted": str(payload.get("duplicates_removed", 0)),
               "Cross-folder copies (skipped)": str(payload.get("cross_folder_copies", 0)),
+              "Scope-guard skipped": str(payload.get("scope_guard_skipped", 0)),
           }
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
               f.write("json=" + json.dumps(out, ensure_ascii=False) + "\n")

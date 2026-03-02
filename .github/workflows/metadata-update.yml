@@ -77,23 +77,48 @@ jobs:
           INPUT_INCLUDE_UNFILED: ${{ github.event.inputs.include_unfiled || 'true' }}
           INPUT_DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
         run: |
+          trim() {
+            local value="${1:-}"
+            value="${value#"${value%%[![:space:]]*}"}"
+            value="${value%"${value##*[![:space:]]}"}"
+            printf "%s" "$value"
+          }
+
+          COLLECTION_TRIMMED="$(trim "$INPUT_COLLECTION")"
+          ITEM_KEY_TRIMMED="$(trim "$INPUT_ITEM_KEY")"
+
+          if [ -n "$INPUT_COLLECTION" ] && [ -z "$COLLECTION_TRIMMED" ]; then
+            echo "::error::Invalid input: collection cannot be blank/whitespace"
+            exit 2
+          fi
+          if [ -n "$ITEM_KEY_TRIMMED" ] && [ "$INPUT_ALL" = "true" ]; then
+            echo "::error::Invalid input: item_key cannot be combined with all=true"
+            exit 2
+          fi
+          if [ -n "$ITEM_KEY_TRIMMED" ] && [ -n "$COLLECTION_TRIMMED" ]; then
+            echo "::error::Invalid input: item_key cannot be combined with collection"
+            exit 2
+          fi
+
           ARGS=()
-          if [ -n "$INPUT_COLLECTION" ]; then
-            ARGS+=(--collection "$INPUT_COLLECTION")
-          fi
-          if [ -n "$INPUT_ITEM_KEY" ]; then
-            ARGS+=(--item-key "$INPUT_ITEM_KEY")
-          fi
-          ARGS+=(--scan-limit "$INPUT_SCAN_LIMIT")
-          if [ "$INPUT_ALL" = "true" ]; then
-            ARGS+=(--all)
+
+          if [ -n "$ITEM_KEY_TRIMMED" ]; then
+            ARGS+=(--item-key "$ITEM_KEY_TRIMMED")
           else
-            ARGS+=(--treated-limit "$INPUT_TREATED_LIMIT")
-          fi
-          if [ "$INPUT_INCLUDE_UNFILED" = "true" ]; then
-            ARGS+=(--include-unfiled)
-          else
-            ARGS+=(--no-include-unfiled)
+            if [ -n "$COLLECTION_TRIMMED" ]; then
+              ARGS+=(--collection "$COLLECTION_TRIMMED")
+            fi
+            ARGS+=(--scan-limit "$INPUT_SCAN_LIMIT")
+            if [ "$INPUT_ALL" = "true" ]; then
+              ARGS+=(--all)
+            else
+              ARGS+=(--treated-limit "$INPUT_TREATED_LIMIT")
+            fi
+            if [ "$INPUT_INCLUDE_UNFILED" = "true" ]; then
+              ARGS+=(--include-unfiled)
+            else
+              ARGS+=(--no-include-unfiled)
+            fi
           fi
 
           if [ "$INPUT_DRY_RUN" = "true" ]; then
