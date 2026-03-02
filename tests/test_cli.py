@@ -102,6 +102,7 @@ def test_tags_subcommands_are_exposed():
     for subcommand in [
         "list",
         "add",
+        "set-status",
         "search",
         "delete",
         "purge",
@@ -190,6 +191,7 @@ def test_dry_run_defaults_are_disabled():
         ["workflow", "metadata-update"],
         ["workflow", "deduplicate"],
         ["items", "delete-empty"],
+        ["tags", "set-status", "--item-key", "ABC123", "--status", "read"],
         ["tags", "delete", "--item-key", "ABC123", "--all"],
         ["tags", "purge", "--tags", "AI分析"],
         ["tags", "rename", "--old-name", "old", "--new-name", "new"],
@@ -253,6 +255,16 @@ def test_tags_delete_accepts_all_mode():
     assert args.all is True
 
 
+def test_tags_set_status_accepts_status_value():
+    parser = build_parser()
+    args = parser.parse_args(
+        ["tags", "set-status", "--item-key", "ABC123", "--status", "reading"]
+    )
+    assert args.subcommand == "set-status"
+    assert args.item_key == "ABC123"
+    assert args.status == "reading"
+
+
 def test_tags_delete_accepts_specific_tags():
     parser = build_parser()
     args = parser.parse_args(
@@ -261,6 +273,96 @@ def test_tags_delete_accepts_specific_tags():
     assert args.subcommand == "delete"
     assert args.all is False
     assert args.tags == ["t1", "t2"]
+
+
+def test_tags_set_status_replaces_existing_status_tags(monkeypatch):
+    from zotero_mcp.cli_app.commands import tags
+
+    class _FakeDataService:
+        def __init__(self) -> None:
+            self.get_item_key: str | None = None
+            self.updated_item: dict | None = None
+
+        async def get_item(self, item_key: str) -> dict:
+            self.get_item_key = item_key
+            return {
+                "key": item_key,
+                "data": {
+                    "tags": [
+                        {"tag": "status/new"},
+                        {"tag": "focus/prep/synth"},
+                        {"tag": "status/todo"},
+                    ]
+                },
+            }
+
+        async def update_item(self, item: dict) -> dict:
+            self.updated_item = item
+            return {"ok": True}
+
+    fake = _FakeDataService()
+
+    monkeypatch.setattr(tags, "load_config", lambda: None)
+    monkeypatch.setattr(tags, "emit", lambda *_args, **_kwargs: None)
+
+    import zotero_mcp.services.data_access as data_access_module
+
+    monkeypatch.setattr(data_access_module, "DataAccessService", lambda: fake)
+
+    args = argparse.Namespace(
+        subcommand="set-status",
+        item_key="abc123",
+        status="reading",
+        dry_run=False,
+        output="json",
+    )
+    exit_code = tags.run(args)
+
+    assert exit_code == 0
+    assert fake.get_item_key == "ABC123"
+    assert fake.updated_item is not None
+    assert fake.updated_item["data"]["tags"] == [
+        {"tag": "focus/prep/synth"},
+        {"tag": "status/reading"},
+    ]
+
+
+def test_tags_set_status_returns_error_for_invalid_status(monkeypatch):
+    from zotero_mcp.cli_app.commands import tags
+
+    class _FakeDataService:
+        async def get_item(self, item_key: str) -> dict:
+            return {"key": item_key, "data": {"tags": []}}
+
+        async def update_item(self, item: dict) -> dict:
+            return {"ok": True}
+
+    fake = _FakeDataService()
+    captured_payload: dict[str, object] = {}
+
+    monkeypatch.setattr(tags, "load_config", lambda: None)
+
+    def _capture_emit(_args, payload):
+        captured_payload.clear()
+        captured_payload.update(payload)
+
+    monkeypatch.setattr(tags, "emit", _capture_emit)
+
+    import zotero_mcp.services.data_access as data_access_module
+
+    monkeypatch.setattr(data_access_module, "DataAccessService", lambda: fake)
+
+    args = argparse.Namespace(
+        subcommand="set-status",
+        item_key="ABC123",
+        status="invalid",
+        dry_run=False,
+        output="json",
+    )
+    exit_code = tags.run(args)
+
+    assert exit_code == 1
+    assert "Invalid status 'invalid'" in str(captured_payload.get("error"))
 
 
 def test_tags_purge_supports_collection_name():

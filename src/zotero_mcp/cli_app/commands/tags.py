@@ -17,6 +17,18 @@ from zotero_mcp.utils.formatting.tags import (
     to_tag_objects,
 )
 
+_STATUS_VALUES: tuple[str, ...] = (
+    "new",
+    "reading",
+    "read",
+    "todo",
+    "cited",
+    "skip",
+    "archive",
+)
+_STATUS_PREFIX = "status/"
+_VALID_STATUS_TAGS = {f"{_STATUS_PREFIX}{value}" for value in _STATUS_VALUES}
+
 
 async def _await_handler(
     handler: Callable[[], Awaitable[dict[str, Any]]],
@@ -37,6 +49,27 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     add_cmd.add_argument("--item-key", required=True)
     add_cmd.add_argument("--tags", nargs="+", required=True)
     add_output_arg(add_cmd)
+
+    set_status_cmd = tags_sub.add_parser(
+        "set-status",
+        help="Set exclusive status tag on an item (replaces existing status/* tags)",
+    )
+    set_status_cmd.add_argument("--item-key", required=True)
+    set_status_cmd.add_argument(
+        "--status",
+        required=True,
+        help=(
+            "Status value or full tag. "
+            f"Allowed: {', '.join(_STATUS_VALUES)} or status/<value>"
+        ),
+    )
+    set_status_cmd.add_argument(
+        "--dry-run",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Preview changes without updating (default: disabled)",
+    )
+    add_output_arg(set_status_cmd)
 
     search = tags_sub.add_parser("search", help="Search items by tags")
     search.add_argument("--tags", nargs="+", required=True)
@@ -124,6 +157,18 @@ def _exit_code(payload: Any) -> int:
     return 0
 
 
+def _normalize_status_tag(raw_status: str) -> str | None:
+    candidate = str(raw_status).strip().lower()
+    if not candidate:
+        return None
+
+    if candidate.startswith(_STATUS_PREFIX):
+        return candidate if candidate in _VALID_STATUS_TAGS else None
+
+    tag = f"{_STATUS_PREFIX}{candidate}"
+    return tag if tag in _VALID_STATUS_TAGS else None
+
+
 def run(args: argparse.Namespace) -> int:
     load_config()
 
@@ -154,6 +199,46 @@ def run(args: argparse.Namespace) -> int:
             item_key=normalize_item_key(args.item_key),
             tags=normalized_tags,
         )
+
+    async def _set_status() -> dict[str, Any]:
+        target_status_tag = _normalize_status_tag(args.status)
+        if target_status_tag is None:
+            allowed = ", ".join(_STATUS_VALUES)
+            return {
+                "error": (
+                    f"Invalid status '{args.status}'. "
+                    f"Allowed values: {allowed} or status/<value>"
+                )
+            }
+
+        item_key = normalize_item_key(args.item_key)
+        item = await data_service.get_item(item_key)
+        item_data = item.get("data", {})
+        existing_tags = normalize_tag_names(item_data.get("tags", []))
+        removed_status_tags = [
+            tag for tag in existing_tags if tag.startswith(_STATUS_PREFIX)
+        ]
+        kept_non_status_tags = [
+            tag for tag in existing_tags if not tag.startswith(_STATUS_PREFIX)
+        ]
+        updated_tags = normalize_input_tags([*kept_non_status_tags, target_status_tag])
+        changed = normalize_input_tags(existing_tags) != updated_tags
+
+        if changed and not args.dry_run:
+            item["data"]["tags"] = to_tag_objects(updated_tags)
+            await data_service.update_item(item)
+
+        return {
+            "item_key": item_key,
+            "dry_run": args.dry_run,
+            "status": target_status_tag,
+            "changed": changed,
+            "removed_status_count": len(removed_status_tags),
+            "removed_status_tags": sorted(set(removed_status_tags)),
+            "total_before": len(existing_tags),
+            "total_after": len(updated_tags),
+            "tags": updated_tags,
+        }
 
     async def _search_tags() -> dict[str, Any]:
         include_tags = normalize_input_tags(args.tags)
@@ -299,6 +384,7 @@ def run(args: argparse.Namespace) -> int:
     handlers: dict[str, Callable[[], Awaitable[dict[str, Any]]]] = {
         "list": _list_tags,
         "add": _add_tags,
+        "set-status": _set_status,
         "search": _search_tags,
         "delete": _delete_tags,
         "purge": _purge_tags,
